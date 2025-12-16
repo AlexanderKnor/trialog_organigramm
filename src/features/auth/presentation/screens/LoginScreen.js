@@ -138,7 +138,7 @@ export class LoginScreen {
     }
   }
 
-#showRegisterForm() {
+  #showRegisterForm() {
     // Smooth transition to registration form
     const loginCard = this.#element.querySelector('.login-card');
 
@@ -150,93 +150,93 @@ export class LoginScreen {
     setTimeout(() => {
       clearElement(loginCard);
 
-    loginCard.appendChild(
-      createElement('div', {}, [
-        // Logo
-        createElement('div', { className: 'login-logo' }, [
-          createElement('div', { className: 'logo-company' }, [
-            createElement('span', { className: 'logo-text' }, ['Trialog']),
-            createElement('span', { className: 'logo-company-type' }, ['Makler Gruppe']),
-          ]),
-          createElement('div', { className: 'logo-action-label' }, ['Registrierung']),
-        ]),
-
-        // Form
-        createElement('form', {
-          className: 'login-form',
-          onsubmit: (e) => this.#handleRegister(e),
-        }, [
-          // Email input
-          createElement('div', { className: 'form-group' }, [
-            createElement('label', { className: 'form-label', for: 'reg-email' }, ['E-Mail']),
-            createElement('input', {
-              className: 'form-input',
-              type: 'email',
-              id: 'reg-email',
-              name: 'email',
-              required: true,
-              autocomplete: 'email',
-              placeholder: 'ihre.email@trialog.de',
-              title: '',
-            }),
+      loginCard.appendChild(
+        createElement('div', {}, [
+          // Logo
+          createElement('div', { className: 'login-logo' }, [
+            createElement('div', { className: 'logo-company' }, [
+              createElement('span', { className: 'logo-text' }, ['Trialog']),
+              createElement('span', { className: 'logo-company-type' }, ['Makler Gruppe']),
+            ]),
+            createElement('div', { className: 'logo-action-label' }, ['Registrierung']),
           ]),
 
-          // Password input
-          createElement('div', { className: 'form-group' }, [
-            createElement('label', { className: 'form-label', for: 'reg-password' }, ['Passwort']),
-            createElement('input', {
-              className: 'form-input',
-              type: 'password',
-              id: 'reg-password',
-              name: 'password',
-              required: true,
-              autocomplete: 'new-password',
-              placeholder: 'Min. 8 Zeichen, Groß/Klein, Zahl, Sonderzeichen',
-              title: '',
-            }),
+          // Form
+          createElement('form', {
+            className: 'login-form',
+            onsubmit: (e) => this.#handleRegister(e),
+          }, [
+            // Email input
+            createElement('div', { className: 'form-group' }, [
+              createElement('label', { className: 'form-label', for: 'reg-email' }, ['E-Mail']),
+              createElement('input', {
+                className: 'form-input',
+                type: 'email',
+                id: 'reg-email',
+                name: 'email',
+                required: true,
+                autocomplete: 'email',
+                placeholder: 'ihre.email@trialog.de',
+                title: '',
+              }),
+            ]),
+
+            // Password input
+            createElement('div', { className: 'form-group' }, [
+              createElement('label', { className: 'form-label', for: 'reg-password' }, ['Passwort']),
+              createElement('input', {
+                className: 'form-input',
+                type: 'password',
+                id: 'reg-password',
+                name: 'password',
+                required: true,
+                autocomplete: 'new-password',
+                placeholder: 'Passwort wählen',
+                title: '',
+              }),
+            ]),
+
+            // Password confirmation input
+            createElement('div', { className: 'form-group' }, [
+              createElement('label', { className: 'form-label', for: 'reg-password-confirm' }, ['Passwort wiederholen']),
+              createElement('input', {
+                className: 'form-input',
+                type: 'password',
+                id: 'reg-password-confirm',
+                name: 'passwordConfirm',
+                required: true,
+                autocomplete: 'new-password',
+                placeholder: 'Passwort bestätigen',
+                title: '',
+              }),
+            ]),
+
+            // Error message
+            createElement('div', { className: 'form-error', style: 'display: none;' }),
+
+            // Submit button
+            createElement('button', {
+              className: 'btn btn-primary btn-block',
+              type: 'submit',
+            }, ['Registrieren']),
           ]),
 
-          // Password confirmation input
-          createElement('div', { className: 'form-group' }, [
-            createElement('label', { className: 'form-label', for: 'reg-password-confirm' }, ['Passwort wiederholen']),
-            createElement('input', {
-              className: 'form-input',
-              type: 'password',
-              id: 'reg-password-confirm',
-              name: 'passwordConfirm',
-              required: true,
-              autocomplete: 'new-password',
-              placeholder: 'Passwort bestätigen',
-              title: '',
-            }),
+          // Footer
+          createElement('div', { className: 'login-footer' }, [
+            createElement('p', { className: 'login-footer-text' }, [
+              'Bereits registriert? ',
+              createElement('a', {
+                href: '#',
+                className: 'login-link',
+                onclick: (e) => {
+                  e.preventDefault();
+                  this.#showLoginForm();
+                },
+              }, ['Anmelden']),
+            ]),
           ]),
-
-          // Error message
-          createElement('div', { className: 'form-error', style: 'display: none;' }),
-
-          // Submit button
-          createElement('button', {
-            className: 'btn btn-primary btn-block',
-            type: 'submit',
-          }, ['Registrieren']),
-        ]),
-
-        // Footer
-        createElement('div', { className: 'login-footer' }, [
-          createElement('p', { className: 'login-footer-text' }, [
-            'Bereits registriert? ',
-            createElement('a', {
-              href: '#',
-              className: 'login-link',
-              onclick: (e) => {
-                e.preventDefault();
-                this.#showLoginForm();
-              },
-            }, ['Anmelden']),
-          ]),
-        ]),
-      ])
-    );
+        ])
+      );
 
       // Fade-in new content
       const newLoginCard = this.#element.querySelector('.login-card');
@@ -257,7 +257,7 @@ export class LoginScreen {
     }, 250);
   }
 
-#showLoginForm() {
+  #showLoginForm() {
     // Smooth transition to login form
     const loginCard = this.#element.querySelector('.login-card');
 
@@ -288,7 +288,7 @@ export class LoginScreen {
     }, 250);
   }
 
-async #handleRegister(e) {
+  async #handleRegister(e) {
     e.preventDefault();
 
     const form = e.target;
