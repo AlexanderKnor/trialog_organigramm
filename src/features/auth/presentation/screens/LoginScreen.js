@@ -220,18 +220,25 @@ export class LoginScreen {
     );
 
       // Fade-in new content
+      const newLoginCard = this.#element.querySelector('.login-card');
+
+      // Disable default animation
+      newLoginCard.style.animation = 'none';
+
       requestAnimationFrame(() => {
-        loginCard.style.opacity = '0';
-        loginCard.style.transform = 'translateX(20px)';
+        newLoginCard.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+        newLoginCard.style.opacity = '0';
+        newLoginCard.style.transform = 'translateX(20px)';
+
         requestAnimationFrame(() => {
-          loginCard.style.opacity = '1';
-          loginCard.style.transform = 'translateX(0)';
+          newLoginCard.style.opacity = '1';
+          newLoginCard.style.transform = 'translateX(0)';
         });
       });
     }, 250);
   }
 
-  #showLoginForm() {
+#showLoginForm() {
     // Smooth transition to login form
     const loginCard = this.#element.querySelector('.login-card');
 
@@ -243,13 +250,20 @@ export class LoginScreen {
     setTimeout(() => {
       this.mount(); // Re-render to show login form
 
+      const newLoginCard = this.#element.querySelector('.login-card');
+
+      // Disable default animation
+      newLoginCard.style.animation = 'none';
+
       // Fade-in new content
       requestAnimationFrame(() => {
-        loginCard.style.opacity = '0';
-        loginCard.style.transform = 'translateX(-20px)';
+        newLoginCard.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+        newLoginCard.style.opacity = '0';
+        newLoginCard.style.transform = 'translateX(-20px)';
+
         requestAnimationFrame(() => {
-          loginCard.style.opacity = '1';
-          loginCard.style.transform = 'translateX(0)';
+          newLoginCard.style.opacity = '1';
+          newLoginCard.style.transform = 'translateX(0)';
         });
       });
     }, 250);
