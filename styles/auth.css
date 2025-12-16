@@ -56,25 +56,44 @@
   margin-bottom: var(--spacing-8);
 }
 
+.login-logo .logo-company {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: var(--spacing-3);
+}
+
 .login-logo .logo-text {
-  display: block;
   font-family: var(--font-family-primary);
-  font-size: 2.5rem;
+  font-size: 2.75rem;
   font-weight: 700;
   background: linear-gradient(135deg, var(--color-primary) 0%, #2a5298 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  letter-spacing: 0.02em;
-  margin-bottom: var(--spacing-2);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.login-logo .logo-company-type {
+  font-family: var(--font-family-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
 }
 
 .login-logo .logo-subtext {
   display: block;
-  font-size: 1rem;
-  color: #64748b;
+  font-size: 0.9375rem;
+  color: #94a3b8;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  margin-top: var(--spacing-1);
 }
 
 /* Form */

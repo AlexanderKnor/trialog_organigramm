@@ -20,12 +20,12 @@
 
 .organigramm-view {
   width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   background:
     radial-gradient(circle at 20% 80%, rgba(16, 39, 76, 0.015) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(42, 82, 152, 0.015) 0%, transparent 50%),
@@ -36,34 +36,43 @@
 
 /* Premium scrollbar styling */
 .organigramm-view::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 .organigramm-view::-webkit-scrollbar-track {
   background: rgba(241, 245, 249, 0.5);
-  border-radius: 4px;
+  border-radius: 5px;
+  margin: 4px;
 }
 
 .organigramm-view::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(16, 39, 76, 0.2) 0%, rgba(16, 39, 76, 0.15) 100%);
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: linear-gradient(135deg, rgba(16, 39, 76, 0.22) 0%, rgba(16, 39, 76, 0.18) 100%);
+  border-radius: 5px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
   transition: background 0.2s ease;
 }
 
 .organigramm-view::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(16, 39, 76, 0.3) 0%, rgba(16, 39, 76, 0.25) 100%);
+  background: linear-gradient(135deg, rgba(16, 39, 76, 0.35) 0%, rgba(16, 39, 76, 0.28) 100%);
+}
+
+.organigramm-view::-webkit-scrollbar-corner {
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 5px;
 }
 
 .organigramm-container {
   width: 100%;
   min-height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 48px 60px 120px;
+  justify-content: flex-start;
+  padding: 48px 60px 48px;
   position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Subtle decorative corner accents */
@@ -103,6 +112,37 @@
   align-items: center;
   position: relative;
   z-index: 1;
+  min-width: fit-content;
+}
+
+/* Scroll hint indicator - shows when content is wider than viewport */
+.organigramm-view::after {
+  content: '';
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 100px;
+  background: linear-gradient(90deg, transparent 0%, rgba(16, 39, 76, 0.06) 100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 100;
+}
+
+.organigramm-view[data-scroll-hint="true"]::after {
+  opacity: 1;
+  animation: pulseScrollHint 2s ease-in-out infinite;
+}
+
+@keyframes pulseScrollHint {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 /* Top level container for Geschäftsführer + Trialog */
@@ -1147,7 +1187,59 @@
 
 @media (max-width: 768px) {
   .organigramm-container {
-    padding: 24px 16px;
+    padding: 24px 20px;
+    min-width: fit-content;
+  }
+
+  :root {
+    --org-card-gap: 18px;
+    --org-line-gap: 14px;
+  }
+
+  .org-card {
+    width: 180px;
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .org-card.root {
+    width: 240px;
+    padding: 18px;
+  }
+
+  .org-card.root .card-name {
+    font-size: 14px;
+  }
+
+  .org-card.root .revenue-amount-root {
+    font-size: 15px;
+  }
+
+  .card-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+
+  .card-avatar.level-0 {
+    width: 38px;
+    height: 38px;
+  }
+
+  .card-name {
+    font-size: 12.5px;
+  }
+
+  .card-actions {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .organigramm-container {
+    padding: 20px 16px;
+    min-width: fit-content;
   }
 
   :root {
@@ -1155,13 +1247,8 @@
     --org-line-gap: 12px;
   }
 
-  .org-children {
-    flex-wrap: wrap;
-    gap: 20px;
-  }
-
   .org-card {
-    width: 160px;
+    width: 170px;
     padding: 12px;
     border-radius: 12px;
   }
@@ -1175,58 +1262,26 @@
     font-size: 13px;
   }
 
-  .org-card.root .revenue-amount-root {
-    font-size: 14px;
-  }
-
   .card-avatar {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: 9px;
     font-size: 11px;
   }
 
   .card-avatar.level-0 {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
   }
 
   .card-name {
-    font-size: 12px;
+    font-size: 11.5px;
   }
 
-  .card-actions {
-    opacity: 1;
-  }
-
-  /* Simplify connectors on mobile */
-  .org-child::before {
-    display: none;
-  }
-}
-
-@media (max-width: 480px) {
+  /* Keep horizontal layout - enable scrolling instead of stacking */
   .org-children {
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-  }
-
-  .org-card,
-  .org-card.root {
-    width: 100%;
-    max-width: 300px;
-  }
-
-  /* Hide connector lines on small screens */
-  .org-line-down,
-  .org-line-up,
-  .org-child::before {
-    display: none;
-  }
-
-  .org-children {
-    padding-top: 20px;
+    display: flex;
+    flex-direction: row;
   }
 }
 

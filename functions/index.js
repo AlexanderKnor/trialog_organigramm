@@ -15,11 +15,11 @@ const db = getFirestore();
 
 // Admin email list (must match client-side list)
 const ADMIN_EMAILS = [
-  'marcel.liebetrau@trialog.de',
-  'marcel@trialog.de',
-  'daniel.lippa@trialog.de',
-  'daniel@trialog.de',
   'alexander-knor@outlook.de',
+  'info@trialog-makler.de',
+  'buchhaltung@trialog-makler.de',
+  'liebetrau@trialog-makler.de',
+  'lippa@trialog-makler.de',
 ];
 
 /**
@@ -117,34 +117,56 @@ exports.deleteEmployeeAccount = onCall(async (request) => {
     throw new HttpsError('permission-denied', 'Only admins can delete accounts');
   }
 
-  const { uid } = request.data;
+  const { email } = request.data;
 
-  if (!uid) {
-    throw new HttpsError('invalid-argument', 'User ID is required');
+  if (!email) {
+    throw new HttpsError('invalid-argument', 'Email is required');
   }
 
   try {
+    // Get user by email
+    let userRecord;
+    try {
+      userRecord = await auth.getUserByEmail(email);
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        console.log(`ℹ️ No Auth account found for ${email} - skipping`);
+        return {
+          success: true,
+          message: 'Kein Auth-Account gefunden (bereits gelöscht oder nie erstellt)',
+        };
+      }
+      throw error;
+    }
+
     // Check if the user is an admin (prevent admin deletion)
-    const userDoc = await db.collection('users').doc(uid).get();
+    const userDoc = await db.collection('users').doc(userRecord.uid).get();
 
     if (userDoc.exists && userDoc.data().role === 'admin') {
       throw new HttpsError('permission-denied', 'Cannot delete admin accounts');
     }
 
     // Delete the user from Firebase Auth
-    await auth.deleteUser(uid);
+    await auth.deleteUser(userRecord.uid);
 
-    // Delete the user document
-    await db.collection('users').doc(uid).delete();
+    // Delete the user document from Firestore
+    await db.collection('users').doc(userRecord.uid).delete();
 
-    console.log(`✓ Employee account deleted: ${uid}`);
+    console.log(`✓ Employee account deleted: ${email} (uid: ${userRecord.uid})`);
 
     return {
       success: true,
-      message: 'Account erfolgreich gelöscht',
+      uid: userRecord.uid,
+      email: email,
+      message: `Account erfolgreich gelöscht für ${email}`,
     };
   } catch (error) {
     console.error('Error deleting employee account:', error);
-    throw new HttpsError('internal', 'Fehler beim Löschen des Accounts');
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError('internal', 'Fehler beim Löschen des Accounts: ' + error.message);
   }
 });

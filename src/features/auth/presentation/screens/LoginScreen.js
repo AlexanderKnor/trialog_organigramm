@@ -21,7 +21,10 @@ export class LoginScreen {
     const loginCard = createElement('div', { className: 'login-card' }, [
       // Logo
       createElement('div', { className: 'login-logo' }, [
-        createElement('span', { className: 'logo-text' }, ['Trialog']),
+        createElement('div', { className: 'logo-company' }, [
+          createElement('span', { className: 'logo-text' }, ['Trialog']),
+          createElement('span', { className: 'logo-company-type' }, ['Makler Gruppe']),
+        ]),
         createElement('span', { className: 'logo-subtext' }, ['Organigramm']),
       ]),
 
@@ -134,7 +137,10 @@ export class LoginScreen {
       createElement('div', {}, [
         // Logo
         createElement('div', { className: 'login-logo' }, [
-          createElement('span', { className: 'logo-text' }, ['Trialog']),
+          createElement('div', { className: 'logo-company' }, [
+            createElement('span', { className: 'logo-text' }, ['Trialog']),
+            createElement('span', { className: 'logo-company-type' }, ['Makler Gruppe']),
+          ]),
           createElement('span', { className: 'logo-subtext' }, ['Registrierung']),
         ]),
 

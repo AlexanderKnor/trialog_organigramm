@@ -124,8 +124,30 @@ export class RevenueScreen {
     const userEmail = user?.email || 'User';
     const userRole = user?.role || '';
 
-    return createElement('header', { className: 'revenue-header' }, [
+return createElement('header', { className: 'revenue-header' }, [
       createElement('div', { className: 'header-left' }, [
+// Back to Organigramm button
+createElement('button', {
+          className: 'btn-back-to-org',
+          onclick: () => {
+            window.location.hash = '';
+          },
+          'aria-label': 'Zurück zum Organigramm',
+        }, [
+createElement('svg', {
+            width: '20',
+            height: '20',
+            viewBox: '0 0 20 20',
+            fill: 'none',
+            stroke: 'currentColor',
+            'stroke-width': '2.5',
+            'stroke-linecap': 'round',
+            'stroke-linejoin': 'round',
+            style: 'display: block;',
+          }, [
+            createElement('path', { d: 'M13 5L7 10L13 15' }),
+          ]),
+        ]),
         createElement('div', { className: titleGroupClass }, [
           createElement('h1', { className: 'header-title' }, [title]),
           createElement('span', { className: 'header-separator' }, ['·']),

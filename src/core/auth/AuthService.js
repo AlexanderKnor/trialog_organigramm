@@ -8,12 +8,11 @@ import { FIRESTORE_COLLECTIONS } from '../config/firebase.config.js';
 
 // Admin emails - these users have full access
 const ADMIN_EMAILS = [
-  'marcel.liebetrau@trialog.de',
-  'marcel@trialog.de',
-  'daniel.lippa@trialog.de',
-  'daniel@trialog.de',
   'alexander-knor@outlook.de',
-  // Add more admin emails as needed
+  'info@trialog-makler.de',
+  'buchhaltung@trialog-makler.de',
+  'liebetrau@trialog-makler.de',
+  'lippa@trialog-makler.de',
 ];
 
 export const USER_ROLES = {
@@ -246,6 +245,46 @@ export class AuthService {
         errorMessage = error.message;
       } else if (error.code === 'functions/permission-denied') {
         errorMessage = 'Keine Berechtigung';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+async deleteEmployeeAccount(email) {
+    try {
+      // Verify admin is logged in
+      if (!this.isAdmin()) {
+        throw new Error('Only admins can delete employee accounts');
+      }
+
+      // Call Cloud Function to delete account
+      const { getFunctions, httpsCallable } = await import(
+        'https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js'
+      );
+
+      const functions = getFunctions(firebaseApp.app);
+      const deleteEmployee = httpsCallable(functions, 'deleteEmployeeAccount');
+
+      const result = await deleteEmployee({ email });
+
+      console.log(`✓ Employee account deleted via Cloud Function: ${email}`);
+
+      return {
+        success: true,
+        message: result.data.message,
+      };
+    } catch (error) {
+      console.error('Failed to delete employee account:', error);
+
+      let errorMessage = 'Fehler beim Löschen des Accounts';
+      if (error.code === 'functions/permission-denied') {
+        errorMessage = 'Keine Berechtigung zum Löschen';
       } else if (error.message) {
         errorMessage = error.message;
       }

@@ -14,7 +14,7 @@ import { HierarchyNode } from '../../domain/entities/HierarchyNode.js';
 import { NODE_TYPES } from '../../domain/value-objects/NodeType.js';
 
 export class HierarchyScreen {
-  #element;
+#element;
   #container;
   #hierarchyService;
   #revenueService;
@@ -25,13 +25,17 @@ export class HierarchyScreen {
   #unsubscribeTreeListener;
   #unsubscribeRevenueListener;
   #currentTreeId;
+  #updateTimeout;
+  #isUpdating;
 
-  constructor(container, hierarchyService, revenueService = null) {
+constructor(container, hierarchyService, revenueService = null) {
     this.#container = typeof container === 'string' ? getElement(container) : container;
     this.#hierarchyService = hierarchyService;
     this.#revenueService = revenueService;
     this.#state = new HierarchyState();
     this.#currentTreeId = null;
+    this.#updateTimeout = null;
+    this.#isUpdating = false;
 
     this.#element = this.#render();
     this.#setupSubscriptions();
@@ -87,7 +91,6 @@ export class HierarchyScreen {
         createElement('button', {
           className: 'btn-logout',
           onclick: () => this.#handleLogout(),
-          title: 'Abmelden',
         }, ['Abmelden']),
       ]),
     ]);
@@ -153,17 +156,116 @@ export class HierarchyScreen {
     }
   }
 
-  async #handleNodeDelete(nodeId) {
-    const confirmed = window.confirm('Möchten Sie dieses Element wirklich löschen?');
+async #handleNodeDelete(nodeId) {
+    const tree = this.#state.currentTree;
+    if (!tree || !tree.hasNode(nodeId)) return;
+
+    const node = tree.getNode(nodeId);
+    const hasEmail = node.email && node.email.trim() !== '';
+
+    // Enhanced confirmation with data deletion warning
+    const confirmMessage = hasEmail
+      ? `⚠️ WARNUNG: Vollständige Datenlöschung\n\nSie sind dabei, "${node.name}" zu löschen.\n\nDies wird ALLE Daten permanent löschen:\n✓ Mitarbeiter-Profil\n✓ Firebase Auth Account (${node.email})\n✓ Alle Umsatz-Einträge\n✓ Alle Tracking-Events\n\nDieser Vorgang kann NICHT rückgängig gemacht werden!\n\nMöchten Sie wirklich fortfahren?`
+      : `Möchten Sie "${node.name}" wirklich löschen?\n\nHinweis: Untergeordnete Elemente werden eine Ebene nach oben verschoben.`;
+
+    const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
 
     try {
+      // Delete node from tree
       await this.#hierarchyService.removeNode(this.#currentTreeId, nodeId);
+
+      // If employee had email, delete ALL associated data
+      if (hasEmail) {
+        console.log(`🗑️ Deleting all data for employee: ${node.email}`);
+
+        // 1. Delete revenue entries
+        if (this.#revenueService) {
+          try {
+            await this.#deleteEmployeeRevenueEntries(nodeId);
+            console.log('✓ Revenue entries deleted');
+          } catch (error) {
+            console.warn('⚠ Failed to delete revenue entries:', error);
+          }
+        }
+
+        // 2. Delete tracking events for this node
+        try {
+          await this.#deleteEmployeeTrackingEvents(nodeId);
+          console.log('✓ Tracking events deleted');
+        } catch (error) {
+          console.warn('⚠ Failed to delete tracking events:', error);
+        }
+
+        // 3. Delete Firebase Auth account via Cloud Function
+        try {
+          const result = await authService.deleteEmployeeAccount(node.email);
+          if (result.success) {
+            console.log(`✓ Firebase Auth account deleted: ${node.email}`);
+          } else {
+            console.warn(`⚠ Auth deletion warning: ${result.message || result.error}`);
+          }
+        } catch (error) {
+          console.warn('⚠ Failed to delete Auth account:', error);
+          // Continue even if Auth deletion fails
+        }
+      }
+
       this.#state.deselectNode();
-      await this.#refreshTree();
+
+      // Real-time listener will handle UI update
+      console.log('✓ Employee deleted successfully');
     } catch (error) {
       console.error('Failed to delete node:', error);
       this.#state.setError(error.message);
+      alert('Fehler beim Löschen: ' + error.message);
+    }
+  }
+
+async #deleteEmployeeRevenueEntries(employeeId) {
+    try {
+      const entries = await this.#revenueService.getEntriesByEmployee(employeeId);
+
+      for (const entry of entries) {
+        await this.#revenueService.deleteEntry(entry.id);
+      }
+
+      console.log(`✓ Deleted ${entries.length} revenue entries for employee ${employeeId}`);
+    } catch (error) {
+      console.error('Failed to delete revenue entries:', error);
+      throw error;
+    }
+  }
+
+  async #deleteEmployeeTrackingEvents(nodeId) {
+    try {
+      // Import Firestore functions
+      const { collection, query, where, getDocs, deleteDoc, doc } = await import(
+        'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js'
+      );
+
+      const firestore = firebaseApp.firestore;
+
+      // Query tracking events for this node
+      const eventsQuery = query(
+        collection(firestore, 'tracking_events'),
+        where('nodeId', '==', nodeId)
+      );
+
+      const snapshot = await getDocs(eventsQuery);
+
+      // Delete all matching events
+      const deletePromises = [];
+      snapshot.forEach((docSnapshot) => {
+        deletePromises.push(deleteDoc(doc(firestore, 'tracking_events', docSnapshot.id)));
+      });
+
+      await Promise.all(deletePromises);
+
+      console.log(`✓ Deleted ${deletePromises.length} tracking events for node ${nodeId}`);
+    } catch (error) {
+      console.error('Failed to delete tracking events:', error);
+      throw error;
     }
   }
 
@@ -205,10 +307,31 @@ export class HierarchyScreen {
     const editor = new NodeEditor(null, {
       onSave: async (data) => {
         try {
+          // Create elegant loading overlay
+          const loadingOverlay = createElement('div', {
+            className: 'dialog-loading-overlay',
+            style: 'position: absolute; inset: 0; background: rgba(255, 255, 255, 0.95); display: flex; align-items: center; justify-content: center; border-radius: 24px; z-index: 1000; opacity: 0; transition: opacity 0.2s ease;'
+          }, [
+            createElement('div', {
+              className: 'loading-spinner',
+              style: 'width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.8s linear infinite;'
+            })
+          ]);
+
+          const dialogContent = dialog.querySelector('.dialog-content');
+          if (dialogContent) {
+            dialogContent.style.position = 'relative';
+            dialogContent.appendChild(loadingOverlay);
+            // Trigger fade-in
+            requestAnimationFrame(() => {
+              loadingOverlay.style.opacity = '1';
+            });
+          }
+
           if (!this.#currentTreeId) {
             const tree = await this.#hierarchyService.createTree(
               'Trialog Strukturplan',
-              'Organisationsstruktur der Trialog Maklergruppe GmbH',
+              'Organisationsstruktur der Trialog Makler Gruppe GmbH',
             );
             this.#currentTreeId = tree.id;
 
@@ -223,16 +346,53 @@ export class HierarchyScreen {
               ...data,
               type: isAddingEmployee ? NODE_TYPES.PERSON : data.type,
             };
+
+            // Email duplicate check before adding
+            if (nodeData.email && nodeData.email.trim() !== '') {
+              const emailExists = await this.#checkEmailExists(nodeData.email);
+              if (emailExists) {
+                // Remove loading overlay
+                const loadingOverlay = dialog.querySelector('.dialog-loading-overlay');
+                if (loadingOverlay) {
+                  loadingOverlay.remove();
+                }
+
+                alert(`Die E-Mail-Adresse "${nodeData.email}" wird bereits verwendet.\nBitte verwenden Sie eine andere E-Mail-Adresse.`);
+                return;
+              }
+            }
+
             await this.#hierarchyService.addNode(this.#currentTreeId, nodeData, parentId);
           }
 
-          dialog.remove();
-          await this.#refreshTree();
+          // Smooth dialog close with fade-out
+          dialog.style.transition = 'opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+          dialog.style.opacity = '0';
+          dialog.style.transform = 'scale(0.95)';
+
+          setTimeout(() => dialog.remove(), 250);
+
+          // Real-time listener will automatically handle the update (no manual refresh needed!)
+          console.log('✓ Node added - waiting for real-time update');
         } catch (error) {
           console.error('Failed to add node:', error);
+
+          // Remove loading overlay
+          const loadingOverlay = dialog.querySelector('.dialog-loading-overlay');
+          if (loadingOverlay) {
+            loadingOverlay.remove();
+          }
+
+          alert('Fehler beim Speichern: ' + error.message);
         }
       },
-      onCancel: () => dialog.remove(),
+      onCancel: () => {
+        // Smooth cancel animation
+        dialog.style.opacity = '0';
+        dialog.style.transform = 'scale(0.95)';
+        dialog.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        setTimeout(() => dialog.remove(), 200);
+      },
     });
 
     const dialogContent = createElement('div', { className: 'dialog-content' }, [
@@ -292,11 +452,11 @@ export class HierarchyScreen {
     input.click();
   }
 
-  async #refreshTree() {
+async #refreshTree(forceResubscribe = false) {
     if (!this.#currentTreeId) return;
 
-    // Unsubscribe from previous tree listener if exists
-    if (this.#unsubscribeTreeListener) {
+    // Only unsubscribe if forced or tree changed
+    if (forceResubscribe && this.#unsubscribeTreeListener) {
       this.#unsubscribeTreeListener();
       this.#unsubscribeTreeListener = null;
     }
@@ -304,21 +464,23 @@ export class HierarchyScreen {
     try {
       let tree = await this.#hierarchyService.getTree(this.#currentTreeId);
 
-      // Set up real-time listener for this tree
-      try {
-        this.#unsubscribeTreeListener = await this.#hierarchyService.subscribeToTreeUpdates(
-          this.#currentTreeId,
-          (updatedTree) => {
-            if (updatedTree) {
-              console.log('🔄 Real-time tree update received');
-              this.#handleTreeUpdate(updatedTree);
+      // Set up real-time listener ONLY if not already set up
+      if (!this.#unsubscribeTreeListener) {
+        try {
+          this.#unsubscribeTreeListener = await this.#hierarchyService.subscribeToTreeUpdates(
+            this.#currentTreeId,
+            (updatedTree) => {
+              if (updatedTree) {
+                console.log('🔄 Real-time tree update received');
+                this.#handleTreeUpdate(updatedTree);
+              }
             }
-          }
-        );
-        console.log('✓ Real-time listener active for tree:', this.#currentTreeId);
-      } catch (error) {
-        console.warn('⚠ Failed to set up real-time listener:', error);
-        // Continue without real-time sync
+          );
+          console.log('✓ Real-time listener active for tree:', this.#currentTreeId);
+        } catch (error) {
+          console.warn('⚠ Failed to set up real-time listener:', error);
+          // Continue without real-time sync
+        }
       }
 
       // Set up real-time listener for revenue entries
@@ -383,6 +545,26 @@ export class HierarchyScreen {
     }
   }
 
+async #checkEmailExists(email) {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check in current tree
+    const tree = this.#state.currentTree;
+    if (tree) {
+      const allNodes = tree.getAllNodes();
+      const existingNode = allNodes.find(node =>
+        node.email && node.email.toLowerCase().trim() === normalizedEmail
+      );
+
+      if (existingNode) {
+        console.warn(`⚠ Email already exists in node: ${existingNode.name}`);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   #createEmployeeSubtree(fullTree, employeeNodeId) {
     // For employees: show tree starting from their node
     // We'll pass the filtered root to OrganigrammView via a custom property
@@ -395,30 +577,50 @@ export class HierarchyScreen {
     return fullTree;
   }
 
-  async #handleTreeUpdate(updatedTree) {
-    try {
-      // Filter for employees if needed
-      if (authService.isEmployee()) {
-        const linkedNodeId = authService.getLinkedNodeId();
-        if (linkedNodeId && updatedTree.hasNode(linkedNodeId)) {
-          updatedTree = this.#createEmployeeSubtree(updatedTree, linkedNodeId);
-        }
-      }
-
-      this.#state.setCurrentTree(updatedTree);
-
-      // Reload revenue data
-      await this.#reloadRevenueData();
-
-      // Update UI
-      this.#orgView.setState(this.#state);
-      this.#orgView.setTree(updatedTree);
-      this.#sidebar.setTree(updatedTree);
-
-      console.log('✓ UI updated with real-time tree changes');
-    } catch (error) {
-      console.error('Failed to handle tree update:', error);
+async #handleTreeUpdate(updatedTree) {
+    // Debounce: Clear any pending update
+    if (this.#updateTimeout) {
+      clearTimeout(this.#updateTimeout);
     }
+
+    // Prevent concurrent updates
+    if (this.#isUpdating) {
+      console.log('⏭ Skipping update (already updating)');
+      return;
+    }
+
+    // Schedule debounced update
+    this.#updateTimeout = setTimeout(async () => {
+      this.#isUpdating = true;
+
+      try {
+        // Filter for employees if needed
+        if (authService.isEmployee()) {
+          const linkedNodeId = authService.getLinkedNodeId();
+          if (linkedNodeId && updatedTree.hasNode(linkedNodeId)) {
+            updatedTree = this.#createEmployeeSubtree(updatedTree, linkedNodeId);
+          }
+        }
+
+        this.#state.setCurrentTree(updatedTree);
+
+        // Reload revenue data (only if revenue service exists)
+        if (this.#revenueService) {
+          await this.#reloadRevenueData();
+        }
+
+        // Update UI with smooth transition
+        this.#orgView.setState(this.#state);
+        this.#orgView.setTree(updatedTree);
+        this.#sidebar.setTree(updatedTree);
+
+        console.log('✓ UI updated with real-time tree changes');
+      } catch (error) {
+        console.error('Failed to handle tree update:', error);
+      } finally {
+        this.#isUpdating = false;
+      }
+    }, 300);  // 300ms debounce delay for better batching
   }
 
   async #reloadRevenueData() {
@@ -493,7 +695,7 @@ export class HierarchyScreen {
     try {
       const tree = await this.#hierarchyService.createTree(
         'Trialog Strukturplan',
-        'Organisationsstruktur der Trialog Maklergruppe GmbH',
+        'Organisationsstruktur der Trialog Makler Gruppe GmbH',
       );
       this.#currentTreeId = tree.id;
 
@@ -501,7 +703,7 @@ export class HierarchyScreen {
       await this.#hierarchyService.addNode(
         this.#currentTreeId,
         {
-          name: 'Trialog Maklergruppe GmbH',
+          name: 'Trialog Makler Gruppe GmbH',
           description: 'Hauptorganisation',
           type: NODE_TYPES.ROOT,
         },

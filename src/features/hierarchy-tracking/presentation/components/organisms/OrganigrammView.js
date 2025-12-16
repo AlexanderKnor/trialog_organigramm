@@ -43,9 +43,14 @@ export class OrganigrammView {
       this.#renderEmptyState();
     }
 
-    return createElement('div', {
+    const view = createElement('div', {
       className: `organigramm-view ${this.#props.className}`,
     }, [this.#container]);
+
+    // Add scroll hint detection
+    setTimeout(() => this.#checkScrollHint(view), 100);
+
+    return view;
   }
 
   #renderOrganigramm() {
@@ -104,6 +109,9 @@ export class OrganigrammView {
     }
 
     this.#container.appendChild(orgChart);
+
+    // Center on root card after render
+    setTimeout(() => this.#centerOnRootCard(), 150);
   }
 
   #createGeschaeftsfuehrerNode(id, name) {
@@ -335,6 +343,62 @@ export class OrganigrammView {
     this.#container.appendChild(loadingState);
   }
 
+#centerOnRootCard() {
+    if (!this.#element || !this.#tree || !this.#tree.root) return;
+
+    // Find the root card element in the DOM
+    const rootCardWrapper = this.#element.querySelector(`[data-node-id="${this.#tree.root.id}"]`);
+    if (!rootCardWrapper) return;
+
+    // Get the scrollable container
+    const scrollContainer = this.#element;
+
+    // Calculate center position
+    const cardRect = rootCardWrapper.getBoundingClientRect();
+    const containerRect = scrollContainer.getBoundingClientRect();
+
+    // Calculate scroll position to center the card
+    const scrollLeft =
+      rootCardWrapper.offsetLeft -
+      (containerRect.width / 2) +
+      (cardRect.width / 2);
+
+    // Scroll to center (instant to avoid jump)
+    scrollContainer.scrollTo({
+      left: Math.max(0, scrollLeft),
+      behavior: 'auto',
+    });
+
+    console.log('✓ Centered on root card');
+  }
+
+  #checkScrollHint(viewElement) {
+    if (!viewElement) return;
+
+    const checkScroll = () => {
+      const isScrollable = viewElement.scrollWidth > viewElement.clientWidth;
+      const isAtEnd = viewElement.scrollLeft >= viewElement.scrollWidth - viewElement.clientWidth - 10;
+
+      if (isScrollable && !isAtEnd) {
+        viewElement.setAttribute('data-scroll-hint', 'true');
+      } else {
+        viewElement.removeAttribute('data-scroll-hint');
+      }
+    };
+
+    // Check initially
+    checkScroll();
+
+    // Check on scroll
+    viewElement.addEventListener('scroll', checkScroll);
+
+    // Check on resize
+    window.addEventListener('resize', checkScroll);
+
+    // Re-check after tree renders
+    setTimeout(checkScroll, 500);
+  }
+
   get element() {
     return this.#element;
   }
@@ -356,6 +420,8 @@ export class OrganigrammView {
 
   refresh() {
     this.#renderOrganigramm();
+    // Re-check scroll hint after refresh
+    setTimeout(() => this.#checkScrollHint(this.#element), 100);
   }
 
   updateNodeSelection(nodeId) {
