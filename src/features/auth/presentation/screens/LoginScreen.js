@@ -6,6 +6,15 @@
 import { createElement, clearElement } from '../../../../core/utils/index.js';
 import { authService } from '../../../../core/auth/index.js';
 
+// Authorized admin emails for self-registration
+const AUTHORIZED_ADMIN_EMAILS = [
+  'alexander-knor@outlook.de',
+  'info@trialog-makler.de',
+  'buchhaltung@trialog-makler.de',
+  'liebetrau@trialog-makler.de',
+  'lippa@trialog-makler.de',
+];
+
 export class LoginScreen {
   #element;
   #container;
@@ -25,7 +34,6 @@ export class LoginScreen {
           createElement('span', { className: 'logo-text' }, ['Trialog']),
           createElement('span', { className: 'logo-company-type' }, ['Makler Gruppe']),
         ]),
-        createElement('span', { className: 'logo-subtext' }, ['Organigramm']),
       ]),
 
       // Form
@@ -128,10 +136,17 @@ export class LoginScreen {
     }
   }
 
-  #showRegisterForm() {
-    // Replace login form with registration form
+#showRegisterForm() {
+    // Smooth transition to registration form
     const loginCard = this.#element.querySelector('.login-card');
-    clearElement(loginCard);
+
+    // Fade-out current content
+    loginCard.style.opacity = '0';
+    loginCard.style.transform = 'translateX(-20px)';
+    loginCard.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+
+    setTimeout(() => {
+      clearElement(loginCard);
 
     loginCard.appendChild(
       createElement('div', {}, [
@@ -141,7 +156,7 @@ export class LoginScreen {
             createElement('span', { className: 'logo-text' }, ['Trialog']),
             createElement('span', { className: 'logo-company-type' }, ['Makler Gruppe']),
           ]),
-          createElement('span', { className: 'logo-subtext' }, ['Registrierung']),
+          createElement('div', { className: 'logo-action-label' }, ['Registrierung']),
         ]),
 
         // Form
@@ -196,16 +211,51 @@ export class LoginScreen {
               className: 'login-link',
               onclick: (e) => {
                 e.preventDefault();
-                this.mount(); // Re-render to show login form
+                this.#showLoginForm();
               },
             }, ['Anmelden']),
           ]),
         ]),
       ])
     );
+
+      // Fade-in new content
+      requestAnimationFrame(() => {
+        loginCard.style.opacity = '0';
+        loginCard.style.transform = 'translateX(20px)';
+        requestAnimationFrame(() => {
+          loginCard.style.opacity = '1';
+          loginCard.style.transform = 'translateX(0)';
+        });
+      });
+    }, 250);
   }
 
-  async #handleRegister(e) {
+  #showLoginForm() {
+    // Smooth transition to login form
+    const loginCard = this.#element.querySelector('.login-card');
+
+    // Fade-out current content
+    loginCard.style.opacity = '0';
+    loginCard.style.transform = 'translateX(20px)';
+    loginCard.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+
+    setTimeout(() => {
+      this.mount(); // Re-render to show login form
+
+      // Fade-in new content
+      requestAnimationFrame(() => {
+        loginCard.style.opacity = '0';
+        loginCard.style.transform = 'translateX(-20px)';
+        requestAnimationFrame(() => {
+          loginCard.style.opacity = '1';
+          loginCard.style.transform = 'translateX(0)';
+        });
+      });
+    }, 250);
+  }
+
+async #handleRegister(e) {
     e.preventDefault();
 
     const form = e.target;
@@ -218,6 +268,20 @@ export class LoginScreen {
     errorDiv.style.display = 'none';
     errorDiv.textContent = '';
 
+    // SECURITY: Validate that email is authorized admin email
+    const normalizedEmail = email.toLowerCase().trim();
+    const isAuthorized = AUTHORIZED_ADMIN_EMAILS.some(
+      adminEmail => adminEmail.toLowerCase() === normalizedEmail
+    );
+
+    if (!isAuthorized) {
+      errorDiv.textContent = '⚠️ Unbefugter Zugriff verweigert.\n\nNur autorisierte Administrator-E-Mail-Adressen dürfen sich registrieren.\n\nMitarbeiter-Accounts werden ausschließlich durch Administratoren im Organigramm angelegt.';
+      errorDiv.style.display = 'block';
+      errorDiv.style.whiteSpace = 'pre-line';
+      console.warn(`🚫 Unauthorized registration attempt: ${email}`);
+      return;
+    }
+
     // Show loading state
     submitBtn.disabled = true;
     submitBtn.textContent = 'Registrierung läuft...';
@@ -227,7 +291,7 @@ export class LoginScreen {
 
       if (result.success) {
         // Success - will be logged in automatically
-        console.log('Registration successful');
+        console.log('✓ Admin registration successful:', email);
       } else {
         // Show error
         errorDiv.textContent = result.error;

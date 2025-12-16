@@ -208,15 +208,19 @@
   background-color: rgba(255, 255, 255, 0.15);
 }
 
-/* Header Nav - Simplified elegant user area */
+/* Header Nav - Elegant glassmorphism user area */
 .header-nav {
   display: flex;
   align-items: center;
-  gap: var(--spacing-3);
-  padding: 0.5rem 0.75rem;
+  gap: 0;
+  padding: 0.375rem 0.5rem;
   background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .header-nav:empty {
@@ -224,46 +228,68 @@
 }
 
 .user-email {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.9);
   letter-spacing: 0.01em;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
 }
 
 .user-badge {
-  font-size: 0.625rem;
+  font-size: 0.5625rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.95);
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%);
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.06em;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Elegant separator between user info and logout */
+.user-email::after {
+  content: '';
+  width: 1px;
+  height: 20px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 100%
+  );
+  margin-left: 0.75rem;
 }
 
 .btn-logout {
-  padding: 0.375rem 0.875rem;
+  padding: 0.4375rem 0.875rem;
+  margin-left: 0.5rem;
   font-size: 0.8125rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.95);
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 7px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: var(--font-family-secondary);
   letter-spacing: 0.02em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .btn-logout:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
   color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 .nav-item.active::after {
