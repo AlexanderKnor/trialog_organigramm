@@ -52,6 +52,7 @@ export class LoginScreen {
             required: true,
             autocomplete: 'email',
             placeholder: 'ihre.email@trialog.de',
+            title: '',
           }),
         ]),
 
@@ -66,6 +67,7 @@ export class LoginScreen {
             required: true,
             autocomplete: 'current-password',
             placeholder: '••••••••',
+            title: '',
           }),
         ]),
 
@@ -175,6 +177,7 @@ export class LoginScreen {
               required: true,
               autocomplete: 'email',
               placeholder: 'ihre.email@trialog.de',
+              title: '',
             }),
           ]),
 
@@ -188,7 +191,23 @@ export class LoginScreen {
               name: 'password',
               required: true,
               autocomplete: 'new-password',
-              placeholder: 'Mindestens 6 Zeichen',
+              placeholder: 'Min. 8 Zeichen, Groß/Klein, Zahl, Sonderzeichen',
+              title: '',
+            }),
+          ]),
+
+          // Password confirmation input
+          createElement('div', { className: 'form-group' }, [
+            createElement('label', { className: 'form-label', for: 'reg-password-confirm' }, ['Passwort wiederholen']),
+            createElement('input', {
+              className: 'form-input',
+              type: 'password',
+              id: 'reg-password-confirm',
+              name: 'passwordConfirm',
+              required: true,
+              autocomplete: 'new-password',
+              placeholder: 'Passwort bestätigen',
+              title: '',
             }),
           ]),
 
@@ -275,12 +294,30 @@ async #handleRegister(e) {
     const form = e.target;
     const email = form.email.value;
     const password = form.password.value;
+    const passwordConfirm = form.passwordConfirm.value;
     const submitBtn = form.querySelector('button[type="submit"]');
     const errorDiv = form.querySelector('.form-error');
 
     // Clear previous error
     errorDiv.style.display = 'none';
     errorDiv.textContent = '';
+
+    // Validate passwords match
+    if (password !== passwordConfirm) {
+      errorDiv.textContent = '⚠️ Passwörter stimmen nicht überein.\n\nBitte stellen Sie sicher, dass beide Passwort-Felder identisch sind.';
+      errorDiv.style.display = 'block';
+      errorDiv.style.whiteSpace = 'pre-line';
+      return;
+    }
+
+    // Validate password strength
+    const passwordValidation = this.#validatePasswordStrength(password);
+    if (!passwordValidation.valid) {
+      errorDiv.textContent = passwordValidation.error;
+      errorDiv.style.display = 'block';
+      errorDiv.style.whiteSpace = 'pre-line';
+      return;
+    }
 
     // SECURITY: Validate that email is authorized admin email
     const normalizedEmail = email.toLowerCase().trim();
@@ -331,6 +368,44 @@ async #handleRegister(e) {
       const emailInput = this.#element.querySelector('#email');
       if (emailInput) emailInput.focus();
     }, 100);
+  }
+
+  #validatePasswordStrength(password) {
+    const errors = [];
+
+    // Minimum length
+    if (password.length < 8) {
+      errors.push('• Mindestens 8 Zeichen');
+    }
+
+    // Uppercase letter
+    if (!/[A-Z]/.test(password)) {
+      errors.push('• Mindestens 1 Großbuchstabe (A-Z)');
+    }
+
+    // Lowercase letter
+    if (!/[a-z]/.test(password)) {
+      errors.push('• Mindestens 1 Kleinbuchstabe (a-z)');
+    }
+
+    // Number
+    if (!/[0-9]/.test(password)) {
+      errors.push('• Mindestens 1 Zahl (0-9)');
+    }
+
+    // Special character
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      errors.push('• Mindestens 1 Sonderzeichen (!@#$%^&*...)');
+    }
+
+    if (errors.length > 0) {
+      return {
+        valid: false,
+        error: `⚠️ Passwort erfüllt nicht alle Sicherheitsanforderungen:\n\n${errors.join('\n')}\n\nBitte wählen Sie ein sicheres Passwort.`,
+      };
+    }
+
+    return { valid: true };
   }
 
   unmount() {
