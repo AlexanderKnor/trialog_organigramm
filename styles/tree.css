@@ -1,0 +1,1558 @@
+/**
+ * Premium Organizational Chart
+ * Modern, elegant design with refined connector lines
+ */
+
+/* ========================================
+   VARIABLES
+   ======================================== */
+
+:root {
+  --org-line-color: #94a3b8;
+  --org-line-width: 2px;
+  --org-line-gap: 32px;
+  --org-card-gap: 32px;
+}
+
+/* ========================================
+   CONTAINER
+   ======================================== */
+
+.organigramm-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(16, 39, 76, 0.015) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(42, 82, 152, 0.015) 0%, transparent 50%),
+    linear-gradient(180deg, #fafbfc 0%, #f8fafc 50%, #f5f7fa 100%);
+  position: relative;
+  scrollbar-gutter: stable;
+}
+
+/* Premium scrollbar styling */
+.organigramm-view::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.organigramm-view::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 4px;
+}
+
+.organigramm-view::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(16, 39, 76, 0.2) 0%, rgba(16, 39, 76, 0.15) 100%);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: background 0.2s ease;
+}
+
+.organigramm-view::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(16, 39, 76, 0.3) 0%, rgba(16, 39, 76, 0.25) 100%);
+}
+
+.organigramm-container {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 60px 120px;
+  position: relative;
+}
+
+/* Subtle decorative corner accents */
+.organigramm-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(
+    circle at top left,
+    rgba(16, 39, 76, 0.02) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.organigramm-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(
+    circle at top right,
+    rgba(42, 82, 152, 0.02) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.org-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Top level container for Geschäftsführer + Trialog */
+.org-top-level {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--org-card-gap);
+  position: relative;
+}
+
+/* Continuous horizontal line connecting all three cards */
+.org-top-level::after {
+  content: '';
+  position: absolute;
+  top: 90px;
+  left: 210px;
+  right: 210px;
+  height: var(--org-line-width);
+  background: var(--org-line-color);
+  z-index: 0;
+  pointer-events: none;
+  animation: lineFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+}
+
+@keyframes lineFadeIn {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* ========================================
+   ORG NODE (ROOT)
+   ======================================== */
+
+.org-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+/* ========================================
+   CONNECTOR LINES
+   ======================================== */
+
+/* Vertical line DOWN from parent */
+.org-line-down {
+  width: var(--org-line-width);
+  height: var(--org-line-gap);
+  background: linear-gradient(180deg,
+    rgba(16, 39, 76, 0.3) 0%,
+    var(--org-line-color) 100%
+  );
+  border-radius: 1px;
+}
+
+/* Children wrapper - contains horizontal line and children */
+.org-children-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* Horizontal line spanning all children */
+.org-line-horizontal {
+  position: absolute;
+  top: 0;
+  height: var(--org-line-width);
+  background-color: var(--org-line-color);
+  border-radius: 1px;
+  /* Width will be set by first/last child positions */
+}
+
+/* Children container */
+.org-children {
+  display: flex;
+  justify-content: center;
+  gap: var(--org-card-gap);
+  padding-top: var(--org-line-gap);
+}
+
+/* ========================================
+   CHILD NODE
+   ======================================== */
+
+.org-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* Vertical line UP from child to horizontal line */
+.org-line-up {
+  width: var(--org-line-width);
+  height: var(--org-line-gap);
+  background: linear-gradient(180deg, var(--org-line-color) 0%, var(--color-secondary) 100%);
+  position: absolute;
+  top: calc(-1 * var(--org-line-gap));
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Horizontal line segment for each child */
+.org-child::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--org-line-gap));
+  height: var(--org-line-width);
+  background-color: var(--org-line-color);
+}
+
+/* First child: line extends from center to right edge */
+.org-child.first:not(.only)::before {
+  left: 50%;
+  right: calc(-1 * var(--org-card-gap) / 2);
+}
+
+/* Last child: line extends from left edge to center */
+.org-child.last:not(.only)::before {
+  left: calc(-1 * var(--org-card-gap) / 2);
+  right: 50%;
+}
+
+/* Middle children: line extends full width */
+.org-child:not(.first):not(.last)::before {
+  left: calc(-1 * var(--org-card-gap) / 2);
+  right: calc(-1 * var(--org-card-gap) / 2);
+}
+
+/* Only child: no horizontal line */
+.org-child.only::before {
+  display: none;
+}
+
+/* Deeper level connectors - lighter color */
+.org-child .org-line-down {
+  background: linear-gradient(180deg, var(--color-secondary) 0%, var(--org-line-color) 100%);
+}
+
+.org-child .org-child .org-line-up {
+  background: linear-gradient(180deg, var(--org-line-color) 0%, var(--org-line-color) 100%);
+}
+
+.org-child .org-child .org-line-down {
+  background-color: var(--org-line-color);
+}
+
+/* ========================================
+   ORG CARD - REFINED DESIGN
+   ======================================== */
+
+.org-card {
+  position: relative;
+  width: 210px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 18px;
+  padding: 18px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s ease,
+    background 0.3s ease;
+  box-shadow:
+    0 1px 2px rgba(16, 39, 76, 0.03),
+    0 2px 4px rgba(16, 39, 76, 0.04),
+    0 4px 8px rgba(16, 39, 76, 0.06),
+    0 6px 12px rgba(16, 39, 76, 0.04),
+    0 8px 16px rgba(16, 39, 76, 0.03),
+    0 0 0 1px rgba(226, 232, 240, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  animation: cardFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  will-change: transform, box-shadow;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+@keyframes cardFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.org-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 18px;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.2) 30%,
+    rgba(16, 39, 76, 0.02) 100%
+  );
+  pointer-events: none;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.org-card:hover {
+  transform: translate3d(0, -6px, 0) scale(1.015);
+  border-color: rgba(16, 39, 76, 0.25);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.9) 100%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow:
+    0 2px 4px rgba(16, 39, 76, 0.04),
+    0 4px 8px rgba(16, 39, 76, 0.06),
+    0 8px 16px rgba(16, 39, 76, 0.08),
+    0 12px 24px rgba(16, 39, 76, 0.06),
+    0 16px 32px rgba(16, 39, 76, 0.04),
+    0 20px 40px rgba(16, 39, 76, 0.02),
+    0 0 0 1px rgba(16, 39, 76, 0.1),
+    inset 0 2px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.org-card:hover::before {
+  opacity: 1;
+}
+
+.org-card:hover .card-actions {
+  opacity: 1;
+}
+
+.org-card:active {
+  transform: translateY(-2px) scale(1.01);
+  transition-duration: 0.1s;
+}
+
+.org-card.selected {
+  border-color: var(--color-primary);
+  box-shadow:
+    0 0 0 3px rgba(16, 39, 76, 0.1),
+    0 4px 8px rgba(16, 39, 76, 0.04),
+    0 8px 16px rgba(16, 39, 76, 0.06);
+}
+
+.org-card.selected::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 20px;
+  border: 2px solid rgba(16, 39, 76, 0.15);
+  pointer-events: none;
+  animation: pulseRing 2s ease-in-out infinite;
+}
+
+@keyframes pulseRing {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.2; transform: scale(1.02); }
+}
+
+/* Root Card - Premium Corporate Design */
+.org-card.root {
+  width: 280px;
+  background: linear-gradient(145deg, #10274c 0%, #1a3a6e 50%, #0d1f3c 100%);
+  border: none;
+  padding: 24px;
+  border-radius: 20px;
+  box-shadow:
+    0 2px 4px rgba(16, 39, 76, 0.12),
+    0 4px 8px rgba(16, 39, 76, 0.1),
+    0 8px 16px rgba(16, 39, 76, 0.12),
+    0 12px 24px rgba(16, 39, 76, 0.1),
+    0 16px 32px rgba(16, 39, 76, 0.08),
+    0 20px 40px rgba(16, 39, 76, 0.06),
+    0 0 0 1px rgba(16, 39, 76, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  animation: cardFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.org-card.root::before {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.05) 40%,
+    rgba(255, 255, 255, 0) 60%
+  );
+  opacity: 1;
+}
+
+.org-card.root::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 100%
+  );
+}
+
+.org-card.root:hover {
+  transform: translateY(-8px) scale(1.015);
+  box-shadow:
+    0 4px 8px rgba(16, 39, 76, 0.14),
+    0 8px 16px rgba(16, 39, 76, 0.12),
+    0 12px 24px rgba(16, 39, 76, 0.14),
+    0 16px 32px rgba(16, 39, 76, 0.12),
+    0 24px 48px rgba(16, 39, 76, 0.1),
+    0 32px 64px rgba(16, 39, 76, 0.08),
+    0 0 0 1px rgba(16, 39, 76, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.org-card.root .card-header {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.org-card.root .card-avatar {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.15) 100%);
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  border-radius: 16px;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.15),
+    0 6px 16px rgba(0, 0, 0, 0.1),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  transform-origin: center center;
+}
+
+.org-card.root .card-avatar .icon svg {
+  stroke: rgba(255, 255, 255, 1);
+  stroke-width: 2;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  width: 32px;
+  height: 32px;
+}
+
+.org-card.root:hover .card-avatar {
+  transform: none;
+}
+
+.org-card.root .card-info {
+  align-items: center;
+}
+
+.org-card.root .card-name {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: #ffffff;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.org-card.root .card-role {
+  color: rgba(255, 255, 255, 0.95);
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.org-card.root .card-add-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+}
+
+.org-card.root .card-add-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Root Card Revenue Display */
+.org-card.root .card-revenue-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(8px);
+}
+
+.org-card.root .revenue-label-root {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.org-card.root .revenue-amount-root {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ========================================
+   GESCHÄFTSFÜHRER CARDS
+   ======================================== */
+
+.org-geschaeftsfuehrer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+
+/* Geschäftsführer cards - same premium styling as employees */
+.org-geschaeftsfuehrer .org-card {
+  width: 210px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Employee's own card (featured in employee view) - Premium Trialog Blue */
+.org-node-employee-featured > .org-card {
+  width: 270px;
+  padding: 24px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #10274c 0%, #1a3a6e 50%, #0d1f3c 100%);
+  border: none;
+  box-shadow:
+    0 4px 8px rgba(16, 39, 76, 0.15),
+    0 8px 16px rgba(16, 39, 76, 0.12),
+    0 12px 24px rgba(16, 39, 76, 0.1),
+    0 16px 32px rgba(16, 39, 76, 0.08),
+    0 20px 40px rgba(16, 39, 76, 0.06),
+    0 0 0 1px rgba(16, 39, 76, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.org-node-employee-featured > .org-card::before {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.08) 35%,
+    rgba(255, 255, 255, 0) 65%
+  );
+  opacity: 1;
+  border-radius: 20px;
+}
+
+.org-node-employee-featured > .org-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+}
+
+.org-node-employee-featured > .org-card .card-header {
+  margin-bottom: 14px;
+}
+
+.org-node-employee-featured > .org-card .card-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  background: none;
+  -webkit-text-fill-color: #ffffff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.02em;
+}
+
+.org-node-employee-featured > .org-card .card-role {
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.org-node-employee-featured > .org-card .card-avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 17px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.12) 100%);
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.15),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+/* Revenue section in featured card - elegant separation */
+.org-node-employee-featured > .org-card .card-revenue {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 16px;
+  backdrop-filter: blur(4px);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.org-node-employee-featured > .org-card .card-revenue-row {
+  padding: 6px 0;
+}
+
+.org-node-employee-featured > .org-card .card-revenue-row + .card-revenue-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  margin-top: 6px;
+  padding-top: 10px;
+}
+
+.org-node-employee-featured > .org-card .revenue-label {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.org-node-employee-featured > .org-card .revenue-amount {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.org-node-employee-featured > .org-card .provision-label {
+  color: #86efac;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.org-node-employee-featured > .org-card .provision-amount {
+  color: #86efac;
+  font-size: 15px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Allow text wrapping in Geschäftsführer cards */
+.org-geschaeftsfuehrer .card-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.org-geschaeftsfuehrer .card-role {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  text-align: left;
+}
+
+.org-geschaeftsfuehrer .card-info {
+  text-align: left;
+}
+
+/* Fix avatar styling for Geschäftsführer - use same styling as level-1 employees */
+.org-geschaeftsfuehrer .card-avatar.level-0 {
+  background: linear-gradient(145deg, var(--color-secondary) 0%, #1e4a8f 100%) !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 2px 4px rgba(42, 82, 152, 0.25),
+    0 1px 2px rgba(42, 82, 152, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+
+.org-geschaeftsfuehrer .card-initials {
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+/* ========================================
+   CARD HEADER
+   ======================================== */
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* Avatar */
+.card-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-avatar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0) 50%
+  );
+  pointer-events: none;
+}
+
+.org-card:hover .card-avatar {
+  transform: scale(1.02);
+}
+
+.card-avatar.level-0 {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.card-avatar.level-1 {
+  background: linear-gradient(145deg, var(--color-secondary) 0%, #1e4a8f 100%);
+  color: #ffffff;
+  box-shadow:
+    0 2px 4px rgba(42, 82, 152, 0.25),
+    0 1px 2px rgba(42, 82, 152, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-avatar.level-2 {
+  background: linear-gradient(145deg, #f5d78e 0%, #d4a84b 100%);
+  color: var(--color-primary);
+  box-shadow:
+    0 2px 4px rgba(212, 168, 75, 0.3),
+    0 1px 2px rgba(212, 168, 75, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.card-avatar.level-3,
+.card-avatar.level-4,
+.card-avatar.level-5 {
+  background: linear-gradient(145deg, #f3f4f6 0%, #e5e7eb 100%);
+  color: #6b7280;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.card-initials {
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Info */
+.card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-name {
+  font-family: var(--font-family-secondary);
+  font-size: 13.5px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #2a5298 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.35;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+}
+
+.card-role {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+/* ========================================
+   CARD ACTIONS
+   ======================================== */
+
+.card-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.card-action {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-action:hover {
+  color: #374151;
+  background: #f3f4f6;
+}
+
+.card-action.card-action-delete:hover {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.org-card.root .card-action {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* ========================================
+   CARD ADD BUTTON
+   ======================================== */
+
+/* ========================================
+   CARD REVENUE INFO
+   ======================================== */
+
+.card-revenue {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 14px;
+  padding: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 100%),
+    linear-gradient(180deg, #fafbfc 0%, #f5f7fa 100%);
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  box-shadow:
+    0 1px 2px rgba(16, 39, 76, 0.03),
+    0 2px 4px rgba(16, 39, 76, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+.card-revenue-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-revenue .revenue-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.card-revenue .revenue-amount {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Provision row styling */
+.card-provision-row {
+  padding-top: 6px;
+  border-top: 1px solid rgba(226, 232, 240, 0.4);
+}
+
+.card-revenue .provision-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #10b981;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.card-revenue .provision-amount {
+  font-size: 13px;
+  font-weight: 700;
+  color: #10b981;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Empty state */
+.card-revenue.card-revenue-empty {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-color: rgba(156, 163, 175, 0.15);
+  padding: 8px 12px;
+}
+
+.card-revenue.card-revenue-empty .revenue-label {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Root card revenue styling */
+.card-revenue.card-revenue-root {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+  border-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+.card-revenue.card-revenue-root.card-revenue-empty {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.card-revenue.card-revenue-root .revenue-label-root {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card-revenue.card-revenue-root .revenue-amount-root {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Root card provision row */
+.card-revenue.card-revenue-root .card-provision-row {
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+.card-revenue.card-revenue-root .provision-label-root {
+  font-size: 9px;
+  font-weight: 600;
+  color: #86efac;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card-revenue.card-revenue-root .provision-amount-root {
+  font-size: 15px;
+  font-weight: 700;
+  color: #86efac;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========================================
+   CARD BADGE
+   ======================================== */
+
+.card-badge {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: linear-gradient(145deg, var(--color-secondary) 0%, #1e4a8f 100%);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  box-shadow:
+    0 2px 6px rgba(42, 82, 152, 0.35),
+    0 4px 12px rgba(42, 82, 152, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border: 2px solid #ffffff;
+  z-index: 10;
+  letter-spacing: 0.02em;
+}
+
+.org-card.root .card-badge {
+  background: linear-gradient(145deg, #f5d78e 0%, #d4a84b 100%);
+  color: var(--color-primary);
+  box-shadow:
+    0 2px 4px rgba(212, 168, 75, 0.3),
+    0 4px 8px rgba(212, 168, 75, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* ========================================
+   EMPTY STATE - Refined
+   ======================================== */
+
+.org-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+  min-height: 300px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 24px;
+  background: linear-gradient(145deg, #f8f9fa 0%, #e5e7eb 100%);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 4px 8px rgba(16, 39, 76, 0.04),
+    0 8px 16px rgba(16, 39, 76, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+}
+
+.empty-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, transparent 50%);
+}
+
+.empty-icon .icon {
+  opacity: 0.4;
+}
+
+.empty-title {
+  font-family: var(--font-family-primary);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0 0 10px 0;
+  letter-spacing: -0.02em;
+}
+
+.empty-text {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+  max-width: 280px;
+}
+
+.empty-action {
+  display: flex;
+  gap: 12px;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 1024px) {
+  :root {
+    --org-card-gap: 20px;
+    --org-line-gap: 14px;
+  }
+
+  .org-card {
+    width: 180px;
+    padding: 12px;
+  }
+
+  .org-card.root {
+    width: 240px;
+    padding: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .organigramm-container {
+    padding: 24px 16px;
+  }
+
+  :root {
+    --org-card-gap: 16px;
+    --org-line-gap: 12px;
+  }
+
+  .org-children {
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+
+  .org-card {
+    width: 160px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .org-card.root {
+    width: 220px;
+    padding: 16px;
+  }
+
+  .org-card.root .card-name {
+    font-size: 13px;
+  }
+
+  .org-card.root .revenue-amount-root {
+    font-size: 14px;
+  }
+
+  .card-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+
+  .card-avatar.level-0 {
+    width: 36px;
+    height: 36px;
+  }
+
+  .card-name {
+    font-size: 12px;
+  }
+
+  .card-actions {
+    opacity: 1;
+  }
+
+  /* Simplify connectors on mobile */
+  .org-child::before {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .org-children {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .org-card,
+  .org-card.root {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  /* Hide connector lines on small screens */
+  .org-line-down,
+  .org-line-up,
+  .org-child::before {
+    display: none;
+  }
+
+  .org-children {
+    padding-top: 20px;
+  }
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.org-node,
+.org-child {
+  animation: fadeInUp 0.3s ease-out backwards;
+}
+
+.org-children > .org-child:nth-child(1) { animation-delay: 0.05s; }
+.org-children > .org-child:nth-child(2) { animation-delay: 0.1s; }
+.org-children > .org-child:nth-child(3) { animation-delay: 0.15s; }
+.org-children > .org-child:nth-child(4) { animation-delay: 0.2s; }
+.org-children > .org-child:nth-child(5) { animation-delay: 0.25s; }
+
+/* ========================================
+   TREE NODE ITEM (Sidebar Tree View)
+   ======================================== */
+
+.tree-node-item {
+  user-select: none;
+}
+
+.tree-node-item.hidden {
+  display: none;
+}
+
+.tree-node-item.dragging {
+  opacity: 0.5;
+}
+
+.tree-node-item.drag-over > .node-content {
+  background: rgba(42, 82, 152, 0.08);
+  border-color: var(--color-primary);
+}
+
+.node-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  margin: var(--spacing-1) 0;
+  background: #ffffff;
+  border: 1px solid rgba(16, 39, 76, 0.08);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow:
+    0 1px 2px rgba(16, 39, 76, 0.02),
+    0 2px 4px rgba(16, 39, 76, 0.02);
+}
+
+.node-content:hover {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-color: rgba(42, 82, 152, 0.15);
+  box-shadow:
+    0 2px 4px rgba(16, 39, 76, 0.04),
+    0 4px 8px rgba(16, 39, 76, 0.03);
+  transform: translateX(2px);
+}
+
+.tree-node-item.selected > .node-content {
+  background: linear-gradient(135deg, rgba(42, 82, 152, 0.06) 0%, rgba(42, 82, 152, 0.1) 100%);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(42, 82, 152, 0.08);
+}
+
+/* Toggle Button */
+.node-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.node-toggle:hover {
+  background: rgba(42, 82, 152, 0.08);
+}
+
+.node-toggle .icon {
+  transition: transform 0.2s ease;
+}
+
+.node-toggle.expanded .icon {
+  transform: rotate(90deg);
+}
+
+.node-toggle.invisible {
+  visibility: hidden;
+}
+
+/* Type Icon */
+.node-type-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.node-content:hover .node-type-icon {
+  transform: scale(1.05);
+}
+
+.node-type-icon.type-root {
+  background: linear-gradient(145deg, var(--color-primary) 0%, #1a3a6e 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(16, 39, 76, 0.2);
+}
+
+.node-type-icon.type-division {
+  background: linear-gradient(145deg, var(--color-secondary) 0%, #1e4a8f 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(42, 82, 152, 0.2);
+}
+
+.node-type-icon.type-department {
+  background: linear-gradient(145deg, #f5d78e 0%, #d4a84b 100%);
+  color: var(--color-primary);
+  box-shadow: 0 2px 4px rgba(212, 168, 75, 0.25);
+}
+
+.node-type-icon.type-team,
+.node-type-icon.type-person,
+.node-type-icon.type-default {
+  background: linear-gradient(145deg, #f3f4f6 0%, #e5e7eb 100%);
+  color: #6b7280;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Info Wrapper */
+.node-info-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.node-info-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.node-name {
+  font-family: var(--font-family-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+/* Revenue Info */
+.node-revenue-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.06) 0%, rgba(22, 163, 74, 0.1) 100%);
+  border: 1px solid rgba(22, 163, 74, 0.15);
+  border-radius: var(--radius-lg);
+}
+
+.node-revenue-info.node-revenue-empty {
+  background: rgba(107, 114, 128, 0.06);
+  border-color: rgba(107, 114, 128, 0.1);
+}
+
+.node-revenue-info .revenue-amount {
+  font-size: 13px;
+  font-weight: 700;
+  color: #15803d;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.node-revenue-info .revenue-meta {
+  font-size: 10px;
+  color: #16a34a;
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.node-revenue-info.node-revenue-empty .revenue-label {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+/* Actions */
+.node-actions {
+  display: flex;
+  gap: var(--spacing-1);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.node-content:hover .node-actions {
+  opacity: 1;
+}
+
+.node-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid rgba(16, 39, 76, 0.1);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: #9ca3af;
+}
+
+.node-action-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: rgba(16, 39, 76, 0.15);
+}
+
+.node-action-btn.node-action-delete:hover {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+/* Children */
+.node-children {
+  margin-left: var(--spacing-8);
+  border-left: 2px solid rgba(16, 39, 76, 0.08);
+  padding-left: var(--spacing-2);
+}
+
+.node-children.collapsed {
+  display: none;
+}
+
+/* Search highlight */
+.tree-node-item.search-match > .node-content {
+  background: rgba(245, 215, 142, 0.2);
+  border-color: rgba(212, 168, 75, 0.3);
+}
+
+/* Pulse animation for selection */
+.tree-node-item.pulse > .node-content {
+  animation: nodePulse 0.6s ease-out;
+}
+
+@keyframes nodePulse {
+  0% { box-shadow: 0 0 0 0 rgba(42, 82, 152, 0.3); }
+  70% { box-shadow: 0 0 0 8px rgba(42, 82, 152, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(42, 82, 152, 0); }
+}
+
+/* ========================================
+   PRINT
+   ======================================== */
+
+@media print {
+  .org-card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    background: #fff !important;
+  }
+
+  .org-card.root {
+    background: #f3f4f6 !important;
+    color: #000 !important;
+  }
+
+  .org-card.root .card-name,
+  .org-card.root .card-role {
+    color: #000 !important;
+  }
+
+  .card-actions,
+  .card-add-btn {
+    display: none !important;
+  }
+
+  .org-line-down,
+  .org-line-up,
+  .org-child::before {
+    background: #999 !important;
+  }
+}

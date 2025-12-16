@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasAccess(resourceData) {
+      return isAuthenticated() &&
+        (resourceData.ownerId == request.auth.uid ||
+         request.auth.uid in resourceData.get('sharedWith', []));
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ========================================
+    // USERS COLLECTION
+    // ========================================
+
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isOwner(userId);
+
+      // Users can create their own profile on first login
+      allow create: if isOwner(userId);
+
+      // Users can update their own profile
+      allow update: if isOwner(userId);
+
+      // Prevent user deletion
+      allow delete: if false;
+    }
+
+    // ========================================
+    // HIERARCHY TREES COLLECTION
+    // ========================================
+
+    match /hierarchy_trees/{treeId} {
+      // All authenticated users can READ trees (employees see admin trees)
+      // But admins can see all, employees will see filtered view in app
+      allow read: if isAuthenticated();
+
+      // Only admins can create trees
+      allow create: if isAuthenticated() && isAdmin();
+
+      // Only admins can update trees
+      allow update: if isAuthenticated() && isAdmin();
+
+      // Only admins can delete trees
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+
+    // ========================================
+    // TRACKING EVENTS COLLECTION
+    // ========================================
+
+    match /tracking_events/{eventId} {
+      // Authenticated users can read events
+      allow read: if isAuthenticated();
+
+      // Only authenticated users can create events, must set themselves as userId
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+
+      // Events are immutable (audit log)
+      allow update: if false;
+
+      // Only the user who created the event or admins can delete
+      allow delete: if isAdmin() || isOwner(resource.data.userId);
+    }
+
+    // ========================================
+    // REVENUE ENTRIES COLLECTION
+    // ========================================
+
+    match /revenue_entries/{entryId} {
+      // All authenticated users can read all revenue entries
+      // (Employees see filtered view in app, admins see all)
+      allow read: if isAuthenticated();
+
+      // Only authenticated users can create entries, must set themselves as userId
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+
+      // Users can update their own entries, admins can update all
+      allow update: if isAuthenticated() &&
+        (isAdmin() || resource.data.userId == request.auth.uid);
+
+      // Users can delete their own entries, admins can delete all
+      allow delete: if isAuthenticated() &&
+        (isAdmin() || resource.data.userId == request.auth.uid);
+    }
+  }
+}

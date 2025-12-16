@@ -1,0 +1,17 @@
+/**
+ * Trialog Strukturplan - Main Stylesheet
+ * Trialog Maklergruppe GmbH
+ */
+
+@import url('./variables.css');
+@import url('./base.css');
+@import url('./components.css');
+@import url('./layout.css');
+@import url('./tree.css');
+@import url('./revenue.css');
+@import url('./rankings.css');
+@import url('./cancellation.css');
+@import url('./auth.css');
+
+/* Google Fonts fallback for Bodoni */
+@import url('https://fonts.googleapis.com/css2?family=Libre+Bodoni:wght@400;500;600;700&display=swap');
