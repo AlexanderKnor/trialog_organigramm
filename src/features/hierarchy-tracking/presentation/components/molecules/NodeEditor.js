@@ -17,6 +17,7 @@ export class NodeEditor {
   #emailInput;
   #phoneInput;
   #passwordInput;
+  #passwordConfirmInput;
   #bankProvisionInput;
   #realEstateProvisionInput;
   #insuranceProvisionInput;
@@ -63,13 +64,20 @@ export class NodeEditor {
       type: 'tel',
     });
 
-    // Password field (only for new nodes with email)
+    // Password fields (only for new nodes with email)
     const isNewNode = !this.#node;
     if (isNewNode) {
       this.#passwordInput = new Input({
         label: 'Passwort (für Login-Account)',
         value: '',
         placeholder: 'Mindestens 6 Zeichen',
+        type: 'password',
+      });
+
+      this.#passwordConfirmInput = new Input({
+        label: 'Passwort wiederholen',
+        value: '',
+        placeholder: 'Passwort bestätigen',
         type: 'password',
       });
     }
@@ -110,9 +118,14 @@ export class NodeEditor {
       ]),
     ];
 
-    // Add password field for new nodes
+    // Add password fields for new nodes
     if (isNewNode && this.#passwordInput) {
-      contactFields.push(this.#passwordInput.element);
+      contactFields.push(
+        createElement('div', { className: 'editor-row-2' }, [
+          this.#passwordInput.element,
+          this.#passwordConfirmInput.element,
+        ])
+      );
     }
 
     const contactSection = createElement('div', { className: 'editor-section-group' }, [
@@ -195,8 +208,21 @@ export class NodeEditor {
     const isNewNode = !this.#node;
     if (isNewNode && email && this.#passwordInput) {
       const password = this.#passwordInput.value;
+      const passwordConfirm = this.#passwordConfirmInput.value;
+
+      // Clear previous errors
+      this.#passwordInput.setError(null);
+      this.#passwordConfirmInput.setError(null);
+
+      // Check if password is provided
       if (!password || password.length < 6) {
         this.#passwordInput.setError('Passwort muss mindestens 6 Zeichen lang sein');
+        return;
+      }
+
+      // Check if passwords match
+      if (password !== passwordConfirm) {
+        this.#passwordConfirmInput.setError('Passwörter stimmen nicht überein');
         return;
       }
     }
