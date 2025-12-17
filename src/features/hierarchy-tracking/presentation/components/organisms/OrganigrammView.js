@@ -364,32 +364,51 @@ export class OrganigrammView {
       return;
     }
 
-    // Get the scrollable container (.organigramm-view)
+    // Find the header logo to align card underneath it
+    const headerLogo = document.querySelector('.header-logo');
     const scrollContainer = this.#element;
 
-    // Get container and scroll dimensions
-    const containerWidth = scrollContainer.clientWidth;
-    const scrollWidth = scrollContainer.scrollWidth;
+    if (!headerLogo) {
+      console.warn('⚠ Header logo not found, centering on viewport');
+      this.#centerOnViewport(rootCardWrapper, scrollContainer);
+      return;
+    }
 
-    // Get card position and dimensions
+    // Get logo center position
+    const logoRect = headerLogo.getBoundingClientRect();
+    const logoCenterX = logoRect.left + (logoRect.width / 2);
+
+    // Get scroll container position
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const containerLeft = containerRect.left;
+
+    // Get card dimensions
     const cardOffsetLeft = rootCardWrapper.offsetLeft;
     const cardWidth = rootCardWrapper.offsetWidth;
-
-    // Calculate the exact center of the card
     const cardCenterX = cardOffsetLeft + (cardWidth / 2);
 
-    // Calculate scroll position to center the card perfectly in viewport
-    const targetScrollLeft = cardCenterX - (containerWidth / 2);
+    // Calculate scroll needed to align card center with logo center
+    // Logo position relative to container + current scroll - card center
+    const targetScrollLeft = (logoCenterX - containerLeft) + scrollContainer.scrollLeft - (cardWidth / 2);
 
-    // Apply scroll position (instant, no smooth scrolling)
+    // Apply scroll position (instant)
     scrollContainer.scrollLeft = Math.max(0, targetScrollLeft);
 
-    console.log('✓ Root card perfectly centered:', {
+    console.log('✓ Root card centered under logo:', {
+      logoCenterX,
       cardCenterX,
-      containerWidth,
       targetScrollLeft: Math.max(0, targetScrollLeft),
       actualScrollLeft: scrollContainer.scrollLeft,
     });
+  }
+
+  #centerOnViewport(rootCardWrapper, scrollContainer) {
+    const containerWidth = scrollContainer.clientWidth;
+    const cardOffsetLeft = rootCardWrapper.offsetLeft;
+    const cardWidth = rootCardWrapper.offsetWidth;
+    const cardCenterX = cardOffsetLeft + (cardWidth / 2);
+    const targetScrollLeft = cardCenterX - (containerWidth / 2);
+    scrollContainer.scrollLeft = Math.max(0, targetScrollLeft);
   }
 
   #checkScrollHint(viewElement) {
