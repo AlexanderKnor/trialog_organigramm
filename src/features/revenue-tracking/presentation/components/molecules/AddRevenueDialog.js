@@ -19,6 +19,7 @@ export class AddRevenueDialog {
   #formData;
   #entry; // Existing entry for edit mode
   #isEditMode;
+  #revenueService;
 
   // Form inputs
   #dateInput;
@@ -35,9 +36,14 @@ export class AddRevenueDialog {
   #provisionAmountInput;
   #notesInput;
 
+  // Dynamic catalog data
+  #categories;
+  #currentCategoryData;
+
   constructor(props = {}) {
     this.#entry = props.entry || null;
     this.#isEditMode = !!this.#entry;
+    this.#revenueService = props.revenueService || null;
 
     this.#props = {
       onSave: props.onSave || null,
@@ -51,15 +57,32 @@ export class AddRevenueDialog {
       provider: null,
     };
 
+    this.#categories = [];
+    this.#currentCategoryData = null;
+
     this.#element = this.#render();
+
+    // Load categories and initialize form
+    this.#initializeForm();
+  }
+
+  async #initializeForm() {
+    // Load categories from catalog
+    await this.#loadCategories();
 
     // Populate form if editing
     if (this.#isEditMode) {
-      this.#populateForm();
+      await this.#populateForm();
+    } else {
+      // Initialize with first category
+      if (this.#categories.length > 0) {
+        const firstCategoryType = this.#categories[0].type || this.#categories[0];
+        await this.#onCategoryChange(firstCategoryType);
+      }
     }
   }
 
-  #populateForm() {
+  async #populateForm() {
     if (!this.#entry) return;
 
     // Set customer name
@@ -75,7 +98,7 @@ export class AddRevenueDialog {
     // Set category and update dependent selects
     const categoryType = this.#entry.category?.type || REVENUE_CATEGORY_TYPES.BANK;
     this.#categorySelect.value = categoryType;
-    this.#onCategoryChange(categoryType);
+    await this.#onCategoryChange(categoryType);
 
     // Set product (after options are updated)
     if (this.#entry.product?.name) {
@@ -84,7 +107,10 @@ export class AddRevenueDialog {
 
     // Set provider
     if (this.#entry.productProvider?.name) {
-      if (ProductProvider.requiresFreeTextProvider(categoryType)) {
+      const requiresPropertyAddress = this.#currentCategoryData?.requiresPropertyAddress ||
+        ProductProvider.requiresFreeTextProvider(categoryType);
+
+      if (requiresPropertyAddress) {
         this.#propertyAddressInput.setValue(this.#entry.propertyAddress || this.#entry.productProvider.name || '');
       } else {
         this.#providerSelect.value = this.#entry.productProvider.name;
@@ -143,27 +169,21 @@ export class AddRevenueDialog {
       placeholder: 'Musterstadt',
     });
 
-    // Category select
-    const categoryOptions = RevenueCategory.allCategories.map((cat) =>
-      createElement('option', { value: cat.type }, [cat.displayName]),
-    );
-
+    // Category select (will be populated dynamically)
     this.#categorySelect = createElement('select', {
       className: 'input-field',
       onchange: (e) => this.#onCategoryChange(e.target.value),
-    }, categoryOptions);
+    }, [createElement('option', {}, ['Kategorien werden geladen...'])]);
 
-    // Product select
+    // Product select (will be populated dynamically)
     this.#productSelect = createElement('select', {
       className: 'input-field',
-    });
-    this.#updateProductOptions(REVENUE_CATEGORY_TYPES.BANK);
+    }, [createElement('option', {}, ['Produkte werden geladen...'])]);
 
-    // Provider select (or property address input)
+    // Provider select (will be populated dynamically)
     this.#providerSelect = createElement('select', {
       className: 'input-field',
-    });
-    this.#updateProviderOptions(REVENUE_CATEGORY_TYPES.BANK);
+    }, [createElement('option', {}, ['Produktgeber werden geladen...'])]);
 
     // Property address input (for real estate categories)
     this.#propertyAddressInput = new Input({
@@ -299,16 +319,60 @@ export class AddRevenueDialog {
     return overlay;
   }
 
-  #onCategoryChange(categoryType) {
+  async #loadCategories() {
+    if (!this.#revenueService) {
+      // Fallback to hardcoded categories
+      this.#categories = RevenueCategory.allCategories;
+      this.#populateCategorySelect();
+      return;
+    }
+
+    try {
+      this.#categories = await this.#revenueService.getAvailableCategories();
+      this.#populateCategorySelect();
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      // Fallback to hardcoded
+      this.#categories = RevenueCategory.allCategories;
+      this.#populateCategorySelect();
+    }
+  }
+
+  #populateCategorySelect() {
+    this.#categorySelect.innerHTML = '';
+
+    this.#categories.forEach((category) => {
+      const displayName = category.displayName || category.toString();
+      const type = category.type || category;
+      const option = createElement('option', { value: type }, [displayName]);
+      this.#categorySelect.appendChild(option);
+    });
+  }
+
+  async #onCategoryChange(categoryType) {
     this.#formData.category = categoryType;
-    this.#updateProductOptions(categoryType);
-    this.#updateProviderOptions(categoryType);
+
+    // Load category data to check requiresPropertyAddress
+    if (this.#revenueService) {
+      try {
+        this.#currentCategoryData = await this.#revenueService.getCategoryByType(categoryType);
+      } catch (error) {
+        console.warn('Failed to load category data:', error);
+        this.#currentCategoryData = null;
+      }
+    }
+
+    await this.#updateProductOptions(categoryType);
+    await this.#updateProviderOptions(categoryType);
 
     // Toggle property address field visibility
     const providerWrapper = this.#element.querySelector('.provider-wrapper');
     const propertyAddressWrapper = this.#element.querySelector('.property-address-wrapper');
 
-    if (ProductProvider.requiresFreeTextProvider(categoryType)) {
+    const requiresPropertyAddress = this.#currentCategoryData?.requiresPropertyAddress ||
+      ProductProvider.requiresFreeTextProvider(categoryType);
+
+    if (requiresPropertyAddress) {
       providerWrapper.classList.add('hidden');
       propertyAddressWrapper.classList.remove('hidden');
     } else {
@@ -317,12 +381,27 @@ export class AddRevenueDialog {
     }
   }
 
-  #updateProductOptions(categoryType) {
-    const products = Product.getProductsForCategory(categoryType);
+  async #updateProductOptions(categoryType) {
+    let products = [];
+
+    // Try to load from catalog via RevenueService
+    if (this.#revenueService) {
+      try {
+        products = await this.#revenueService.getProductsForCategory(categoryType);
+      } catch (error) {
+        console.warn('Failed to load products from catalog, using fallback:', error);
+        products = Product.getProductsForCategory(categoryType);
+      }
+    } else {
+      // Fallback to hardcoded
+      products = Product.getProductsForCategory(categoryType);
+    }
+
     this.#productSelect.innerHTML = '';
 
     products.forEach((product) => {
-      const option = createElement('option', { value: product.name }, [product.name]);
+      const name = product.name || product;
+      const option = createElement('option', { value: name }, [name]);
       this.#productSelect.appendChild(option);
     });
 
@@ -331,12 +410,27 @@ export class AddRevenueDialog {
     }
   }
 
-  #updateProviderOptions(categoryType) {
-    const providers = ProductProvider.getProvidersForCategory(categoryType);
+  async #updateProviderOptions(categoryType) {
+    let providers = [];
+
+    // Try to load from catalog via RevenueService
+    if (this.#revenueService) {
+      try {
+        providers = await this.#revenueService.getProvidersForCategory(categoryType);
+      } catch (error) {
+        console.warn('Failed to load providers from catalog, using fallback:', error);
+        providers = ProductProvider.getProvidersForCategory(categoryType);
+      }
+    } else {
+      // Fallback to hardcoded
+      providers = ProductProvider.getProvidersForCategory(categoryType);
+    }
+
     this.#providerSelect.innerHTML = '';
 
     providers.forEach((provider) => {
-      const option = createElement('option', { value: provider.name }, [provider.name]);
+      const name = provider.name || provider;
+      const option = createElement('option', { value: name }, [name]);
       this.#providerSelect.appendChild(option);
     });
 

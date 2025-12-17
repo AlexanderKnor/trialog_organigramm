@@ -22,7 +22,8 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: transparent;
-  overflow-y: scroll;
+  overflow: hidden;
+  height: 100%;
 }
 
 html:focus-within {
@@ -36,7 +37,8 @@ body {
   line-height: var(--line-height-normal);
   color: var(--color-text-primary);
   background-color: var(--color-background);
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   text-rendering: optimizeSpeed;
 }
 

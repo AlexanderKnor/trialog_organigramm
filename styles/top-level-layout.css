@@ -34,7 +34,7 @@
   /* 50% - (285/2 + 60 + 210) = 50% - 412.5px */
   left: calc(50% - 413px) !important;
   top: 0 !important;
-  z-index: 1 !important;
+  z-index: 10 !important;
 }
 
 .org-geschaeftsfuehrer-right {
@@ -42,7 +42,7 @@
   /* 50% + (285/2 + 60) = 50% + 202.5px */
   left: calc(50% + 203px) !important;
   top: 0 !important;
-  z-index: 1 !important;
+  z-index: 10 !important;
 }
 
 /* ========================================

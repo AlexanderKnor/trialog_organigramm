@@ -1,0 +1,540 @@
+/**
+ * Catalog Management Styles - Premium Professional Design
+ * Aligned with main application aesthetic
+ */
+
+/* ========================================
+   CATALOG BUTTON (in header nav)
+   ======================================== */
+
+.btn-catalog {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.7);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-catalog:hover {
+  color: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+}
+
+.btn-catalog:active {
+  transform: scale(1.0);
+}
+
+/* ========================================
+   CATALOG SCREEN LAYOUT
+   ======================================== */
+
+.catalog-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #fafbfc;
+}
+
+.catalog-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-7) var(--spacing-8);
+  padding-top: calc(var(--header-height) + var(--spacing-7));
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ========================================
+   BACK BUTTON - Matches Revenue Screen style
+   ======================================== */
+
+/* Styles are inherited from revenue.css (.btn-back-to-org) */
+
+/* ========================================
+   CATALOG TABS - Minimal Elegant Design
+   ======================================== */
+
+.catalog-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: var(--spacing-7);
+  background: white;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  overflow: hidden;
+}
+
+.catalog-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4) var(--spacing-6);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: var(--font-family-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  position: relative;
+}
+
+.catalog-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.catalog-tab:hover {
+  background: #f8fafc;
+  color: var(--color-primary);
+}
+
+.catalog-tab.active {
+  color: var(--color-primary);
+  background: #f8fafc;
+}
+
+.catalog-tab.active::after {
+  transform: scaleX(1);
+}
+
+/* ========================================
+   CATALOG PANEL - Clean Professional Design
+   ======================================== */
+
+.catalog-panel {
+  background: white;
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 1px 3px rgba(16, 39, 76, 0.04);
+  border: 1px solid #e2e8f0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.catalog-panel-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.catalog-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-6) var(--spacing-7);
+  border-bottom: 1px solid #f1f5f9;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+}
+
+.catalog-panel-title {
+  font-family: var(--font-family-primary);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.catalog-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.catalog-category-filter {
+  min-width: 180px;
+  padding: var(--spacing-2-5) var(--spacing-4);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-family: var(--font-family-secondary);
+  font-weight: 500;
+  color: #1e293b;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.catalog-category-filter:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 4px rgba(16, 39, 76, 0.08);
+}
+
+.catalog-category-filter:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(16, 39, 76, 0.08);
+}
+
+/* ========================================
+   CATALOG TABLE - Professional Data Table
+   ======================================== */
+
+.catalog-table-wrapper {
+  flex: 1;
+  overflow: auto;
+  padding: var(--spacing-6) var(--spacing-7);
+}
+
+.catalog-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: var(--font-family-secondary);
+}
+
+.catalog-table thead th {
+  padding: var(--spacing-3) var(--spacing-4);
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid #e2e8f0;
+  background: transparent;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.catalog-table tbody tr {
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.catalog-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.catalog-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.catalog-table tbody td {
+  padding: var(--spacing-4);
+  font-size: 0.875rem;
+  color: #1e293b;
+  font-weight: 400;
+}
+
+.table-cell-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  justify-content: flex-end;
+}
+
+/* ========================================
+   EMPTY STATE - Minimal Elegant
+   ======================================== */
+
+.catalog-table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-12);
+  text-align: center;
+  background: #fafbfc;
+  border-radius: var(--radius-xl);
+  border: 1px dashed #e2e8f0;
+  margin: var(--spacing-6) var(--spacing-7);
+}
+
+.empty-message {
+  font-size: 0.875rem;
+  color: #64748b;
+  max-width: 400px;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+/* ========================================
+   BADGES - Subtle Professional
+   ======================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-md);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-family: var(--font-family-secondary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.badge-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* ========================================
+   EDITOR STYLES - Match NodeEditor
+   ======================================== */
+
+.category-editor,
+.product-editor,
+.provider-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+.editor-section-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.editor-section-title {
+  font-family: var(--font-family-secondary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--spacing-2) 0;
+  padding-left: var(--spacing-1);
+}
+
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.editor-label {
+  font-family: var(--font-family-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.01em;
+}
+
+.editor-select {
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-family: var(--font-family-secondary);
+  font-weight: 400;
+  color: #1e293b;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.editor-select:hover {
+  border-color: var(--color-primary);
+}
+
+.editor-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(16, 39, 76, 0.08);
+}
+
+.editor-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: var(--spacing-2);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.editor-checkbox:checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.editor-checkbox-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 400;
+}
+
+.editor-checkbox-label:hover {
+  color: var(--color-primary);
+}
+
+.editor-help-text {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0;
+  font-weight: 400;
+}
+
+.editor-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--spacing-5);
+  margin-top: var(--spacing-5);
+  border-top: 1px solid #f1f5f9;
+}
+
+.editor-actions-left,
+.editor-actions-right {
+  display: flex;
+  gap: var(--spacing-3);
+}
+
+.required-marker {
+  color: #ef4444;
+  margin-left: 2px;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .catalog-content {
+    padding: var(--spacing-6);
+  }
+
+  .catalog-toolbar {
+    padding: var(--spacing-5) var(--spacing-6);
+  }
+
+  .catalog-table-wrapper {
+    padding: var(--spacing-5) var(--spacing-6);
+  }
+}
+
+@media (max-width: 768px) {
+  .catalog-tabs {
+    flex-direction: column;
+    border-radius: 0;
+  }
+
+  .catalog-tab {
+    border-bottom: 1px solid #f1f5f9;
+    border-right: none;
+  }
+
+  .catalog-tab.active {
+    border-left: 3px solid var(--color-primary);
+  }
+
+  .catalog-toolbar {
+    flex-direction: column;
+    gap: var(--spacing-4);
+    align-items: stretch;
+  }
+
+  .catalog-toolbar-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .catalog-category-filter {
+    width: 100%;
+  }
+
+  .catalog-content {
+    padding: var(--spacing-4);
+  }
+
+  .btn-catalog {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .catalog-tab {
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: 0.8125rem;
+  }
+
+  .btn-catalog {
+    width: 30px;
+    height: 30px;
+    font-size: 0.9375rem;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY
+   ======================================== */
+
+.catalog-tab:focus-visible,
+.btn-catalog:focus-visible,
+.catalog-category-filter:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .catalog-table thead th {
+    border-bottom: 2px solid var(--color-primary);
+  }
+
+  .badge {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .catalog-tab,
+  .btn-catalog,
+  .catalog-table tbody tr,
+  .editor-select {
+    transition: none;
+  }
+
+  .catalog-tab::after {
+    transition: none;
+  }
+}

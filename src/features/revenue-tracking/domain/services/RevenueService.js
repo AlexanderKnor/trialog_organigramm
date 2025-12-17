@@ -11,10 +11,12 @@ import { REVENUE_STATUS_TYPES } from '../value-objects/RevenueStatus.js';
 export class RevenueService {
   #revenueRepository;
   #hierarchyService;
+  #catalogService;
 
-  constructor(revenueRepository, hierarchyService) {
+  constructor(revenueRepository, hierarchyService, catalogService = null) {
     this.#revenueRepository = revenueRepository;
     this.#hierarchyService = hierarchyService;
+    this.#catalogService = catalogService;
   }
 
   async getEntriesByEmployee(employeeId) {
@@ -335,6 +337,81 @@ export class RevenueService {
       const date = new Date(entryDate);
       return date.getMonth() === month && date.getFullYear() === year;
     });
+  }
+
+  // ========================================
+  // CATALOG INTEGRATION (for dynamic product catalog)
+  // ========================================
+
+  /**
+   * Get all available categories from catalog
+   * Falls back to hardcoded categories if CatalogService not available
+   */
+  async getAvailableCategories() {
+    if (this.#catalogService) {
+      try {
+        return await this.#catalogService.getAllCategories(false);
+      } catch (error) {
+        console.warn('Failed to load categories from catalog, using fallback:', error);
+      }
+    }
+
+    // Fallback to hardcoded categories
+    const { RevenueCategory } = await import('../value-objects/RevenueCategory.js');
+    return RevenueCategory.allCategories;
+  }
+
+  /**
+   * Get products for a specific category from catalog
+   * Falls back to hardcoded products if CatalogService not available
+   */
+  async getProductsForCategory(categoryType) {
+    if (this.#catalogService) {
+      try {
+        return await this.#catalogService.getProductsByCategory(categoryType, false);
+      } catch (error) {
+        console.warn('Failed to load products from catalog, using fallback:', error);
+      }
+    }
+
+    // Fallback to hardcoded products
+    const { Product } = await import('../value-objects/Product.js');
+    return Product.getProductsForCategory(categoryType);
+  }
+
+  /**
+   * Get providers for a specific category from catalog
+   * Falls back to hardcoded providers if CatalogService not available
+   */
+  async getProvidersForCategory(categoryType) {
+    if (this.#catalogService) {
+      try {
+        return await this.#catalogService.getProvidersByCategory(categoryType, false);
+      } catch (error) {
+        console.warn('Failed to load providers from catalog, using fallback:', error);
+      }
+    }
+
+    // Fallback to hardcoded providers
+    const { ProductProvider } = await import('../value-objects/ProductProvider.js');
+    return ProductProvider.getProvidersForCategory(categoryType);
+  }
+
+  /**
+   * Get category by type from catalog
+   * Falls back to hardcoded category if CatalogService not available
+   */
+  async getCategoryByType(categoryType) {
+    if (this.#catalogService) {
+      try {
+        return await this.#catalogService.getCategoryByType(categoryType);
+      } catch (error) {
+        console.warn('Failed to load category from catalog, using fallback:', error);
+      }
+    }
+
+    // Fallback: return null (calling code should handle)
+    return null;
   }
 
   /**

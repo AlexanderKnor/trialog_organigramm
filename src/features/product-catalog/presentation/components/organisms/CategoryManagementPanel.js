@@ -1,0 +1,221 @@
+/**
+ * Organism: CategoryManagementPanel
+ * Panel for managing categories
+ */
+
+import { Button } from '../../../../hierarchy-tracking/presentation/components/atoms/Button.js';
+import { CatalogTable } from '../molecules/CatalogTable.js';
+import { CategoryEditor } from '../molecules/CategoryEditor.js';
+import { createElement } from '../../../../../core/utils/dom.js';
+
+export class CategoryManagementPanel {
+  #catalogService;
+  #element;
+  #table;
+  #categories;
+  #unsubscribe;
+
+  constructor(props = {}) {
+    this.#catalogService = props.catalogService;
+    this.#categories = [];
+    this.#element = this.#render();
+    this.#loadCategories();
+    this.#setupRealTimeListener();
+  }
+
+  get element() {
+    return this.#element;
+  }
+
+  async #loadCategories() {
+    try {
+      this.#categories = await this.#catalogService.getAllCategories(true);
+      this.#updateTable();
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      this.#showError('Fehler beim Laden der Kategorien');
+    }
+  }
+
+  async #setupRealTimeListener() {
+    try {
+      this.#unsubscribe = await this.#catalogService.subscribeToCatalogUpdates((data) => {
+        console.log('🔄 Catalog updated (real-time)');
+        this.#categories = data.categories || [];
+        this.#updateTable();
+      });
+    } catch (error) {
+      console.error('Failed to setup real-time listener:', error);
+      this.#unsubscribe = null;
+    }
+  }
+
+  #render() {
+    const toolbar = this.#createToolbar();
+
+    this.#table = new CatalogTable({
+      columns: [
+        { key: 'displayName', label: 'Anzeigename' },
+        { key: 'type', label: 'Typ' },
+        {
+          key: 'provisionType',
+          label: 'Provisions-Typ',
+          render: (category) => category.provisionType?.type || '-',
+        },
+        {
+          key: 'requiresPropertyAddress',
+          label: 'Immobilien-Adresse',
+          render: (category) =>
+            category.requiresPropertyAddress
+              ? createElement('span', { className: 'badge badge-success' }, ['✓ Ja'])
+              : createElement('span', { className: 'badge badge-muted' }, ['Nein']),
+        },
+        {
+          key: 'status',
+          label: 'Status',
+          render: (category) =>
+            category.isActive
+              ? createElement('span', { className: 'badge badge-success' }, ['Aktiv'])
+              : createElement('span', { className: 'badge badge-muted' }, ['Inaktiv']),
+        },
+      ],
+      data: this.#categories,
+      onEdit: (category) => this.#handleEditCategory(category),
+      onDelete: (category) => this.#handleDeleteCategory(category),
+      emptyMessage: 'Keine Kategorien vorhanden. Erstellen Sie die erste Kategorie.',
+    });
+
+    return createElement('div', { className: 'catalog-panel' }, [toolbar, this.#table.element]);
+  }
+
+  #createToolbar() {
+    const addButton = new Button({
+      label: 'Neue Kategorie',
+      variant: 'primary',
+      onClick: () => this.#handleAddCategory(),
+    });
+
+    return createElement('div', { className: 'catalog-toolbar' }, [
+      createElement('h3', { className: 'catalog-panel-title' }, ['Kategorien']),
+      createElement('div', { className: 'catalog-toolbar-actions' }, [addButton.element]),
+    ]);
+  }
+
+  #updateTable() {
+    if (this.#table) {
+      this.#table.update(this.#categories);
+    }
+  }
+
+  #handleAddCategory() {
+    this.#showCategoryDialog(null);
+  }
+
+  #handleEditCategory(category) {
+    this.#showCategoryDialog(category);
+  }
+
+  async #handleDeleteCategory(category) {
+    const confirmed = confirm(
+      `Kategorie "${category.displayName}" wirklich löschen?\n\nDies ist nicht rückgängig zu machen und kann fehlschlagen, wenn die Kategorie noch verwendet wird.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await this.#catalogService.deleteCategory(category.type);
+      console.log('✓ Category deleted successfully');
+      await this.#loadCategories();
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+      alert(`Fehler beim Löschen:\n\n${error.message}`);
+    }
+  }
+
+  #showCategoryDialog(category) {
+    const dialog = createElement('div', { className: 'dialog-overlay' });
+
+    const editor = new CategoryEditor(category, {
+      onSave: async (data) => {
+        try {
+          // Show loading
+          const loadingOverlay = this.#createLoadingOverlay();
+          dialog.querySelector('.dialog-content').appendChild(loadingOverlay);
+          setTimeout(() => loadingOverlay.classList.add('visible'), 10);
+
+          if (category) {
+            await this.#catalogService.updateCategory(category.type, data);
+            console.log('✓ Category updated');
+          } else {
+            await this.#catalogService.createCategory(data);
+            console.log('✓ Category created');
+          }
+
+          this.#closeDialog(dialog);
+          await this.#loadCategories();
+        } catch (error) {
+          console.error('Failed to save category:', error);
+          loadingOverlay?.remove();
+          alert(`Fehler beim Speichern:\n\n${error.message}`);
+        }
+      },
+      onCancel: () => this.#closeDialog(dialog),
+    });
+
+    const dialogContent = createElement('div', { className: 'dialog-content' }, [
+      createElement('h2', { className: 'dialog-title' }, [
+        category ? 'Kategorie bearbeiten' : 'Neue Kategorie',
+      ]),
+      editor.element,
+    ]);
+
+    dialog.appendChild(dialogContent);
+    document.body.appendChild(dialog);
+
+    // Fade in animation
+    requestAnimationFrame(() => {
+      dialog.style.opacity = '1';
+    });
+
+    editor.focus();
+  }
+
+  #createLoadingOverlay() {
+    return createElement(
+      'div',
+      {
+        className: 'dialog-loading-overlay',
+        style:
+          'position: absolute; inset: 0; background: rgba(255, 255, 255, 0.95); display: flex; align-items: center; justify-content: center; border-radius: 24px; z-index: 1000; opacity: 0; transition: opacity 0.2s ease;',
+      },
+      [
+        createElement('div', {
+          className: 'loading-spinner',
+          style:
+            'width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.8s linear infinite;',
+        }),
+      ]
+    );
+  }
+
+  #closeDialog(dialog) {
+    dialog.style.opacity = '0';
+    dialog.style.transform = 'scale(0.95)';
+    dialog.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+    setTimeout(() => dialog.remove(), 200);
+  }
+
+  #showError(message) {
+    console.error(message);
+    // TODO: Show toast notification
+  }
+
+  destroy() {
+    if (this.#unsubscribe && typeof this.#unsubscribe === 'function') {
+      this.#unsubscribe();
+    }
+    if (this.#element && this.#element.parentNode) {
+      this.#element.remove();
+    }
+  }
+}

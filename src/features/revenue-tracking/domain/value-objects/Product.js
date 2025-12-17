@@ -1,6 +1,10 @@
 /**
  * Value Object: Product
  * Represents products based on category
+ *
+ * @deprecated Use CatalogService to load products dynamically.
+ *             This hardcoded implementation is kept as fallback for backward compatibility.
+ *             New code should use: revenueService.getProductsForCategory(categoryType)
  */
 
 import { REVENUE_CATEGORY_TYPES } from './RevenueCategory.js';

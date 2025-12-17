@@ -1,6 +1,10 @@
 /**
  * Value Object: RevenueCategory
  * Represents revenue categories with their display names
+ *
+ * @deprecated Use CatalogService to load categories dynamically.
+ *             This hardcoded implementation is kept as fallback for backward compatibility.
+ *             New code should use: revenueService.getAvailableCategories()
  */
 
 export const REVENUE_CATEGORY_TYPES = {

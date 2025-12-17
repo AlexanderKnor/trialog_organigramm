@@ -14,7 +14,7 @@ import { HierarchyNode } from '../../domain/entities/HierarchyNode.js';
 import { NODE_TYPES } from '../../domain/value-objects/NodeType.js';
 
 export class HierarchyScreen {
-#element;
+  #element;
   #container;
   #hierarchyService;
   #revenueService;
@@ -27,8 +27,11 @@ export class HierarchyScreen {
   #currentTreeId;
   #updateTimeout;
   #isUpdating;
+  #zoomLevel;
+  #zoomControls;
+  #keyboardHandler;
 
-constructor(container, hierarchyService, revenueService = null) {
+  constructor(container, hierarchyService, revenueService = null) {
     this.#container = typeof container === 'string' ? getElement(container) : container;
     this.#hierarchyService = hierarchyService;
     this.#revenueService = revenueService;
@@ -36,6 +39,7 @@ constructor(container, hierarchyService, revenueService = null) {
     this.#currentTreeId = null;
     this.#updateTimeout = null;
     this.#isUpdating = false;
+    this.#zoomLevel = 1.0;
 
     this.#element = this.#render();
     this.#setupSubscriptions();
@@ -63,16 +67,106 @@ constructor(container, hierarchyService, revenueService = null) {
       this.#sidebar.element,
     ]);
 
+    // Zoom controls
+    this.#zoomControls = this.#createZoomControls();
+
     return createElement('div', { className: 'hierarchy-screen' }, [
       header,
       mainContent,
+      this.#zoomControls,
     ]);
+  }
+
+  #createZoomControls() {
+    const zoomLevelDisplay = createElement('div', { className: 'zoom-level' }, [
+      createElement('span', { className: 'zoom-level-value' }, ['100%']),
+    ]);
+
+    const zoomInBtn = createElement('button', {
+      className: 'zoom-btn zoom-in-btn',
+      title: 'Vergrößern (Strg +)',
+      onclick: () => this.#handleZoomIn(),
+    }, ['+']);
+
+    const zoomOutBtn = createElement('button', {
+      className: 'zoom-btn zoom-out-btn',
+      title: 'Verkleinern (Strg -)',
+      onclick: () => this.#handleZoomOut(),
+    }, ['-']);
+
+    const zoomResetBtn = createElement('button', {
+      className: 'zoom-reset',
+      title: 'Zurücksetzen (Strg 0)',
+      onclick: () => this.#handleZoomReset(),
+    }, ['Reset']);
+
+    const buttonsContainer = createElement('div', { className: 'zoom-controls-container' }, [
+      zoomInBtn,
+      zoomOutBtn,
+    ]);
+
+    return createElement('div', { className: 'zoom-controls' }, [
+      buttonsContainer,
+      zoomLevelDisplay,
+      zoomResetBtn,
+    ]);
+  }
+
+  #handleZoomIn() {
+    this.#setZoom(Math.min(this.#zoomLevel + 0.1, 2.0));
+  }
+
+  #handleZoomOut() {
+    this.#setZoom(Math.max(this.#zoomLevel - 0.1, 0.5));
+  }
+
+  #handleZoomReset() {
+    this.#setZoom(1.0);
+  }
+
+  #setZoom(newZoom) {
+    this.#zoomLevel = Math.round(newZoom * 10) / 10;
+
+    // Apply zoom to organigramm container
+    const container = this.#element.querySelector('.organigramm-container');
+    if (container) {
+      container.style.transform = `scale(${this.#zoomLevel})`;
+      container.style.transformOrigin = 'top center';
+    }
+
+    // Update zoom level display
+    const zoomDisplay = this.#zoomControls.querySelector('.zoom-level-value');
+    if (zoomDisplay) {
+      zoomDisplay.textContent = `${Math.round(this.#zoomLevel * 100)}%`;
+    }
+
+    // Add pulse animation to buttons
+    const activeBtn = this.#zoomControls.querySelector('.zoom-btn:hover');
+    if (activeBtn) {
+      activeBtn.classList.add('zoom-active');
+      setTimeout(() => activeBtn.classList.remove('zoom-active'), 300);
+    }
+
+    // Update button disabled states
+    const zoomInBtn = this.#zoomControls.querySelector('.zoom-in-btn');
+    const zoomOutBtn = this.#zoomControls.querySelector('.zoom-out-btn');
+    if (zoomInBtn) zoomInBtn.disabled = this.#zoomLevel >= 2.0;
+    if (zoomOutBtn) zoomOutBtn.disabled = this.#zoomLevel <= 0.5;
   }
 
   #createHeader() {
     const user = authService.getCurrentUser();
     const userEmail = user?.email || 'User';
     const userRole = user?.role || '';
+    const isAdmin = authService.isAdmin();
+
+    // Admin-only catalog button (inside nav)
+    const catalogButton = isAdmin
+      ? createElement('button', {
+          className: 'btn-catalog',
+          onclick: () => window.navigateToCatalog(),
+        }, ['⚙️'])
+      : null;
 
     return createElement('header', { className: 'app-header' }, [
       createElement('div', { className: 'header-date' }),
@@ -82,6 +176,7 @@ constructor(container, hierarchyService, revenueService = null) {
         createElement('span', { className: 'logo-subtext' }, ['Organigramm']),
       ]),
       createElement('nav', { className: 'header-nav' }, [
+        catalogButton,
         createElement('span', { className: 'user-email' }, [
           userEmail,
           userRole === 'admin'
@@ -92,7 +187,7 @@ constructor(container, hierarchyService, revenueService = null) {
           className: 'btn-logout',
           onclick: () => this.#handleLogout(),
         }, ['Abmelden']),
-      ]),
+      ].filter(Boolean)),
     ]);
   }
 
@@ -661,6 +756,9 @@ async #handleTreeUpdate(updatedTree) {
     clearElement(this.#container);
     this.#container.appendChild(this.#element);
 
+    // Setup keyboard shortcuts for zoom
+    this.#setupZoomKeyboardShortcuts();
+
     try {
       // Single Tree Policy: Check if any tree exists
       const allTrees = await this.#hierarchyService.getAllTrees();
@@ -689,6 +787,28 @@ async #handleTreeUpdate(updatedTree) {
         console.error('Failed to initialize tree:', initError);
       }
     }
+  }
+
+  #setupZoomKeyboardShortcuts() {
+    this.#keyboardHandler = (e) => {
+      // Strg/Cmd + Plus: Zoom In
+      if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        this.#handleZoomIn();
+      }
+      // Strg/Cmd + Minus: Zoom Out
+      else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+        e.preventDefault();
+        this.#handleZoomOut();
+      }
+      // Strg/Cmd + 0: Reset Zoom
+      else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        this.#handleZoomReset();
+      }
+    };
+
+    document.addEventListener('keydown', this.#keyboardHandler);
   }
 
   async #initializeTrialogStructure() {
@@ -727,6 +847,10 @@ async #handleTreeUpdate(updatedTree) {
     if (this.#unsubscribeRevenueListener) {
       this.#unsubscribeRevenueListener();
       console.log('✓ Real-time revenue listener unsubscribed');
+    }
+    if (this.#keyboardHandler) {
+      document.removeEventListener('keydown', this.#keyboardHandler);
+      console.log('✓ Zoom keyboard shortcuts removed');
     }
     clearElement(this.#container);
   }

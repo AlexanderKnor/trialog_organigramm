@@ -103,5 +103,23 @@ service cloud.firestore {
       allow delete: if isAuthenticated() &&
         (isAdmin() || resource.data.userId == request.auth.uid);
     }
+
+    // ========================================
+    // PRODUCT CATALOG COLLECTION
+    // ========================================
+
+    match /product_catalog/{docId} {
+      // All authenticated users can READ catalog (employees need it for revenue forms)
+      allow read: if isAuthenticated();
+
+      // Only admins can CREATE catalog entries
+      allow create: if isAuthenticated() && isAdmin();
+
+      // Only admins can UPDATE catalog entries
+      allow update: if isAuthenticated() && isAdmin();
+
+      // Only admins can DELETE catalog entries
+      allow delete: if isAuthenticated() && isAdmin();
+    }
   }
 }

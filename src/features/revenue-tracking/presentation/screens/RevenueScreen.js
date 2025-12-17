@@ -1135,6 +1135,7 @@ createElement('svg', {
 
   #showAddDialog() {
     const dialog = new AddRevenueDialog({
+      revenueService: this.#revenueService,
       onSave: async (data) => {
         try {
           const entry = await this.#revenueService.addEntry(this.#employeeId, data);
@@ -1153,6 +1154,7 @@ createElement('svg', {
   async #handleEdit(entry) {
     const dialog = new AddRevenueDialog({
       entry,
+      revenueService: this.#revenueService,
       onSave: async (data) => {
         try {
           const updatedEntry = await this.#revenueService.updateEntry(data.id, data);

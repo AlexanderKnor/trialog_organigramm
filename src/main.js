@@ -19,11 +19,17 @@ import { LocalRevenueRepository } from './features/revenue-tracking/data/reposit
 import { FirebaseRevenueRepository } from './features/revenue-tracking/data/repositories/FirebaseRevenueRepository.js';
 import { RevenueService } from './features/revenue-tracking/domain/services/RevenueService.js';
 import { RevenueScreen } from './features/revenue-tracking/presentation/screens/RevenueScreen.js';
+import { CatalogFirestoreDataSource } from './features/product-catalog/data/data-sources/CatalogFirestoreDataSource.js';
+import { FirebaseCatalogRepository } from './features/product-catalog/data/repositories/FirebaseCatalogRepository.js';
+import { CatalogService } from './features/product-catalog/domain/services/CatalogService.js';
+import { MigrationService } from './features/product-catalog/domain/services/MigrationService.js';
+import { CatalogManagementScreen } from './features/product-catalog/presentation/screens/CatalogManagementScreen.js';
 import { APP_CONFIG } from './core/config/index.js';
 
 class Application {
   #hierarchyService;
   #revenueService;
+  #catalogService;
   #currentScreen;
   #loginScreen;
   #currentTreeId;
@@ -146,6 +152,7 @@ class Application {
     if (!this.#hierarchyService) {
       console.log('Initializing services with Firebase...');
 
+      // Initialize Hierarchy Service
       const firestoreDataSource = new FirestoreDataSource();
       const hierarchyRepository = new FirebaseHierarchyRepository(firestoreDataSource);
       const localDataSource = new LocalStorageDataSource();
@@ -154,10 +161,24 @@ class Application {
       this.#hierarchyService = new HierarchyService(hierarchyRepository, trackingRepository, authService);
       console.log('✓ Hierarchy Service initialized with Firebase + AuthService');
 
+      // Initialize Catalog Service (needed by RevenueService)
+      const catalogFirestoreDataSource = new CatalogFirestoreDataSource();
+      const catalogRepository = new FirebaseCatalogRepository(catalogFirestoreDataSource);
+      this.#catalogService = new CatalogService(catalogRepository, null); // RevenueService will be set later
+      console.log('✓ Catalog Service initialized with Firebase');
+
+      // Initialize Revenue Service (with CatalogService dependency)
       const revenueFirestoreDataSource = new RevenueFirestoreDataSource();
       const revenueRepository = new FirebaseRevenueRepository(revenueFirestoreDataSource);
-      this.#revenueService = new RevenueService(revenueRepository, this.#hierarchyService);
-      console.log('✓ Revenue Service initialized with Firebase');
+      this.#revenueService = new RevenueService(revenueRepository, this.#hierarchyService, this.#catalogService);
+      console.log('✓ Revenue Service initialized with Firebase + CatalogService');
+
+      // Link CatalogService back to RevenueService (circular dependency resolution)
+      this.#catalogService.setRevenueService(this.#revenueService);
+      console.log('✓ Circular dependency resolved: CatalogService ↔ RevenueService');
+
+      // Run automatic migration (only on first app start)
+      await this.#runCatalogMigration();
 
       // Setup routing
       this.#setupRouting();
@@ -181,13 +202,44 @@ class Application {
     this.#removeLoadingScreen();
   }
 
+  async #runCatalogMigration() {
+    try {
+      console.log('🔄 Checking catalog migration status...');
+
+      const migrationService = new MigrationService(this.#catalogService);
+      const result = await migrationService.migrateHardcodedData();
+
+      if (result.skipped) {
+        console.log('✓ Catalog migration skipped:', result.reason);
+      } else if (result.success) {
+        console.log(`✅ Catalog migration completed:`, {
+          categories: result.categories,
+          products: result.products,
+          providers: result.providers,
+        });
+      } else {
+        console.error('❌ Catalog migration failed:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to run catalog migration:', error);
+      // Don't block app initialization if migration fails
+    }
+  }
+
   async #linkEmployeeToNode(email) {
     try {
-      // Single Tree Policy: Search only in THE main organization tree
-      const tree = await this.#hierarchyService.getTree(APP_CONFIG.mainTreeId);
+      // Single Tree Policy: Get THE main organization tree (should only be one)
+      const allTrees = await this.#hierarchyService.getAllTrees();
+
+      if (allTrees.length === 0) {
+        console.warn('⚠ No trees found in database');
+        return;
+      }
+
+      const tree = allTrees[0]; // Get the first (and should be only) tree
       const normalizedEmail = email.toLowerCase().trim();
 
-      console.log(`🔍 Searching for node with email: ${email} in main tree`);
+      console.log(`🔍 Searching for node with email: ${email} in tree: ${tree.id}`);
 
       const allNodes = tree.getAllNodes();
       console.log(`  Searching: ${tree.name} (${allNodes.length} nodes)`);
@@ -252,10 +304,14 @@ class Application {
       this.#handleRoute();
     });
 
-    // Expose navigation function globally for components
+    // Expose navigation functions globally for components
     window.navigateToRevenue = (employeeId, treeId) => {
       this.#currentTreeId = treeId;
       window.location.hash = `revenue/${employeeId}/${treeId}`;
+    };
+
+    window.navigateToCatalog = () => {
+      window.location.hash = 'catalog';
     };
   }
 
@@ -281,6 +337,8 @@ class Application {
       const employeeId = parts[1];
       const treeId = parts[2];
       await this.#showRevenueScreen(employeeId, treeId);
+    } else if (parts[0] === 'catalog') {
+      await this.#showCatalogScreen();
     } else {
       await this.#showHierarchyScreen();
     }
@@ -331,6 +389,18 @@ class Application {
     await this.#currentScreen.mount();
   }
 
+  async #showCatalogScreen() {
+    // Only admins can access catalog management
+    if (!authService.isAdmin()) {
+      console.warn('⚠ Access denied: Catalog management requires admin role');
+      window.location.hash = '';
+      return;
+    }
+
+    this.#currentScreen = new CatalogManagementScreen('#app', this.#catalogService);
+    await this.#currentScreen.mount();
+  }
+
   destroy() {
     if (this.#currentScreen) {
       this.#currentScreen.unmount();
@@ -344,6 +414,10 @@ class Application {
 
   get revenueService() {
     return this.#revenueService;
+  }
+
+  get catalogService() {
+    return this.#catalogService;
   }
 }
 

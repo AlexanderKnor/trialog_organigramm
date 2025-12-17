@@ -1,0 +1,268 @@
+/**
+ * Zoom Controls - Premium Design
+ * Elegant zoom buttons positioned top-right
+ */
+
+/* ========================================
+   ZOOM CONTROLS CONTAINER
+   ======================================== */
+
+.zoom-controls {
+  position: fixed;
+  top: calc(var(--header-height) + 24px);
+  right: 24px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: calc(var(--z-sticky) - 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Subtle glass-morphism container */
+.zoom-controls-container {
+  display: inline-flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  padding: 2px;
+  box-shadow:
+    0 4px 6px rgba(16, 39, 76, 0.06),
+    0 8px 16px rgba(16, 39, 76, 0.08),
+    0 0 0 1px rgba(16, 39, 76, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.zoom-controls-container:hover {
+  box-shadow:
+    0 6px 12px rgba(16, 39, 76, 0.1),
+    0 12px 24px rgba(16, 39, 76, 0.12),
+    0 0 0 1px rgba(16, 39, 76, 0.12);
+  border-color: rgba(16, 39, 76, 0.15);
+}
+
+/* ========================================
+   ZOOM BUTTONS
+   ======================================== */
+
+.zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 252, 0.9) 100%
+  );
+  border: none;
+  border-radius: 8px;
+  color: #10274c;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Subtle inner shadow for depth */
+.zoom-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 2px rgba(16, 39, 76, 0.05);
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+/* Divider between buttons */
+.zoom-btn:not(:last-child) {
+  margin-bottom: 2px;
+}
+
+/* Hover state - Elegant lift */
+.zoom-btn:hover {
+  background: linear-gradient(135deg,
+    #10274c 0%,
+    #1a3a6e 100%
+  );
+  color: white;
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 8px rgba(16, 39, 76, 0.15),
+    0 8px 16px rgba(16, 39, 76, 0.1);
+}
+
+.zoom-btn:hover::before {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* Active state - Press down */
+.zoom-btn:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow:
+    0 2px 4px rgba(16, 39, 76, 0.12),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Disabled state */
+.zoom-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.zoom-btn:disabled:hover {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 252, 0.9) 100%
+  );
+  color: #10274c;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ========================================
+   ZOOM LEVEL INDICATOR
+   ======================================== */
+
+.zoom-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  box-shadow:
+    0 2px 4px rgba(16, 39, 76, 0.06),
+    0 0 0 1px rgba(226, 232, 240, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  margin-top: 6px;
+  min-width: auto;
+  transition: all 0.2s ease;
+}
+
+.zoom-level-value {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: -0.02em;
+  color: #10274c;
+}
+
+/* ========================================
+   RESET BUTTON
+   ======================================== */
+
+.zoom-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.zoom-reset:hover {
+  background: linear-gradient(135deg, #10274c 0%, #1a3a6e 100%);
+  color: white;
+  border-color: #10274c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 39, 76, 0.15);
+}
+
+.zoom-reset:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+   ======================================== */
+
+@media (max-width: 768px) {
+  .zoom-controls {
+    top: calc(var(--header-height) + 16px);
+    right: 16px;
+  }
+
+  .zoom-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+
+  .zoom-level {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .zoom-controls {
+    top: calc(var(--header-height) + 12px);
+    right: 12px;
+  }
+
+  .zoom-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .zoom-controls-container {
+    padding: 3px;
+  }
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes zoomControlsFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.zoom-controls {
+  animation: zoomControlsFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+}
+
+/* Pulse animation for feedback */
+@keyframes zoomPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.zoom-btn.zoom-active {
+  animation: zoomPulse 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

@@ -18,6 +18,7 @@ export const FIRESTORE_COLLECTIONS = {
   HIERARCHY_TREES: 'hierarchy_trees',
   TRACKING_EVENTS: 'tracking_events',
   REVENUE_ENTRIES: 'revenue_entries',
+  PRODUCT_CATALOG: 'product_catalog',
 };
 
 export const AUTH_CONFIG = {

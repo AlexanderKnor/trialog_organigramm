@@ -67,6 +67,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   height: var(--header-height);
+  width: 100%;
   padding: 0 0 0 var(--spacing-7);
   background: linear-gradient(180deg,
     #1a3a6e 0%,
@@ -74,8 +75,10 @@
     #0d1f3c 100%
   );
   color: var(--color-white);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: var(--z-sticky);
   overflow: hidden;
 }
@@ -178,7 +181,7 @@
 .header-nav {
   display: flex;
   align-items: center;
-  gap: var(--spacing-1);
+  gap: 0.375rem;
   justify-self: end;
 }
 
@@ -212,7 +215,7 @@
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 0.375rem;
   padding: 0.375rem 0.5rem;
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(12px);
@@ -490,7 +493,9 @@
 .hierarchy-screen {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
   background-color: var(--color-background);
 }
 
@@ -559,9 +564,10 @@
 
 .main-content {
   display: flex;
-  flex: 1;
   overflow: hidden;
   position: relative;
+  margin-top: var(--header-height);
+  height: calc(100vh - var(--header-height));
 }
 
 /* ========================================
@@ -579,6 +585,7 @@
     radial-gradient(circle, rgba(16, 39, 76, 0.04) 1px, transparent 1px);
   background-size: 20px 20px;
   position: relative;
+  min-height: 0;
 }
 
 
