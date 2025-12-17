@@ -1,0 +1,309 @@
+/**
+ * iOS Safari Compatibility Fixes
+ * Addresses iPhone-specific rendering issues
+ */
+
+/* ========================================
+   1. PREVENT AUTOMATIC TEXT SCALING
+   ======================================== */
+
+html {
+  /* Prevent iOS Safari from auto-scaling text */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Prevent zoom on form focus (inputs < 16px trigger zoom) */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* ========================================
+   2. FIX WEBKIT TEXT FILL + ELLIPSIS BUG
+   ======================================== */
+
+/* iOS Safari bug: webkit-text-fill-color:transparent breaks ellipsis */
+.card-name {
+  /* Fallback for iOS: Use solid color instead of gradient */
+  -webkit-text-fill-color: var(--color-primary) !important;
+  background: none !important;
+  color: var(--color-primary) !important;
+}
+
+/* Exception: Root card and featured employee card need white text */
+.org-card.root .card-name,
+.org-node-employee-featured > .org-card .card-name {
+  -webkit-text-fill-color: #ffffff !important;
+  background: none !important;
+  color: #ffffff !important;
+}
+
+/* Exception: Root card role text */
+.org-card.root .card-role,
+.org-node-employee-featured > .org-card .card-role {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Re-enable gradient for non-iOS devices (feature detection) */
+@supports (-webkit-overflow-scrolling: touch) and (not (translate: none)) {
+  .card-name {
+    background: linear-gradient(135deg, var(--color-primary) 0%, #2a5298 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Keep white text for root/featured cards even with gradient support */
+  .org-card.root .card-name,
+  .org-node-employee-featured > .org-card .card-name {
+    -webkit-text-fill-color: #ffffff !important;
+    background: none !important;
+    color: #ffffff !important;
+  }
+}
+
+/* ========================================
+   3. DISABLE HARDWARE ACCELERATION BUGS
+   ======================================== */
+
+.org-card {
+  /* Remove problematic hardware acceleration hints */
+  backface-visibility: visible !important;
+  will-change: auto !important;
+  /* Don't force transform - let original CSS handle it */
+}
+
+.org-card:hover {
+  /* Use regular 2D transforms on iOS */
+  transform: translateY(-6px) scale(1.015) !important;
+}
+
+.org-card:active {
+  transform: translateY(-2px) scale(1.01) !important;
+}
+
+/* ========================================
+   4. ENABLE SMOOTH MOMENTUM SCROLLING
+   ======================================== */
+
+.organigramm-view {
+  /* Enable momentum-based scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent scroll-chaining (bouncing) */
+  overscroll-behavior: contain;
+}
+
+/* ========================================
+   5. FIX VIEWPORT HEIGHT ON MOBILE SAFARI
+   ======================================== */
+
+/* iOS Safari calculates 100vh including URL bar */
+/* Use JavaScript solution or CSS env() for safe area */
+.organigramm-view {
+  /* Fallback for older iOS */
+  min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  /* Modern iOS with dvh (dynamic viewport height) */
+  min-height: 100dvh;
+}
+
+@supports not (height: 100dvh) {
+  .organigramm-view {
+    /* Fallback: subtract estimated Safari UI height */
+    min-height: calc(100vh - 120px);
+  }
+}
+
+/* ========================================
+   6. FIX TAP HIGHLIGHT
+   ======================================== */
+
+/* Remove iOS tap highlight (we have custom hover states) */
+.org-card,
+.card-action,
+.node-content {
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
+}
+
+/* ========================================
+   7. FIX STICKY HOVER STATES
+   ======================================== */
+
+/* iOS Safari doesn't remove :hover after tap */
+/* Use @media hover query to disable hover effects on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .org-card:hover {
+    /* Keep base transform, remove hover elevation */
+    transform: translate3d(0, 0, 0) scale(1) !important;
+    box-shadow:
+      0 1px 2px rgba(16, 39, 76, 0.03),
+      0 2px 4px rgba(16, 39, 76, 0.04),
+      0 4px 8px rgba(16, 39, 76, 0.06) !important;
+  }
+
+  .card-actions {
+    /* Always show actions on touch devices */
+    opacity: 1 !important;
+  }
+
+  .node-actions {
+    /* Always show actions on touch devices */
+    opacity: 1 !important;
+  }
+}
+
+/* ========================================
+   8. FIX BOX-SHADOW RENDERING
+   ======================================== */
+
+/* iOS Safari struggles with complex box-shadows */
+.org-card {
+  /* Simplified shadow for better performance */
+  box-shadow:
+    0 2px 8px rgba(16, 39, 76, 0.08),
+    0 4px 16px rgba(16, 39, 76, 0.06),
+    0 0 0 1px rgba(226, 232, 240, 0.5) !important;
+}
+
+.org-card.root {
+  box-shadow:
+    0 4px 16px rgba(16, 39, 76, 0.15),
+    0 8px 32px rgba(16, 39, 76, 0.10),
+    0 0 0 1px rgba(16, 39, 76, 0.2) !important;
+}
+
+/* ========================================
+   9. FIX TEXT OVERFLOW IN CARDS
+   ======================================== */
+
+/* Ensure text doesn't overflow cards on small screens */
+.card-name,
+.card-role {
+  /* Force ellipsis on iOS */
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: 100% !important;
+  display: block !important;
+}
+
+/* Allow wrapping for root cards */
+.org-card.root .card-name {
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* ========================================
+   10. FIX FONT RENDERING
+   ======================================== */
+
+/* iOS Safari font smoothing */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ========================================
+   11. FIX CONNECTORLINES ON MOBILE
+   ======================================== */
+
+/* Ensure connector lines are visible on iOS */
+/* Note: Don't override positioning - let original CSS handle it */
+.org-line-down,
+.org-line-up,
+.org-child::before,
+.org-line-horizontal,
+.org-top-level::after {
+  /* Ensure lines render properly without transform hacks */
+  backface-visibility: visible;
+}
+
+/* ========================================
+   12. FIX RESPONSIVE LAYOUT ON SMALL SCREENS
+   ======================================== */
+
+/* iPhone-specific adjustments */
+@media only screen
+  and (max-device-width: 428px)
+  and (-webkit-min-device-pixel-ratio: 2) {
+
+  /* Force minimum card width to prevent crushing */
+  .org-card {
+    min-width: 160px !important;
+    max-width: 160px !important;
+  }
+
+  .org-card.root {
+    min-width: 200px !important;
+    max-width: 200px !important;
+  }
+
+  /* Reduce gaps on very small screens */
+  :root {
+    --org-card-gap: 14px !important;
+    --org-line-gap: 10px !important;
+  }
+
+  /* Increase touch target sizes */
+  .card-action,
+  .node-action-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* ========================================
+   13. FIX POSITION FIXED ELEMENTS
+   ======================================== */
+
+/* iOS Safari has bugs with position:fixed during scroll */
+.organigramm-view::after {
+  /* Disable scroll hint on iOS (causes positioning bugs) */
+  display: none !important;
+}
+
+/* ========================================
+   14. PREVENT OVERSCROLL BOUNCE
+   ======================================== */
+
+/* Prevent rubber-band scrolling on iOS */
+html,
+body {
+  overscroll-behavior-y: none;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+#app {
+  overflow: auto;
+  height: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ========================================
+   15. FIX BLUR FILTER PERFORMANCE
+   ======================================== */
+
+/* iOS Safari has poor backdrop-filter performance */
+@supports (-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px)) {
+  /* Only on devices with good GPU */
+  .card-revenue,
+  .org-card {
+    /* Reduce blur amount for better performance */
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
+}
+
+/* Disable blur on older iOS devices */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
