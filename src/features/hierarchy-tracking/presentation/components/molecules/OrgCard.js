@@ -124,7 +124,7 @@ export class OrgCard {
 
     // Avatar
     const avatarContent = isRoot
-      ? new Icon({ name: 'building', size: 22, color: 'currentColor' }).element
+      ? new Icon({ name: 'building', size: 32, color: 'currentColor' }).element
       : createElement('span', { className: 'card-initials' }, [this.#getInitials()]);
 
     const avatar = createElement('div', {

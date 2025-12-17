@@ -1,0 +1,467 @@
+/**
+ * Premium Root Card Design
+ * Professional, clean, impressive corporate identity
+ */
+
+/* ========================================
+   ROOT CARD - REFINED PROFESSIONAL DESIGN
+   ======================================== */
+
+.org-card.root {
+  /* Refined dimensions - professional but not overwhelming */
+  width: 285px !important;
+  min-height: 155px;
+  padding: 24px 22px !important;
+  border-radius: 20px !important;
+
+  /* Refined gradient background */
+  background: linear-gradient(165deg,
+    #0d1f3c 0%,
+    #10274c 40%,
+    #1a3a6e 80%,
+    #0f2545 100%
+  ) !important;
+
+  /* Subtle, refined shadow system */
+  box-shadow:
+    0 2px 8px rgba(16, 39, 76, 0.12),
+    0 4px 16px rgba(16, 39, 76, 0.10),
+    0 8px 24px rgba(16, 39, 76, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+
+  /* Smooth transitions */
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+
+  /* Prevent badge clipping */
+  position: relative;
+  overflow: visible !important;
+}
+
+/* Premium glass effect overlay */
+.org-card.root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 40%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  border-radius: 24px;
+  pointer-events: none;
+  opacity: 1 !important;
+}
+
+/* Subtle bottom accent line */
+.org-card.root::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 100%
+  );
+  opacity: 0.6;
+}
+
+/* Hover effect - subtle lift */
+.org-card.root:hover {
+  transform: translateY(-6px) scale(1.01) !important;
+  box-shadow:
+    0 4px 12px rgba(16, 39, 76, 0.14),
+    0 8px 24px rgba(16, 39, 76, 0.12),
+    0 12px 32px rgba(16, 39, 76, 0.10),
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+/* ========================================
+   ROOT CARD HEADER - CENTERED LAYOUT
+   ======================================== */
+
+.org-card.root .card-header {
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  gap: 20px !important;
+  margin-bottom: 24px !important;
+}
+
+/* ========================================
+   ROOT CARD LOGO - REFINED BUILDING ICON
+   ======================================== */
+
+.org-card.root .card-avatar {
+  /* Refined logo container - clean and professional */
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 16px !important;
+
+  /* Premium gradient background */
+  background: linear-gradient(145deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.08) 100%
+  ) !important;
+
+  /* Subtle shadow */
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.14),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.15) !important;
+
+  /* Smooth transitions */
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+
+  /* Prevent icon squish */
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.25) !important;
+}
+
+.org-card.root:hover .card-avatar {
+  transform: scale(1.05) !important;
+}
+
+/* Building Icon - Refined styling */
+.org-card.root .card-avatar .icon svg {
+  stroke: rgba(255, 255, 255, 1) !important;
+  stroke-width: 2 !important;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+  width: 32px !important;
+  height: 32px !important;
+}
+
+/* ========================================
+   ROOT CARD TYPOGRAPHY - CLEAN & REFINED
+   ======================================== */
+
+.org-card.root .card-info {
+  align-items: center !important;
+  text-align: center;
+  width: 100%;
+}
+
+.org-card.root .card-name {
+  font-family: 'Libre Bodoni', Georgia, serif !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0.01em !important;
+  text-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.4) !important;
+  margin-bottom: 4px;
+  white-space: normal !important;
+  text-align: center;
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+.org-card.root .card-role {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  margin-top: 2px;
+}
+
+/* ========================================
+   ROOT CARD REVENUE - CLEAN DISPLAY
+   ======================================== */
+
+.org-card.root .card-revenue {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.07) 100%
+  ) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 12px !important;
+  padding: 12px 14px !important;
+  margin-top: 16px !important;
+  backdrop-filter: blur(6px) !important;
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.org-card.root .card-revenue-row {
+  padding: 5px 0 !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.org-card.root .card-revenue-row + .card-revenue-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.14) !important;
+  margin-top: 5px;
+  padding-top: 7px !important;
+}
+
+.org-card.root .revenue-label-root {
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.org-card.root .revenue-amount-root {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.org-card.root .provision-label-root {
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em;
+  color: #86efac !important;
+}
+
+.org-card.root .provision-amount-root {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #86efac !important;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* ========================================
+   ROOT CARD BADGE - NO CLIPPING
+   ======================================== */
+
+.org-card.root .card-badge {
+  /* Proper positioning - no clipping */
+  min-width: 28px !important;
+  height: 28px !important;
+  padding: 0 8px !important;
+  top: -8px !important;
+  left: -8px !important;
+  border-radius: 14px !important;
+  font-size: 12px !important;
+
+  /* Gold accent - refined */
+  background: linear-gradient(145deg, #f5d78e 0%, #d4a84b 100%) !important;
+  color: #10274c !important;
+
+  box-shadow:
+    0 3px 8px rgba(212, 168, 75, 0.35),
+    0 0 0 2.5px rgba(255, 255, 255, 1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+
+  border: none !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+  z-index: 10 !important;
+}
+
+/* ========================================
+   ROOT CARD ACTIONS
+   ======================================== */
+
+.org-card.root .card-action {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.org-card.root .card-action:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* ========================================
+   RESPONSIVE SCALING FOR ROOT CARD
+   ======================================== */
+
+/* Mobile: Clean and professional */
+@media (max-width: 768px) {
+  .org-card.root {
+    width: 260px !important;
+    min-height: 145px;
+    padding: 22px 20px !important;
+    border-radius: 18px !important;
+  }
+
+  .org-card.root .card-avatar {
+    width: 58px !important;
+    height: 58px !important;
+    border-radius: 15px !important;
+  }
+
+  .org-card.root .card-avatar .icon svg {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .org-card.root .card-name {
+    font-size: 15px !important;
+  }
+
+  .org-card.root .card-role {
+    font-size: 11px !important;
+  }
+
+  .org-card.root .revenue-amount-root,
+  .org-card.root .provision-amount-root {
+    font-size: 14px !important;
+  }
+}
+
+/* Very Small Mobile: Compact and refined */
+@media (max-width: 480px) {
+  .org-card.root {
+    width: 230px !important;
+    min-height: 135px;
+    padding: 20px 18px !important;
+    border-radius: 16px !important;
+  }
+
+  .org-card.root .card-avatar {
+    width: 54px !important;
+    height: 54px !important;
+    border-radius: 14px !important;
+  }
+
+  .org-card.root .card-avatar .icon svg {
+    width: 26px !important;
+    height: 26px !important;
+  }
+
+  .org-card.root .card-name {
+    font-size: 14px !important;
+  }
+
+  .org-card.root .card-role {
+    font-size: 10.5px !important;
+  }
+
+  .org-card.root .card-revenue {
+    padding: 14px 16px !important;
+    margin-top: 16px !important;
+  }
+
+  .org-card.root .revenue-amount-root,
+  .org-card.root .provision-amount-root {
+    font-size: 13px !important;
+  }
+
+  .org-card.root .card-badge {
+    min-width: 26px !important;
+    height: 26px !important;
+    top: -7px !important;
+    left: -7px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* Large Desktop: Refined elegance */
+@media (min-width: 1920px) {
+  .org-card.root {
+    width: 310px !important;
+    min-height: 170px;
+    padding: 28px 26px !important;
+    border-radius: 22px !important;
+  }
+
+  .org-card.root .card-avatar {
+    width: 70px !important;
+    height: 70px !important;
+    border-radius: 18px !important;
+  }
+
+  .org-card.root .card-avatar .icon svg {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .org-card.root .card-name {
+    font-size: 17px !important;
+  }
+
+  .org-card.root .card-role {
+    font-size: 12.5px !important;
+  }
+
+  .org-card.root .revenue-amount-root,
+  .org-card.root .provision-amount-root {
+    font-size: 16px !important;
+  }
+}
+
+/* ========================================
+   PREMIUM ANIMATION POLISH
+   ======================================== */
+
+@keyframes rootCardEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.org-card.root {
+  animation: rootCardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards !important;
+  animation-delay: 0.1s;
+}
+
+/* ========================================
+   TOUCH DEVICE OPTIMIZATIONS
+   ======================================== */
+
+@media (hover: none) {
+  .org-card.root:hover {
+    /* Subtle tap feedback instead of lift */
+    transform: scale(0.98) !important;
+    transition-duration: 0.1s !important;
+  }
+
+  .org-card.root:active {
+    transform: scale(0.96) !important;
+  }
+}
+
+/* ========================================
+   PRINT OPTIMIZATION
+   ======================================== */
+
+@media print {
+  .org-card.root {
+    width: 300px !important;
+    background: #f5f5f5 !important;
+    box-shadow: none !important;
+    border: 2px solid #10274c !important;
+  }
+
+  .org-card.root .card-name,
+  .org-card.root .card-role,
+  .org-card.root .card-logo-text {
+    color: #10274c !important;
+    text-shadow: none !important;
+  }
+
+  .org-card.root .card-avatar {
+    background: #10274c !important;
+  }
+
+  .org-card.root .card-logo-text {
+    color: #ffffff !important;
+  }
+}

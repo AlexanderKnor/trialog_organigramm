@@ -1,0 +1,401 @@
+/**
+ * Mobile & Cross-Device Fixes
+ * All responsive optimizations and device-specific fixes
+ */
+
+/* ========================================
+   VIEWPORT & iOS SAFARI BASICS
+   ======================================== */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Prevent zoom on input focus (iOS) */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* Smooth scrolling for iOS */
+.organigramm-view {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Remove tap highlight */
+.org-card,
+.card-action,
+.node-content,
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ========================================
+   TEXT RENDERING FIXES
+   ======================================== */
+
+/* Fix: Gradient text breaks ellipsis on iOS */
+.card-name {
+  -webkit-text-fill-color: var(--color-primary) !important;
+  background: none !important;
+  color: var(--color-primary) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Exception: Root card and featured employee need white text */
+.org-card.root .card-name,
+.org-node-employee-featured > .org-card .card-name {
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.org-card.root .card-role,
+.org-node-employee-featured > .org-card .card-role {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Ensure all text respects ellipsis */
+.card-role {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Allow wrapping only for root cards */
+.org-card.root .card-name,
+.org-card.root .card-role {
+  white-space: normal !important;
+  word-wrap: break-word !important;
+}
+
+/* ========================================
+   PERFORMANCE OPTIMIZATIONS
+   ======================================== */
+
+/* Simplify box-shadows for better mobile performance */
+.org-card {
+  box-shadow:
+    0 2px 8px rgba(16, 39, 76, 0.08),
+    0 4px 16px rgba(16, 39, 76, 0.06),
+    0 0 0 1px rgba(226, 232, 240, 0.5) !important;
+}
+
+.org-card.root {
+  box-shadow:
+    0 4px 16px rgba(16, 39, 76, 0.15),
+    0 8px 32px rgba(16, 39, 76, 0.10),
+    0 0 0 1px rgba(16, 39, 76, 0.2) !important;
+}
+
+/* Reduce backdrop-filter blur for performance */
+.card-revenue,
+.org-card {
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* ========================================
+   RESPONSIVE SCALING SYSTEM
+   ======================================== */
+
+/* Mobile First - Base: 320px+ (iPhone SE) */
+:root {
+  --org-card-width: 145px;
+  --org-card-gap: 12px;
+  --org-line-gap: 18px;
+  --card-name-size: 11px;
+  --card-role-size: 10px;
+  --card-avatar-size: 32px;
+  --card-padding: 11px;
+}
+
+.organigramm-container {
+  padding: 20px 16px !important;
+}
+
+.org-card {
+  width: var(--org-card-width) !important;
+  padding: var(--card-padding) !important;
+}
+
+/* Root card styling is in root-card-premium.css */
+
+.card-name {
+  font-size: var(--card-name-size) !important;
+}
+
+.card-role {
+  font-size: var(--card-role-size) !important;
+}
+
+.card-avatar {
+  width: var(--card-avatar-size) !important;
+  height: var(--card-avatar-size) !important;
+  font-size: calc(var(--card-avatar-size) * 0.36) !important;
+}
+
+/* Touch targets: 44px minimum on mobile */
+.card-action,
+.node-action-btn {
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
+.card-actions,
+.node-actions {
+  opacity: 1 !important;
+}
+
+/* iPhone 13/14/15 (390px+) */
+@media (min-width: 390px) {
+  :root {
+    --org-card-width: 165px;
+    --org-card-gap: 14px;
+    --org-line-gap: 20px;
+    --card-name-size: 12px;
+    --card-role-size: 10.5px;
+    --card-avatar-size: 34px;
+    --card-padding: 12px;
+  }
+
+  .organigramm-container {
+    padding: 24px 18px !important;
+  }
+}
+
+/* iPhone Pro Max (428px+) */
+@media (min-width: 428px) {
+  :root {
+    --org-card-width: 175px;
+    --org-card-gap: 16px;
+    --org-line-gap: 22px;
+    --card-name-size: 12.5px;
+    --card-role-size: 11px;
+    --card-avatar-size: 36px;
+    --card-padding: 13px;
+  }
+}
+
+/* Small Tablets (600px+) */
+@media (min-width: 600px) {
+  :root {
+    --org-card-width: 185px;
+    --org-card-gap: 18px;
+    --org-line-gap: 24px;
+    --card-name-size: 13px;
+    --card-role-size: 11px;
+    --card-avatar-size: 38px;
+    --card-padding: 14px;
+  }
+
+  .organigramm-container {
+    padding: 28px 24px !important;
+  }
+
+  .card-action,
+  .node-action-btn {
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
+}
+
+/* Tablets Portrait (768px+) */
+@media (min-width: 768px) {
+  :root {
+    --org-card-width: 190px;
+    --org-card-gap: 20px;
+    --org-line-gap: 26px;
+    --card-name-size: 13px;
+    --card-role-size: 11px;
+    --card-avatar-size: 40px;
+    --card-padding: 15px;
+  }
+
+  .organigramm-container {
+    padding: 32px 28px !important;
+  }
+
+  /* Show actions only on hover for pointer devices */
+  @media (hover: hover) {
+    .card-actions,
+    .node-actions {
+      opacity: 0 !important;
+    }
+
+    .org-card:hover .card-actions,
+    .node-content:hover .node-actions {
+      opacity: 1 !important;
+    }
+  }
+}
+
+/* Tablets Landscape & Small Laptops (1024px+) */
+@media (min-width: 1024px) {
+  :root {
+    --org-card-width: 200px;
+    --org-card-gap: 24px;
+    --org-line-gap: 28px;
+    --card-name-size: 13.5px;
+    --card-role-size: 11px;
+    --card-avatar-size: 40px;
+    --card-padding: 16px;
+  }
+
+  .organigramm-container {
+    padding: 40px 36px !important;
+  }
+
+  .card-action,
+  .node-action-btn {
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+}
+
+/* Laptops (1280px+) */
+@media (min-width: 1280px) {
+  :root {
+    --org-card-width: 210px;
+    --org-card-gap: 28px;
+    --org-line-gap: 32px;
+    --card-name-size: 13.5px;
+    --card-avatar-size: 40px;
+    --card-padding: 18px;
+  }
+
+  .organigramm-container {
+    padding: 48px 60px !important;
+  }
+
+  .card-action,
+  .node-action-btn {
+    min-width: 28px !important;
+    min-height: 28px !important;
+  }
+}
+
+/* Large Desktop (1920px+) */
+@media (min-width: 1920px) {
+  :root {
+    --org-card-width: 220px;
+    --org-card-gap: 32px;
+    --org-line-gap: 36px;
+    --card-name-size: 14px;
+    --card-avatar-size: 42px;
+  }
+
+  .organigramm-container {
+    padding: 56px 80px !important;
+  }
+}
+
+/* ========================================
+   CONNECTOR LINES - PERFECT POSITIONING
+   ======================================== */
+
+/* Ensure vertical line from root is visible */
+.org-node > .org-line-down {
+  display: block !important;
+  width: var(--org-line-width) !important;
+  height: var(--org-line-gap) !important;
+  background: linear-gradient(180deg,
+    rgba(16, 39, 76, 0.3) 0%,
+    var(--org-line-color) 100%
+  ) !important;
+  margin: 0 auto !important;
+}
+
+/* All connector lines use consistent gap */
+.org-line-down,
+.org-line-up {
+  height: var(--org-line-gap) !important;
+}
+
+/* Top-level horizontal line - positioned below root card avatar */
+.org-top-level::after {
+  top: 88px !important;
+  left: 158px !important;
+  right: 158px !important;
+}
+
+/* Responsive adjustments for top-level line */
+@media (min-width: 1920px) {
+  .org-top-level::after {
+    top: 92px !important;
+    left: 170px !important;
+    right: 170px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .org-top-level::after {
+    top: 82px !important;
+    left: 145px !important;
+    right: 145px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .org-top-level::after {
+    top: 78px !important;
+    left: 128px !important;
+    right: 128px !important;
+  }
+}
+
+/* Ensure lines are sharp on all devices */
+.org-line-down,
+.org-line-up,
+.org-child::before,
+.org-line-horizontal,
+.org-top-level::after {
+  backface-visibility: visible !important;
+  image-rendering: crisp-edges;
+}
+
+/* ========================================
+   TOUCH DEVICE OPTIMIZATIONS
+   ======================================== */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Disable hover effects on touch devices */
+  .org-card:hover {
+    transform: translate3d(0, 0, 0) scale(1) !important;
+  }
+
+  /* Reduce transition durations */
+  .org-card,
+  .card-avatar {
+    transition-duration: 0.15s !important;
+  }
+
+  /* Disable decorative elements for performance */
+  .card-avatar::before,
+  .org-card::before {
+    display: none !important;
+  }
+}
+
+/* ========================================
+   SMALL MOBILE SPECIFIC (<480px)
+   ======================================== */
+
+@media (max-width: 480px) {
+  /* Simplified shadows */
+  .org-card {
+    box-shadow: 0 2px 8px rgba(16, 39, 76, 0.12) !important;
+  }
+
+  /* Disable expensive animations */
+  .org-card,
+  .org-node,
+  .org-child {
+    animation: none !important;
+  }
+}
