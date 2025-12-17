@@ -346,30 +346,50 @@ export class OrganigrammView {
 #centerOnRootCard() {
     if (!this.#element || !this.#tree || !this.#tree.root) return;
 
+    // Wait for layout to be fully rendered (double RAF for stability)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this.#performCentering();
+      });
+    });
+  }
+
+  #performCentering() {
+    if (!this.#element || !this.#tree || !this.#tree.root) return;
+
     // Find the root card element in the DOM
     const rootCardWrapper = this.#element.querySelector(`[data-node-id="${this.#tree.root.id}"]`);
-    if (!rootCardWrapper) return;
+    if (!rootCardWrapper) {
+      console.warn('⚠ Root card not found for centering');
+      return;
+    }
 
-    // Get the scrollable container
+    // Get the scrollable container (.organigramm-view)
     const scrollContainer = this.#element;
 
-    // Calculate center position
-    const cardRect = rootCardWrapper.getBoundingClientRect();
-    const containerRect = scrollContainer.getBoundingClientRect();
+    // Get container and scroll dimensions
+    const containerWidth = scrollContainer.clientWidth;
+    const scrollWidth = scrollContainer.scrollWidth;
 
-    // Calculate scroll position to center the card
-    const scrollLeft =
-      rootCardWrapper.offsetLeft -
-      (containerRect.width / 2) +
-      (cardRect.width / 2);
+    // Get card position and dimensions
+    const cardOffsetLeft = rootCardWrapper.offsetLeft;
+    const cardWidth = rootCardWrapper.offsetWidth;
 
-    // Scroll to center (instant to avoid jump)
-    scrollContainer.scrollTo({
-      left: Math.max(0, scrollLeft),
-      behavior: 'auto',
+    // Calculate the exact center of the card
+    const cardCenterX = cardOffsetLeft + (cardWidth / 2);
+
+    // Calculate scroll position to center the card perfectly in viewport
+    const targetScrollLeft = cardCenterX - (containerWidth / 2);
+
+    // Apply scroll position (instant, no smooth scrolling)
+    scrollContainer.scrollLeft = Math.max(0, targetScrollLeft);
+
+    console.log('✓ Root card perfectly centered:', {
+      cardCenterX,
+      containerWidth,
+      targetScrollLeft: Math.max(0, targetScrollLeft),
+      actualScrollLeft: scrollContainer.scrollLeft,
     });
-
-    console.log('✓ Centered on root card');
   }
 
   #checkScrollHint(viewElement) {

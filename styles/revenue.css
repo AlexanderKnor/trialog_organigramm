@@ -10,7 +10,7 @@
 .revenue-screen {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
   overflow: hidden;
   background: var(--color-background);
 }
@@ -603,12 +603,13 @@
 
 .revenue-content {
   flex: 1;
-  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
-  padding: var(--spacing-6) 0 var(--spacing-6) var(--spacing-6);
-  padding-top: calc(var(--header-height) + var(--spacing-6));
+  overflow-x: hidden;
+  padding: 0;
   position: relative;
-  min-width: 0;
+  min-height: 0;
 }
 
 /* Premium scrollbar styling for revenue content */
@@ -793,10 +794,18 @@
 
 .revenue-table-wrapper {
   margin-top: var(--spacing-4);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .revenue-table-container {
+  flex: 1;
+  min-height: 0;
   overflow-x: auto;
+  overflow-y: auto;
   background: var(--color-white);
   border-radius: var(--radius-xl);
   border: 1px solid var(--color-border);
@@ -2048,11 +2057,18 @@
    ======================================== */
 
 /* View transition animations */
-.revenue-own {
+.revenue-own,
+.revenue-team,
+.revenue-company {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-6);
   animation: viewFadeIn 0.3s ease-out forwards;
 }
 
-.revenue-own.view-exit {
+.revenue-own.view-exit,
+.revenue-team.view-exit,
+.revenue-company.view-exit {
   animation: viewFadeOut 0.2s ease-out forwards;
 }
 
