@@ -1,0 +1,167 @@
+/**
+ * Top-Level Layout Fix
+ * Fixed positioning for Geschäftsführer (Marcel & Daniel)
+ * They stay in place regardless of Trialog's children count
+ */
+
+/* ========================================
+   FIXED POSITIONING FROM CENTER
+   Geschäftsführer stay fixed regardless of Trialog children
+   ======================================== */
+
+.org-top-level {
+  /* Keep as flex for Trialog centering */
+  position: relative !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 0 !important;
+  min-height: 200px;
+}
+
+/* Trialog card in center */
+.org-top-level > .org-node {
+  position: relative;
+  z-index: 2;
+}
+
+/* Geschäftsführer - fixed distance from viewport center */
+/* Formula LEFT: 50% - (Trialog-width/2 + gap + GF-card-width) */
+/* Formula RIGHT: 50% + (Trialog-width/2 + gap) */
+
+.org-geschaeftsfuehrer-left {
+  position: absolute !important;
+  /* 50% - (285/2 + 60 + 210) = 50% - 412.5px */
+  left: calc(50% - 413px) !important;
+  top: 0 !important;
+  z-index: 1 !important;
+}
+
+.org-geschaeftsfuehrer-right {
+  position: absolute !important;
+  /* 50% + (285/2 + 60) = 50% + 202.5px */
+  left: calc(50% + 203px) !important;
+  top: 0 !important;
+  z-index: 1 !important;
+}
+
+/* ========================================
+   RESPONSIVE POSITIONING
+   ======================================== */
+
+/* Desktop (1280px+) - 60px gap from Trialog */
+@media (min-width: 1280px) {
+  .org-geschaeftsfuehrer-left {
+    /* 50% - (285/2 + 60 + 210) = 50% - 412.5px */
+    left: calc(50% - 413px) !important;
+  }
+
+  .org-geschaeftsfuehrer-right {
+    /* 50% + (285/2 + 60) = 50% + 202.5px */
+    left: calc(50% + 203px) !important;
+  }
+}
+
+/* Tablet (768px - 1280px) - 52px gap */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .org-geschaeftsfuehrer-left {
+    /* 50% - (260/2 + 52 + 190) = 50% - 372px */
+    left: calc(50% - 372px) !important;
+  }
+
+  .org-geschaeftsfuehrer-right {
+    /* 50% + (260/2 + 52) = 50% + 182px */
+    left: calc(50% + 182px) !important;
+  }
+}
+
+/* Mobile (480px - 768px) - 44px gap */
+@media (min-width: 480px) and (max-width: 767px) {
+  .org-geschaeftsfuehrer-left {
+    /* 50% - (260/2 + 44 + 175) = 50% - 349px */
+    left: calc(50% - 349px) !important;
+  }
+
+  .org-geschaeftsfuehrer-right {
+    /* 50% + (260/2 + 44) = 50% + 174px */
+    left: calc(50% + 174px) !important;
+  }
+}
+
+/* Very small mobile (<480px) - 36px gap */
+@media (max-width: 479px) {
+  .org-geschaeftsfuehrer-left {
+    /* 50% - (230/2 + 36 + 145) = 50% - 296px */
+    left: calc(50% - 296px) !important;
+  }
+
+  .org-geschaeftsfuehrer-right {
+    /* 50% + (230/2 + 36) = 50% + 151px */
+    left: calc(50% + 151px) !important;
+  }
+}
+
+/* Very large screens (1920px+) - 64px gap */
+@media (min-width: 1920px) {
+  .org-geschaeftsfuehrer-left {
+    /* 50% - (310/2 + 64 + 220) = 50% - 439px */
+    left: calc(50% - 439px) !important;
+  }
+
+  .org-geschaeftsfuehrer-right {
+    /* 50% + (310/2 + 64) = 50% + 219px */
+    left: calc(50% + 219px) !important;
+  }
+}
+
+/* ========================================
+   HORIZONTAL CONNECTOR LINE
+   ======================================== */
+
+/* Line connects: Marcel (right edge) → Trialog → Daniel (left edge) */
+/* Desktop: Marcel ends at 50%-203px, Daniel starts at 50%+203px */
+.org-top-level::after {
+  left: calc(50% - 203px) !important;
+  right: calc(50% - 203px) !important;
+  top: 88px !important;
+}
+
+/* Desktop 1920px+ */
+@media (min-width: 1920px) {
+  .org-top-level::after {
+    /* Marcel ends: 50%-439px+220px = 50%-219px, Daniel: 50%+219px */
+    left: calc(50% - 219px) !important;
+    right: calc(50% - 219px) !important;
+    top: 92px !important;
+  }
+}
+
+/* Tablet */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .org-top-level::after {
+    /* Marcel ends: 50%-372px+190px = 50%-182px, Daniel: 50%+182px */
+    left: calc(50% - 182px) !important;
+    right: calc(50% - 182px) !important;
+    top: 82px !important;
+  }
+}
+
+/* Mobile */
+@media (min-width: 480px) and (max-width: 767px) {
+  .org-top-level::after {
+    /* Marcel ends: 50%-349px+175px = 50%-174px, Daniel: 50%+174px */
+    left: calc(50% - 174px) !important;
+    right: calc(50% - 174px) !important;
+    top: 80px !important;
+  }
+}
+
+/* Very small mobile */
+@media (max-width: 479px) {
+  .org-top-level::after {
+    /* Marcel ends: 50%-296px+145px = 50%-151px, Daniel: 50%+151px */
+    left: calc(50% - 151px) !important;
+    right: calc(50% - 151px) !important;
+    top: 78px !important;
+  }
+}
