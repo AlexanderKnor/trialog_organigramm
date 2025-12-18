@@ -480,12 +480,6 @@
   color: #475569;
 }
 
-.employee-name {
-  font-weight: 700;
-  color: #1e293b;
-  font-size: 0.875rem;
-  letter-spacing: -0.01em;
-}
 
 .td-total {
   font-weight: 700;
@@ -622,12 +616,179 @@
   border: 1px solid #e2e8f0;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .cancellation-overall-stats {
-    grid-template-columns: 1fr;
+/* ========================================
+   TEXT HANDLING & OVERFLOW
+   ======================================== */
+
+.employee-name {
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 0.875rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  white-space: nowrap;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+/* Large screens - full table layout */
+@media (min-width: 1024px) {
+  .cancellation-table {
+    table-layout: fixed;
   }
 
+  .cancellation-table th.th-employee,
+  .cancellation-table td.td-employee {
+    width: 200px;
+  }
+
+  .cancellation-table th.th-total,
+  .cancellation-table td.td-total {
+    width: 70px;
+    text-align: center;
+  }
+
+  .cancellation-table th.th-success,
+  .cancellation-table th.th-cancellation,
+  .cancellation-table th.th-rejection {
+    width: 100px;
+    text-align: center;
+  }
+
+  .cancellation-table td.td-success,
+  .cancellation-table td.td-cancellation,
+  .cancellation-table td.td-rejection {
+    text-align: center;
+  }
+
+  .cancellation-table th.th-distribution,
+  .cancellation-table td.td-distribution {
+    width: 200px;
+  }
+}
+
+/* Medium screens */
+@media (max-width: 1023px) {
+  .cancellation-analysis-view {
+    padding: var(--spacing-4);
+  }
+
+  .cancellation-overall-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-3);
+  }
+
+  .overall-stat-card {
+    padding: var(--spacing-4);
+  }
+
+  .overall-stat-card .stat-value {
+    font-size: 1.75rem;
+  }
+
+  .status-legend {
+    gap: var(--spacing-3);
+  }
+
+  .employee-table-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+  }
+
+  .table-sort-info {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.625rem;
+  }
+
+  .cancellation-table thead th {
+    padding: var(--spacing-2) var(--spacing-3);
+  }
+
+  .employee-row td {
+    padding: var(--spacing-2) var(--spacing-3);
+  }
+
+  .mini-stacked-bar {
+    max-width: 140px;
+  }
+}
+
+/* Small screens */
+@media (max-width: 768px) {
+  .cancellation-analysis-view {
+    padding: var(--spacing-3);
+  }
+
+  .cancellation-header {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .cancellation-title {
+    font-size: 1.375rem;
+  }
+
+  .cancellation-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .cancellation-overall-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-2);
+  }
+
+  .overall-stat-card {
+    padding: var(--spacing-3);
+  }
+
+  .overall-stat-card .stat-label {
+    font-size: 0.625rem;
+  }
+
+  .overall-stat-card .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .overall-stat-card .stat-count {
+    font-size: 0.75rem;
+  }
+
+  .cancellation-distribution {
+    padding: var(--spacing-4);
+  }
+
+  .distribution-title {
+    font-size: 0.9375rem;
+  }
+
+  .stacked-bar {
+    height: 36px;
+  }
+
+  .status-legend {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2);
+  }
+
+  .legend-label,
+  .legend-value {
+    font-size: 0.75rem;
+  }
+
+  /* Table - hide distribution column */
   .cancellation-table {
     font-size: 0.8125rem;
   }
@@ -641,6 +802,7 @@
     padding: var(--spacing-2);
   }
 
+  .th-distribution,
   .td-distribution {
     display: none;
   }
@@ -649,5 +811,97 @@
     width: 32px;
     height: 32px;
     font-size: 0.875rem;
+  }
+
+  .employee-name {
+    max-width: 100px;
+    font-size: 0.8125rem;
+  }
+
+  .rate-value {
+    font-size: 0.875rem;
+  }
+
+  .rate-count {
+    font-size: 0.625rem;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .cancellation-overall-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .overall-stat-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3);
+  }
+
+  .overall-stat-card .stat-content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .overall-stat-card .stat-label {
+    order: 1;
+    flex: 1;
+  }
+
+  .overall-stat-card .stat-value {
+    order: 2;
+    font-size: 1.375rem;
+  }
+
+  .overall-stat-card .stat-count {
+    display: none;
+  }
+
+  /* Table - minimal view */
+  .th-total,
+  .td-total {
+    display: none;
+  }
+
+  .cancellation-table thead th {
+    padding: var(--spacing-1) var(--spacing-2);
+    font-size: 0.5625rem;
+    letter-spacing: 0.05em;
+  }
+
+  .employee-row td {
+    padding: var(--spacing-1) var(--spacing-2);
+  }
+
+  .td-employee {
+    gap: var(--spacing-2);
+  }
+
+  .employee-avatar-small {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+  }
+
+  .employee-name {
+    max-width: 70px;
+    font-size: 0.75rem;
+  }
+
+  .rate-cell {
+    gap: 0;
+  }
+
+  .rate-value {
+    font-size: 0.75rem;
+  }
+
+  .rate-count {
+    display: none;
   }
 }

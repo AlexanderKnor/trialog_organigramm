@@ -179,15 +179,22 @@ export class TopRankingsView {
 
     const metricConfig = RANKING_METRICS[this.#selectedMetric];
 
-    // Reorder for visual podium: [2nd, 1st, 3rd]
-    const podiumOrder = [topThree[1], topThree[0], topThree[2]].filter(Boolean);
-    const heights = ['medium', 'tall', 'short'];
-    const positions = ['second', 'first', 'third'];
-    const ranks = ['2', '1', '3'];
+    // Build podium based on actual number of participants
+    // Visual order: [2nd, 1st, 3rd] but only show positions that exist
+    const podiumConfig = [];
 
-    const podiumItems = podiumOrder.map((employee, idx) => {
-      if (!employee) return null;
+    if (topThree.length >= 2 && topThree[1]) {
+      podiumConfig.push({ employee: topThree[1], height: 'medium', position: 'second', rank: 2 });
+    }
+    if (topThree.length >= 1 && topThree[0]) {
+      podiumConfig.push({ employee: topThree[0], height: 'tall', position: 'first', rank: 1 });
+    }
+    if (topThree.length >= 3 && topThree[2]) {
+      podiumConfig.push({ employee: topThree[2], height: 'short', position: 'third', rank: 3 });
+    }
 
+    const podiumItems = podiumConfig.map((config) => {
+      const { employee, height, position, rank } = config;
       const value = employee[this.#selectedMetric];
       const formattedValue = metricConfig.unit === 'EUR'
         ? this.#formatCurrency(value)
@@ -196,9 +203,9 @@ export class TopRankingsView {
         : value.toString();
 
       return createElement('div', {
-        className: `podium-item podium-${heights[idx]} podium-${positions[idx]}`,
+        className: `podium-item podium-${height} podium-${position}`,
       }, [
-        createElement('div', { className: 'podium-rank-badge' }, [`#${ranks[idx]}`]),
+        createElement('div', { className: 'podium-rank-badge' }, [`#${rank}`]),
         createElement('div', { className: 'podium-avatar' }, [
           employee.name.charAt(0).toUpperCase(),
         ]),
