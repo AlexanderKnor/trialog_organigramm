@@ -1740,85 +1740,135 @@
   border: 1px solid rgba(220, 38, 38, 0.25);
 }
 
-/* Status Select Dropdown - Minimal & Elegant */
-.status-select {
-  padding: 0.25rem 0.4rem;
-  padding-right: 1.25rem;
+/* Custom Status Dropdown - Compact & Elegant */
+.status-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.status-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 3px;
   font-size: 0.5625rem;
   font-weight: 500;
-  border-radius: 3px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-transform: uppercase;
+  line-height: 1.1;
   cursor: pointer;
   transition: all 0.15s ease;
-  appearance: none;
-  text-transform: uppercase;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.status-dropdown-trigger:hover {
+  filter: brightness(0.95);
+}
+
+.status-dropdown-trigger .dropdown-chevron {
+  width: 8px;
+  height: 8px;
+  opacity: 0.5;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.status-dropdown-trigger:hover .dropdown-chevron {
+  opacity: 0.8;
+}
+
+.status-dropdown.open .dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu - Portal positioned */
+.status-dropdown-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 80px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 3px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+  pointer-events: none;
+}
+
+.status-dropdown-menu.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.status-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0.5rem;
+  border-radius: 2px;
+  font-size: 0.5625rem;
+  font-weight: 500;
   letter-spacing: 0.03em;
-  line-height: 1.1;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.35rem center;
-  background-size: 8px;
-}
-
-.status-select:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(16, 39, 76, 0.12);
-}
-
-/* Dropdown options styling */
-.status-select option {
-  font-size: 0.8125rem;
-  padding: 0.5rem 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  white-space: nowrap;
 }
 
-/* Submitted - Elegant Amber */
-.status-select.status-submitted {
-  background-color: rgba(217, 119, 6, 0.06);
-  color: #92400e;
-  border: 1px solid rgba(217, 119, 6, 0.2);
+.status-dropdown-item:hover {
+  filter: brightness(0.92);
 }
 
-.status-select.status-submitted:hover {
-  background-color: rgba(217, 119, 6, 0.1);
-  border-color: rgba(217, 119, 6, 0.3);
+.status-dropdown-item.active {
+  position: relative;
 }
 
-/* Provisioned - Elegant Emerald */
-.status-select.status-provisioned {
-  background-color: rgba(5, 150, 105, 0.06);
-  color: #065f46;
-  border: 1px solid rgba(5, 150, 105, 0.2);
+.status-dropdown-item.active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
 }
 
-.status-select.status-provisioned:hover {
-  background-color: rgba(5, 150, 105, 0.1);
-  border-color: rgba(5, 150, 105, 0.3);
+/* Trigger & Item Status Colors */
+.status-dropdown-trigger.status-submitted,
+.status-dropdown-item.status-submitted {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.15) 100%);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.2);
 }
 
-/* Cancelled - Elegant Slate */
-.status-select.status-cancelled {
-  background-color: rgba(100, 116, 139, 0.06);
-  color: #334155;
-  border: 1px solid rgba(100, 116, 139, 0.2);
+.status-dropdown-trigger.status-cancelled,
+.status-dropdown-item.status-cancelled {
+  background: linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(75, 85, 99, 0.15) 100%);
+  color: #4b5563;
+  border-color: rgba(107, 114, 128, 0.2);
 }
 
-.status-select.status-cancelled:hover {
-  background-color: rgba(100, 116, 139, 0.1);
-  border-color: rgba(100, 116, 139, 0.3);
+.status-dropdown-trigger.status-provisioned,
+.status-dropdown-item.status-provisioned {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.1) 0%, rgba(21, 128, 61, 0.15) 100%);
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.2);
 }
 
-/* Rejected - Elegant Rose */
-.status-select.status-rejected {
-  background-color: rgba(190, 18, 60, 0.06);
-  color: #881337;
-  border: 1px solid rgba(190, 18, 60, 0.2);
-}
-
-.status-select.status-rejected:hover {
-  background-color: rgba(190, 18, 60, 0.1);
-  border-color: rgba(190, 18, 60, 0.3);
+.status-dropdown-trigger.status-rejected,
+.status-dropdown-item.status-rejected {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(185, 28, 28, 0.15) 100%);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.2);
 }
 
 .td-status {
@@ -1894,7 +1944,8 @@
 }
 
 .revenue-table-row.row-rejected .status-badge,
-.company-row.row-rejected .status-select {
+.revenue-table-row.row-rejected .status-dropdown-trigger,
+.company-row.row-rejected .status-dropdown-trigger {
   text-decoration: none !important;
   opacity: 1 !important;
   filter: none !important;

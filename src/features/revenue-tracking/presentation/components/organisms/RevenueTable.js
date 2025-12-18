@@ -307,24 +307,11 @@ export class RevenueTable {
     const statusClass = `status-${status.type}`;
     const isSubmitted = status.type === REVENUE_STATUS_TYPES.SUBMITTED;
 
-    // If status is SUBMITTED and we have a status change handler, show dropdown
+    // If status is SUBMITTED and we have a status change handler, show custom dropdown
     if (isSubmitted && this.#props.onStatusChange) {
-      const statusSelect = createElement('select', {
-        className: `status-select status-${status.type}`,
-      }, [
-        createElement('option', { value: REVENUE_STATUS_TYPES.SUBMITTED }, ['Aktiv']),
-        createElement('option', { value: REVENUE_STATUS_TYPES.CANCELLED }, ['Storno']),
+      return createElement('td', { className: 'revenue-table-td td-status' }, [
+        this.#createStatusDropdown(entry, status),
       ]);
-
-      statusSelect.value = status.type;
-      statusSelect.addEventListener('change', (e) => {
-        e.stopPropagation();
-        const newStatus = e.target.value;
-        statusSelect.className = `status-select status-${newStatus}`;
-        this.#props.onStatusChange(entry.id, newStatus);
-      });
-
-      return createElement('td', { className: 'revenue-table-td td-status' }, [statusSelect]);
     }
 
     // Otherwise show read-only badge
@@ -333,6 +320,103 @@ export class RevenueTable {
         className: `status-badge ${statusClass}`,
       }, [status.displayName]),
     ]);
+  }
+
+  #createStatusDropdown(entry, currentStatus) {
+    const statusOptions = [
+      { value: REVENUE_STATUS_TYPES.SUBMITTED, label: 'Aktiv' },
+      { value: REVENUE_STATUS_TYPES.CANCELLED, label: 'Storno' },
+    ];
+
+    const dropdown = createElement('div', {
+      className: 'status-dropdown',
+    });
+
+    // Chevron SVG
+    const chevronSvg = `<svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
+
+    // Trigger button
+    const trigger = createElement('button', {
+      type: 'button',
+      className: `status-dropdown-trigger status-${currentStatus.type}`,
+    });
+    trigger.innerHTML = `<span>${currentStatus.displayName}</span>${chevronSvg}`;
+
+    // Dropdown menu - will be portaled to body
+    const menu = createElement('div', { className: 'status-dropdown-menu' });
+
+    statusOptions.forEach((option) => {
+      const isActive = option.value === currentStatus.type;
+      const item = createElement('div', {
+        className: `status-dropdown-item status-${option.value}${isActive ? ' active' : ''}`,
+      }, [option.label]);
+
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (option.value !== currentStatus.type) {
+          this.#props.onStatusChange(entry.id, option.value);
+        }
+        this.#closeDropdown(dropdown, menu);
+      });
+
+      menu.appendChild(item);
+    });
+
+    dropdown.appendChild(trigger);
+
+    // Position and show menu function
+    const positionMenu = () => {
+      const rect = trigger.getBoundingClientRect();
+      menu.style.left = `${rect.left + rect.width / 2 - menu.offsetWidth / 2}px`;
+      menu.style.top = `${rect.bottom + 2}px`;
+    };
+
+    // Toggle dropdown on trigger click
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = dropdown.classList.contains('open');
+
+      // Close all other dropdowns first
+      document.querySelectorAll('.status-dropdown-menu.open').forEach((m) => {
+        m.classList.remove('open');
+      });
+      document.querySelectorAll('.status-dropdown.open').forEach((d) => {
+        d.classList.remove('open');
+      });
+
+      if (!isOpen) {
+        // Portal menu to body if not already there
+        if (!menu.parentElement || menu.parentElement !== document.body) {
+          document.body.appendChild(menu);
+        }
+        dropdown.classList.add('open');
+        menu.classList.add('open');
+        positionMenu();
+      }
+    });
+
+    // Close dropdown when clicking outside
+    const closeHandler = (e) => {
+      if (!dropdown.contains(e.target) && !menu.contains(e.target)) {
+        this.#closeDropdown(dropdown, menu);
+      }
+    };
+    document.addEventListener('click', closeHandler);
+
+    // Clean up on scroll to reposition or close
+    const scrollHandler = () => {
+      if (dropdown.classList.contains('open')) {
+        positionMenu();
+      }
+    };
+    window.addEventListener('scroll', scrollHandler, true);
+
+    return dropdown;
+  }
+
+  #closeDropdown(dropdown, menu) {
+    dropdown.classList.remove('open');
+    menu.classList.remove('open');
   }
 
   #renderActionsCell(entry) {
