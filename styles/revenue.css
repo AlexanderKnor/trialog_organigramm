@@ -1701,12 +1701,15 @@
 .status-badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.02em;
+  padding: 0.25rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.5625rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
   white-space: nowrap;
+  text-transform: uppercase;
+  justify-content: center;
+  line-height: 1.1;
 }
 
 /* Submitted - Yellow/Amber */
@@ -1737,26 +1740,37 @@
   border: 1px solid rgba(220, 38, 38, 0.25);
 }
 
-/* Status Select Dropdown */
+/* Status Select Dropdown - Minimal & Elegant */
 .status-select {
-  padding: 0.375rem 0.875rem;
-  padding-right: 2rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  border-radius: 6px;
+  padding: 0.25rem 0.4rem;
+  padding-right: 1.25rem;
+  font-size: 0.5625rem;
+  font-weight: 500;
+  border-radius: 3px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   appearance: none;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.5rem center;
+  background-position: right 0.35rem center;
+  background-size: 8px;
 }
 
 .status-select:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(16, 39, 76, 0.08);
+  box-shadow: 0 0 0 2px rgba(16, 39, 76, 0.12);
+}
+
+/* Dropdown options styling */
+.status-select option {
+  font-size: 0.8125rem;
+  padding: 0.5rem 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
 /* Submitted - Elegant Amber */
@@ -1809,6 +1823,7 @@
 
 .td-status {
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 /* ========================================

@@ -312,8 +312,8 @@ export class RevenueTable {
       const statusSelect = createElement('select', {
         className: `status-select status-${status.type}`,
       }, [
-        createElement('option', { value: REVENUE_STATUS_TYPES.SUBMITTED }, ['Eingereicht']),
-        createElement('option', { value: REVENUE_STATUS_TYPES.CANCELLED }, ['Stornieren']),
+        createElement('option', { value: REVENUE_STATUS_TYPES.SUBMITTED }, ['Aktiv']),
+        createElement('option', { value: REVENUE_STATUS_TYPES.CANCELLED }, ['Storno']),
       ]);
 
       statusSelect.value = status.type;
