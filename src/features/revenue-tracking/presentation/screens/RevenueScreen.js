@@ -82,7 +82,15 @@ export class RevenueScreen {
       this.#isCompanyView = this.#employee.isRoot;
       this.#activeTab = this.#isCompanyView ? 'company' : 'own';
     } else {
-      // Might be a Geschäftsführer - create a mock employee object
+      // 🔒 SECURITY: If employee and node not found - force logout
+      if (authService.isEmployee()) {
+        console.error('🔒 SECURITY: Employee node not found in RevenueScreen - forcing logout');
+        await authService.logout();
+        window.location.hash = '';
+        return;
+      }
+
+      // Might be a Geschäftsführer (admin only) - create a mock employee object
       // The actual data will come from the revenue service
       this.#employee = {
         id: this.#employeeId,

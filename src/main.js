@@ -320,6 +320,14 @@ class Application {
     const parts = hash.split('/');
     const appContainer = document.querySelector('#app');
 
+    // SECURITY GUARD: Verify user still exists before showing ANY screen
+    const isUserValid = await authService.verifyCurrentUser();
+    if (!isUserValid) {
+      console.error('🔒 SECURITY: User verification failed - redirecting to login');
+      this.#hideTransitionOverlay();
+      return; // Auth state change will trigger login screen
+    }
+
     // Show loading overlay instantly
     this.#showTransitionOverlay();
 
@@ -374,11 +382,35 @@ class Application {
   }
 
   async #showHierarchyScreen() {
+    // SECURITY: Verify authentication before showing screen
+    if (!authService.isAuthenticated()) {
+      console.error('🔒 SECURITY: Not authenticated - redirecting to login');
+      window.location.hash = '';
+      return;
+    }
+
     this.#currentScreen = new HierarchyScreen('#app', this.#hierarchyService, this.#revenueService);
     await this.#currentScreen.mount();
   }
 
   async #showRevenueScreen(employeeId, treeId) {
+    // SECURITY: Verify authentication before showing screen
+    if (!authService.isAuthenticated()) {
+      console.error('🔒 SECURITY: Not authenticated - redirecting to login');
+      window.location.hash = '';
+      return;
+    }
+
+    // SECURITY: Employees can only view their own revenue
+    if (authService.isEmployee()) {
+      const linkedNodeId = authService.getLinkedNodeId();
+      if (linkedNodeId !== employeeId) {
+        console.error('🔒 SECURITY: Employee attempting to access other employee revenue - denied');
+        window.location.hash = '';
+        return;
+      }
+    }
+
     this.#currentScreen = new RevenueScreen(
       '#app',
       this.#revenueService,
@@ -390,9 +422,9 @@ class Application {
   }
 
   async #showCatalogScreen() {
-    // Only admins can access catalog management
+    // SECURITY: Only admins can access catalog management
     if (!authService.isAdmin()) {
-      console.warn('⚠ Access denied: Catalog management requires admin role');
+      console.error('🔒 SECURITY: Access denied - Catalog management requires admin role');
       window.location.hash = '';
       return;
     }

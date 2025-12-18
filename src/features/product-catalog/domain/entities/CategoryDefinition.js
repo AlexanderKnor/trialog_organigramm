@@ -48,11 +48,12 @@ export class CategoryDefinition {
       throw new ValidationError('Category type must be a non-empty string', 'type');
     }
 
-    // Type must be lowercase alphanumeric + underscore only
-    const typePattern = /^[a-z0-9_]+$/;
+    // Type must be alphanumeric (camelCase or snake_case allowed)
+    // Examples: 'bank', 'realEstate', 'real_estate'
+    const typePattern = /^[a-zA-Z0-9_]+$/;
     if (!typePattern.test(type)) {
       throw new ValidationError(
-        'Category type must be lowercase alphanumeric with underscores only',
+        'Category type must be alphanumeric (letters, numbers, underscores only)',
         'type'
       );
     }

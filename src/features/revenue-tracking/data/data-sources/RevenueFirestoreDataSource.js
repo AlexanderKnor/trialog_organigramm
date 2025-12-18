@@ -149,20 +149,65 @@ export class RevenueFirestoreDataSource {
       // TODO: Implement Firestore full-text search or Algolia integration
       const allEntries = await this.findAll();
 
-      if (!searchQuery || searchQuery.trim() === '') {
+      // Handle empty query
+      if (!searchQuery) {
         return allEntries;
       }
 
-      const query = searchQuery.toLowerCase();
+      // Handle string search (text search)
+      if (typeof searchQuery === 'string') {
+        if (searchQuery.trim() === '') {
+          return allEntries;
+        }
 
-      return allEntries.filter((entry) => {
-        return (
-          entry.customerName?.toLowerCase().includes(query) ||
-          entry.customerNumber?.toString().includes(query) ||
-          entry.contractNumber?.toLowerCase().includes(query) ||
-          entry.productProvider?.name?.toLowerCase().includes(query)
-        );
-      });
+        const query = searchQuery.toLowerCase();
+
+        return allEntries.filter((entry) => {
+          return (
+            entry.customerName?.toLowerCase().includes(query) ||
+            entry.customerNumber?.toString().includes(query) ||
+            entry.contractNumber?.toLowerCase().includes(query) ||
+            entry.productProvider?.name?.toLowerCase().includes(query)
+          );
+        });
+      }
+
+      // Handle object search (field-specific filtering)
+      if (typeof searchQuery === 'object') {
+        return allEntries.filter((entry) => {
+          let matches = true;
+
+          // Filter by category
+          if (searchQuery.category) {
+            matches = matches && entry.category === searchQuery.category;
+          }
+
+          // Filter by product name
+          if (searchQuery.product) {
+            matches = matches && entry.product?.name === searchQuery.product;
+          }
+
+          // Filter by provider name
+          if (searchQuery.provider) {
+            matches = matches && entry.productProvider?.name === searchQuery.provider;
+          }
+
+          // Filter by employeeId
+          if (searchQuery.employeeId) {
+            matches = matches && entry.employeeId === searchQuery.employeeId;
+          }
+
+          // Filter by status
+          if (searchQuery.status) {
+            matches = matches && entry.status?.status === searchQuery.status;
+          }
+
+          return matches;
+        });
+      }
+
+      // Fallback: return all entries
+      return allEntries;
     } catch (error) {
       throw new StorageError(`Failed to search revenue entries: ${error.message}`);
     }

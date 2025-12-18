@@ -10,19 +10,27 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // SECURITY: Verify user document exists (catches deleted users with valid tokens)
+    function userDocumentExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isValidUser() {
+      return isAuthenticated() && userDocumentExists();
+    }
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isValidUser() && request.auth.uid == userId;
     }
 
     function hasAccess(resourceData) {
-      return isAuthenticated() &&
+      return isValidUser() &&
         (resourceData.ownerId == request.auth.uid ||
          request.auth.uid in resourceData.get('sharedWith', []));
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+      return isValidUser() &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -49,18 +57,18 @@ service cloud.firestore {
     // ========================================
 
     match /hierarchy_trees/{treeId} {
-      // All authenticated users can READ trees (employees see admin trees)
+      // All valid users can READ trees (employees see admin trees)
       // But admins can see all, employees will see filtered view in app
-      allow read: if isAuthenticated();
+      allow read: if isValidUser();
 
       // Only admins can create trees
-      allow create: if isAuthenticated() && isAdmin();
+      allow create: if isAdmin();
 
       // Only admins can update trees
-      allow update: if isAuthenticated() && isAdmin();
+      allow update: if isAdmin();
 
       // Only admins can delete trees
-      allow delete: if isAuthenticated() && isAdmin();
+      allow delete: if isAdmin();
     }
 
     // ========================================
@@ -68,11 +76,11 @@ service cloud.firestore {
     // ========================================
 
     match /tracking_events/{eventId} {
-      // Authenticated users can read events
-      allow read: if isAuthenticated();
+      // Valid users can read events
+      allow read: if isValidUser();
 
-      // Only authenticated users can create events, must set themselves as userId
-      allow create: if isAuthenticated() &&
+      // Only valid users can create events, must set themselves as userId
+      allow create: if isValidUser() &&
         request.resource.data.userId == request.auth.uid;
 
       // Events are immutable (audit log)
@@ -87,20 +95,20 @@ service cloud.firestore {
     // ========================================
 
     match /revenue_entries/{entryId} {
-      // All authenticated users can read all revenue entries
+      // All valid users can read all revenue entries
       // (Employees see filtered view in app, admins see all)
-      allow read: if isAuthenticated();
+      allow read: if isValidUser();
 
-      // Only authenticated users can create entries, must set themselves as userId
-      allow create: if isAuthenticated() &&
+      // Only valid users can create entries, must set themselves as userId
+      allow create: if isValidUser() &&
         request.resource.data.userId == request.auth.uid;
 
       // Users can update their own entries, admins can update all
-      allow update: if isAuthenticated() &&
+      allow update: if isValidUser() &&
         (isAdmin() || resource.data.userId == request.auth.uid);
 
       // Users can delete their own entries, admins can delete all
-      allow delete: if isAuthenticated() &&
+      allow delete: if isValidUser() &&
         (isAdmin() || resource.data.userId == request.auth.uid);
     }
 
@@ -109,17 +117,17 @@ service cloud.firestore {
     // ========================================
 
     match /product_catalog/{docId} {
-      // All authenticated users can READ catalog (employees need it for revenue forms)
-      allow read: if isAuthenticated();
+      // All valid users can READ catalog (employees need it for revenue forms)
+      allow read: if isValidUser();
 
       // Only admins can CREATE catalog entries
-      allow create: if isAuthenticated() && isAdmin();
+      allow create: if isAdmin();
 
       // Only admins can UPDATE catalog entries
-      allow update: if isAuthenticated() && isAdmin();
+      allow update: if isAdmin();
 
       // Only admins can DELETE catalog entries
-      allow delete: if isAuthenticated() && isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }

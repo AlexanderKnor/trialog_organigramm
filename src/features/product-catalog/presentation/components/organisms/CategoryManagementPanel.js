@@ -102,8 +102,13 @@ export class CategoryManagementPanel {
   }
 
   #updateTable() {
-    if (this.#table) {
+    if (this.#table && typeof this.#table.update === 'function') {
       this.#table.update(this.#categories);
+    } else {
+      console.warn('⚠ Table reference lost, recreating panel');
+      const newElement = this.#render();
+      this.#element.replaceWith(newElement);
+      this.#element = newElement;
     }
   }
 

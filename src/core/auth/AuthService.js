@@ -76,6 +76,15 @@ export class AuthService {
 
   async #handleAuthStateChange(user) {
     try {
+      // SECURITY: Verify user document exists in Firestore
+      // This catches deleted users who still have valid tokens
+      const userDocExists = await this.#verifyUserDocument(user.uid);
+      if (!userDocExists) {
+        console.warn('⚠️ SECURITY: User document not found - forcing logout');
+        await this.signOut(this.#auth);
+        return;
+      }
+
       // Determine user role
       const role = this.#determineUserRole(user.email);
 
@@ -86,6 +95,13 @@ export class AuthService {
       let linkedNodeId = null;
       if (role === USER_ROLES.EMPLOYEE) {
         linkedNodeId = await this.#findLinkedNode(user.email);
+      }
+
+      // SECURITY: Validate role is valid
+      if (role !== USER_ROLES.ADMIN && role !== USER_ROLES.EMPLOYEE) {
+        console.error('🔒 SECURITY: Invalid user role detected - forcing logout');
+        await this.signOut(this.#auth);
+        return;
       }
 
       this.#currentUser = {
@@ -110,6 +126,18 @@ export class AuthService {
       });
     } catch (error) {
       console.error('Error handling auth state change:', error);
+    }
+  }
+
+  async #verifyUserDocument(uid) {
+    try {
+      const { doc, getDoc } = this.firestoreHelpers;
+      const userRef = doc(this.#firestore, FIRESTORE_COLLECTIONS.USERS, uid);
+      const userDoc = await getDoc(userRef);
+      return userDoc.exists();
+    } catch (error) {
+      console.error('Error verifying user document:', error);
+      return false; // Fail closed - if we can't verify, assume not exists
     }
   }
 
@@ -336,6 +364,26 @@ async deleteEmployeeAccount(email) {
     this.#linkedNodeId = nodeId;
     // Don't notify listeners - this is just a property update, not a full auth state change
     // Prevents infinite loop when linking employee to node
+  }
+
+  /**
+   * SECURITY: Verify current user still exists in Firestore
+   * Call this before showing sensitive screens (admin views, hierarchy, revenue)
+   * Returns true if user is valid, false if deleted (will auto-logout)
+   */
+  async verifyCurrentUser() {
+    if (!this.#currentUser) {
+      return false;
+    }
+
+    const exists = await this.#verifyUserDocument(this.#currentUser.uid);
+    if (!exists) {
+      console.error('🔒 SECURITY VIOLATION: Current user document deleted - forcing logout');
+      await this.logout();
+      return false;
+    }
+
+    return true;
   }
 
   onAuthStateChange(callback) {

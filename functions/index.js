@@ -146,6 +146,11 @@ exports.deleteEmployeeAccount = onCall(async (request) => {
       throw new HttpsError('permission-denied', 'Cannot delete admin accounts');
     }
 
+    // CRITICAL: Revoke all refresh tokens BEFORE deleting
+    // This forces the user to be logged out on all devices
+    await auth.revokeRefreshTokens(userRecord.uid);
+    console.log(`✓ Refresh tokens revoked for: ${email}`);
+
     // Delete the user from Firebase Auth
     await auth.deleteUser(userRecord.uid);
 

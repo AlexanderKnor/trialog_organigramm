@@ -158,12 +158,16 @@ export class ProductManagementPanel {
     const newElement = this.#render();
     this.#element.replaceWith(newElement);
     this.#element = newElement;
-    this.#table = this.#element.querySelector('.catalog-table-wrapper');
+    // Note: #table is re-created in #render(), reference is already correct
   }
 
   #updateTable() {
-    if (this.#table) {
+    if (this.#table && typeof this.#table.update === 'function') {
       this.#table.update(this.#products);
+    } else {
+      // Fallback: full UI update if table reference is lost
+      console.warn('⚠ Table reference lost, performing full UI update');
+      this.#updateUI();
     }
   }
 

@@ -607,14 +607,22 @@ async #refreshTree(forceResubscribe = false) {
             tree = this.#createEmployeeSubtree(tree, linkedNodeId);
             console.log(`✓ Filtered tree for employee (starting from: ${linkedNodeId})`);
           } else {
-            console.warn(`⚠ Employee linked node ${linkedNodeId} not in this tree`);
-            tree = null;
+            // 🔒 CRITICAL SECURITY: Employee's node was deleted - force logout
+            console.error('🔒 SECURITY: Employee node deleted from tree - forcing logout');
+            await authService.logout();
+            return; // Stop execution, auth state change will trigger login screen
           }
         } else {
-          console.warn('⚠ Employee has no linked node - showing empty tree');
-          // Show empty tree if no link
-          tree = null;
+          // 🔒 CRITICAL SECURITY: Employee has no linked node - force logout
+          console.error('🔒 SECURITY: Employee has no linked node - forcing logout');
+          await authService.logout();
+          return; // Stop execution, auth state change will trigger login screen
         }
+      } else if (!authService.isAdmin()) {
+        // 🔒 CRITICAL SECURITY: User is neither admin nor employee - force logout
+        console.error('🔒 SECURITY: Invalid user role - forcing logout');
+        await authService.logout();
+        return;
       }
 
       this.#state.setCurrentTree(tree);
@@ -692,9 +700,30 @@ async #handleTreeUpdate(updatedTree) {
         // Filter for employees if needed
         if (authService.isEmployee()) {
           const linkedNodeId = authService.getLinkedNodeId();
-          if (linkedNodeId && updatedTree.hasNode(linkedNodeId)) {
-            updatedTree = this.#createEmployeeSubtree(updatedTree, linkedNodeId);
+
+          if (!linkedNodeId) {
+            // 🔒 CRITICAL SECURITY: Employee has no linked node - force logout
+            console.error('🔒 SECURITY: Employee has no linked node (real-time update) - forcing logout');
+            await authService.logout();
+            this.#isUpdating = false;
+            return;
           }
+
+          if (!updatedTree.hasNode(linkedNodeId)) {
+            // 🔒 CRITICAL SECURITY: Employee's node was deleted - force logout
+            console.error('🔒 SECURITY: Employee node deleted (real-time update) - forcing logout');
+            await authService.logout();
+            this.#isUpdating = false;
+            return;
+          }
+
+          updatedTree = this.#createEmployeeSubtree(updatedTree, linkedNodeId);
+        } else if (!authService.isAdmin()) {
+          // 🔒 CRITICAL SECURITY: Invalid role - force logout
+          console.error('🔒 SECURITY: Invalid user role (real-time update) - forcing logout');
+          await authService.logout();
+          this.#isUpdating = false;
+          return;
         }
 
         this.#state.setCurrentTree(updatedTree);
