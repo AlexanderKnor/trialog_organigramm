@@ -84,13 +84,34 @@ export class FirebaseCatalogRepository extends ICatalogRepository {
     return data.map((item) => ProviderDefinition.fromJSON(item));
   }
 
-  async findProvidersByCategory(categoryType, includeInactive = false) {
-    const data = await this.#dataSource.findByEntityTypeAndCategory(
+  async findProvidersByProduct(productId, includeInactive = false) {
+    const data = await this.#dataSource.findByEntityTypeAndProduct(
       'provider',
-      categoryType,
+      productId,
       includeInactive
     );
     return data.map((item) => ProviderDefinition.fromJSON(item));
+  }
+
+  async findProvidersByCategoryViaProducts(categoryType, includeInactive = false) {
+    // 1. Get all products in category
+    const products = await this.findProductsByCategory(categoryType, includeInactive);
+
+    // 2. Get providers for each product
+    const providerArrays = await Promise.all(
+      products.map(product => this.findProvidersByProduct(product.id, includeInactive))
+    );
+
+    // 3. Flatten and deduplicate by name
+    const allProviders = providerArrays.flat();
+    const uniqueProviders = new Map();
+    for (const provider of allProviders) {
+      if (!uniqueProviders.has(provider.name)) {
+        uniqueProviders.set(provider.name, provider);
+      }
+    }
+
+    return Array.from(uniqueProviders.values());
   }
 
   async findProviderById(providerId) {

@@ -97,22 +97,20 @@ export class CatalogService {
     }
 
     // CASCADE DELETE: Delete all products in this category
+    // (Products will cascade-delete their providers automatically)
     const products = await this.#catalogRepository.findProductsByCategory(categoryType, true);
     console.log(`🔄 Cascading delete: Deleting ${products.length} product(s) in category '${categoryType}'`);
-    for (const product of products) {
-      await this.deleteProduct(product.id);
-    }
 
-    // CASCADE DELETE: Delete all providers in this category
-    const providers = await this.#catalogRepository.findProvidersByCategory(categoryType, true);
-    console.log(`🔄 Cascading delete: Deleting ${providers.length} provider(s) in category '${categoryType}'`);
-    for (const provider of providers) {
-      await this.deleteProvider(provider.id);
+    let totalProvidersDeleted = 0;
+    for (const product of products) {
+      const providers = await this.#catalogRepository.findProvidersByProduct(product.id, true);
+      totalProvidersDeleted += providers.length;
+      await this.deleteProduct(product.id);  // Cascade deletes providers
     }
 
     // Delete the category itself
     await this.#catalogRepository.deleteCategory(categoryType);
-    console.log(`✅ Category deleted with cascade: ${categoryType} (${products.length} products, ${providers.length} providers)`);
+    console.log(`✅ Category deleted with cascade: ${categoryType} (${products.length} products, ${totalProvidersDeleted} providers)`);
   }
 
   async deactivateCategory(categoryType) {
@@ -211,14 +209,21 @@ export class CatalogService {
       const usageInfo = await this.#checkProductInUse(product.name, product.categoryType);
       if (usageInfo.inUse) {
         throw new ValidationError(
-          `Cannot delete product '${product.name}': ${usageInfo.revenueCount} revenue entry/entries still reference this product`,
+          `Produkt kann nicht gelöscht werden: ${usageInfo.revenueCount} Umsatz-Einträge verwenden dieses Produkt`,
           'productId'
         );
       }
     }
 
+    // CASCADE DELETE: Delete all providers for this product
+    const providers = await this.#catalogRepository.findProvidersByProduct(productId, true);
+    console.log(`🔄 Cascading delete: Deleting ${providers.length} provider(s) for product '${product.name}'`);
+    for (const provider of providers) {
+      await this.deleteProvider(provider.id);
+    }
+
     await this.#catalogRepository.deleteProduct(productId);
-    console.log(`✓ Product deleted: ${product.name}`);
+    console.log(`✅ Product deleted with cascade: ${product.name} (${providers.length} providers)`);
   }
 
   async deactivateProduct(productId) {
@@ -261,21 +266,21 @@ export class CatalogService {
   // PROVIDER OPERATIONS
   // ========================================
 
-  async createProvider(categoryType, providerData) {
-    // Validate category exists
-    const category = await this.#catalogRepository.findCategoryByType(categoryType);
-    if (!category) {
-      throw new NotFoundError('CategoryDefinition', categoryType);
+  async createProvider(productId, providerData) {
+    // Validate product exists
+    const product = await this.#catalogRepository.findProductById(productId);
+    if (!product) {
+      throw new NotFoundError('ProductDefinition', productId);
     }
 
-    const provider = ProviderDefinition.create(categoryType, providerData.name);
+    const provider = ProviderDefinition.create(productId, providerData.name);
 
     if (providerData.order !== undefined) {
       provider.updateOrder(providerData.order);
     }
 
     await this.#catalogRepository.saveProvider(provider);
-    console.log(`✓ Provider created: ${provider.name} in category ${categoryType}`);
+    console.log(`✓ Provider created: ${provider.name} for product ${product.name}`);
 
     return provider;
   }
@@ -310,12 +315,16 @@ export class CatalogService {
 
     // Check if used in revenue entries (if revenueService available)
     if (this.#revenueService) {
-      const usageInfo = await this.#checkProviderInUse(provider.name, provider.categoryType);
-      if (usageInfo.inUse) {
-        throw new ValidationError(
-          `Cannot delete provider '${provider.name}': ${usageInfo.revenueCount} revenue entry/entries still reference this provider`,
-          'providerId'
-        );
+      // Get product to find category for revenue check
+      const product = await this.#catalogRepository.findProductById(provider.productId);
+      if (product) {
+        const usageInfo = await this.#checkProviderInUse(provider.name, product.categoryType);
+        if (usageInfo.inUse) {
+          throw new ValidationError(
+            `Produktgeber kann nicht gelöscht werden: ${usageInfo.revenueCount} Umsatz-Einträge verwenden diesen Produktgeber`,
+            'providerId'
+          );
+        }
       }
     }
 
@@ -351,8 +360,14 @@ export class CatalogService {
     return provider;
   }
 
-  async getProvidersByCategory(categoryType, includeInactive = false) {
-    return await this.#catalogRepository.findProvidersByCategory(categoryType, includeInactive);
+  async getProvidersByProduct(productId, includeInactive = false) {
+    return await this.#catalogRepository.findProvidersByProduct(productId, includeInactive);
+  }
+
+  async getProvidersForCategory(categoryType, includeInactive = false) {
+    // Helper method: Get all providers for all products in a category
+    // Used for backward compatibility with revenue forms
+    return await this.#catalogRepository.findProvidersByCategoryViaProducts(categoryType, includeInactive);
   }
 
   async getAllProviders(includeInactive = false) {

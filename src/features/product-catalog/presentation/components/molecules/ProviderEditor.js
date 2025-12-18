@@ -9,15 +9,15 @@ import { createElement } from '../../../../../core/utils/dom.js';
 
 export class ProviderEditor {
   #provider;
-  #categoryType;
+  #product;
   #props;
   #element;
   #nameInput;
   #orderInput;
 
-  constructor(provider = null, categoryType = null, props = {}) {
+  constructor(provider = null, product = null, props = {}) {
     this.#provider = provider;
-    this.#categoryType = categoryType || provider?.categoryType;
+    this.#product = product;
     this.#props = {
       onSave: props.onSave || (() => {}),
       onCancel: props.onCancel || (() => {}),

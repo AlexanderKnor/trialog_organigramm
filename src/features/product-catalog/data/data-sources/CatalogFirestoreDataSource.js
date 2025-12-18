@@ -98,6 +98,39 @@ export class CatalogFirestoreDataSource {
     }
   }
 
+  async findByEntityTypeAndProduct(entityType, productId, includeInactive = false) {
+    try {
+      const firestore = this.#getFirestore();
+      const { collection, query, where, orderBy, getDocs } = await this.#importFirestoreHelpers();
+
+      const sortField = 'name';
+
+      let q = query(
+        collection(firestore, FIRESTORE_COLLECTIONS.PRODUCT_CATALOG),
+        where('entityType', '==', entityType),
+        where('productId', '==', productId),
+        orderBy(sortField, 'asc')
+      );
+
+      if (!includeInactive) {
+        q = query(
+          collection(firestore, FIRESTORE_COLLECTIONS.PRODUCT_CATALOG),
+          where('entityType', '==', entityType),
+          where('productId', '==', productId),
+          where('status', '==', 'active'),
+          orderBy(sortField, 'asc')
+        );
+      }
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map((doc) => doc.data());
+    } catch (error) {
+      throw new StorageError(
+        `Failed to load ${entityType} entries for product ${productId}: ${error.message}`
+      );
+    }
+  }
+
   async findById(docId) {
     try {
       const firestore = this.#getFirestore();

@@ -384,17 +384,12 @@ export class RevenueService {
    * Falls back to hardcoded providers if CatalogService not available
    */
   async getProvidersForCategory(categoryType) {
-    if (this.#catalogService) {
-      try {
-        return await this.#catalogService.getProvidersByCategory(categoryType, false);
-      } catch (error) {
-        console.warn('Failed to load providers from catalog, using fallback:', error);
-      }
+    if (!this.#catalogService) {
+      throw new Error('CatalogService not available');
     }
 
-    // Fallback to hardcoded providers
-    const { ProductProvider } = await import('../value-objects/ProductProvider.js');
-    return ProductProvider.getProvidersForCategory(categoryType);
+    // Load all providers for all products in this category (merged & deduplicated)
+    return await this.#catalogService.getProvidersForCategory(categoryType, false);
   }
 
   /**

@@ -128,7 +128,7 @@ export class CategoryManagementPanel {
   async #handleDeleteCategory(category) {
     // Get count of products and providers to inform user
     const products = await this.#catalogService.getProductsByCategory(category.type, true);
-    const providers = await this.#catalogService.getProvidersByCategory(category.type, true);
+    const providers = await this.#catalogService.getProvidersForCategory(category.type, true);
 
     let confirmMessage = `Kategorie "${category.displayName}" wirklich löschen?\n\n`;
 

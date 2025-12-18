@@ -136,18 +136,30 @@ export class MigrationService {
   async #migrateProviders() {
     let providerCount = 0;
 
-    // Get all providers from hardcoded data
+    // Get all providers from hardcoded data (category-specific)
     const allProviders = ProductProvider.allProviders;
 
+    // For each hardcoded provider, duplicate for ALL products in that category
     for (const provider of allProviders) {
       try {
-        await this.#catalogService.createProvider(provider.category, {
-          name: provider.name,
-          order: providerCount,
-        });
+        // Get all products for this category
+        const products = await this.#catalogService.getProductsByCategory(provider.category, false);
 
-        providerCount++;
-        console.log(`  ✓ Provider: ${provider.name} (${provider.category})`);
+        if (products.length === 0) {
+          console.warn(`  ⚠ No products found for category ${provider.category}, skipping provider ${provider.name}`);
+          continue;
+        }
+
+        // Duplicate provider for each product
+        for (const product of products) {
+          await this.#catalogService.createProvider(product.id, {
+            name: provider.name,
+            order: 0,
+          });
+          providerCount++;
+        }
+
+        console.log(`  ✓ Provider: ${provider.name} duplicated to ${products.length} product(s) in ${provider.category}`);
       } catch (error) {
         console.error(`  ✗ Failed to migrate provider ${provider.name}:`, error.message);
       }
@@ -175,11 +187,8 @@ export class MigrationService {
             await this.#catalogService.deleteProduct(product.id);
           }
 
-          // Delete all providers in this category
-          const providers = await this.#catalogService.getProvidersByCategory(category.type, true);
-          for (const provider of providers) {
-            await this.#catalogService.deleteProvider(provider.id);
-          }
+          // Providers are automatically deleted via product cascade delete
+          // No need to delete separately
 
           // Now delete the category
           await this.#catalogService.deleteCategory(category.type);

@@ -14,14 +14,18 @@ export class ProviderManagementPanel {
   #table;
   #providers;
   #categories;
+  #products;
   #selectedCategoryType;
+  #selectedProductId;
   #unsubscribe;
 
   constructor(props = {}) {
     this.#catalogService = props.catalogService;
     this.#providers = [];
     this.#categories = [];
+    this.#products = [];
     this.#selectedCategoryType = null;
+    this.#selectedProductId = null;
     this.#element = null;
   }
 
@@ -42,7 +46,7 @@ export class ProviderManagementPanel {
 
       if (this.#categories.length > 0) {
         this.#selectedCategoryType = this.#selectedCategoryType || this.#categories[0].type;
-        await this.#loadProviders();
+        await this.#loadProducts();
       }
       // Don't update UI here - will be created in #render() with the data
     } catch (error) {
@@ -51,8 +55,40 @@ export class ProviderManagementPanel {
     }
   }
 
-  async #loadProviders() {
+  async #loadProducts() {
     if (!this.#selectedCategoryType) {
+      this.#products = [];
+      this.#providers = [];
+      if (this.#table) {
+        this.#updateUI();
+      }
+      return;
+    }
+
+    try {
+      this.#products = await this.#catalogService.getProductsByCategory(this.#selectedCategoryType, false);
+
+      if (this.#products.length > 0) {
+        this.#selectedProductId = this.#selectedProductId || this.#products[0].id;
+        await this.#loadProviders();
+      } else {
+        this.#providers = [];
+        if (this.#table) {
+          this.#updateUI();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      this.#products = [];
+      this.#providers = [];
+      if (this.#table) {
+        this.#updateUI();
+      }
+    }
+  }
+
+  async #loadProviders() {
+    if (!this.#selectedProductId) {
       this.#providers = [];
       if (this.#table) {
         this.#updateTable();
@@ -61,8 +97,8 @@ export class ProviderManagementPanel {
     }
 
     try {
-      this.#providers = await this.#catalogService.getProvidersByCategory(this.#selectedCategoryType, true);
-      // Update table if it exists (for category changes after initialization)
+      this.#providers = await this.#catalogService.getProvidersByProduct(this.#selectedProductId, true);
+      // Update table if it exists (for product changes after initialization)
       if (this.#table) {
         this.#updateTable();
       }
@@ -96,11 +132,20 @@ export class ProviderManagementPanel {
       columns: [
         { key: 'name', label: 'Produktgeber' },
         {
+          key: 'productName',
+          label: 'Produkt',
+          render: (provider) => {
+            const product = this.#products.find((p) => p.id === provider.productId);
+            return product?.name || provider.productId;
+          },
+        },
+        {
           key: 'categoryType',
           label: 'Kategorie',
           render: (provider) => {
-            const category = this.#categories.find((c) => c.type === provider.categoryType);
-            return category?.displayName || provider.categoryType;
+            const product = this.#products.find((p) => p.id === provider.productId);
+            const category = this.#categories.find((c) => c.type === product?.categoryType);
+            return category?.displayName || product?.categoryType || '-';
           },
         },
         {
@@ -115,7 +160,7 @@ export class ProviderManagementPanel {
       data: this.#providers,
       onEdit: (provider) => this.#handleEditProvider(provider),
       onDelete: (provider) => this.#handleDeleteProvider(provider),
-      emptyMessage: 'Keine Produktgeber vorhanden. Wählen Sie eine Kategorie und erstellen Sie den ersten Produktgeber.',
+      emptyMessage: 'Keine Produktgeber vorhanden. Wählen Sie ein Produkt und erstellen Sie den ersten Produktgeber.',
     });
 
     return createElement('div', { className: 'catalog-panel' }, [toolbar, this.#table.element]);
@@ -123,18 +168,47 @@ export class ProviderManagementPanel {
 
   #createToolbar() {
     const categorySelect = this.#createCategorySelect();
+    const productSelect = this.#createProductSelect();
 
     const addButton = new Button({
       label: 'Neuer Produktgeber',
       variant: 'primary',
       onClick: () => this.#handleAddProvider(),
-      disabled: this.#categories.length === 0,
+      disabled: this.#products.length === 0,
     });
 
     return createElement('div', { className: 'catalog-toolbar' }, [
       createElement('h3', { className: 'catalog-panel-title' }, ['Produktgeber']),
-      createElement('div', { className: 'catalog-toolbar-actions' }, [categorySelect, addButton.element]),
+      createElement('div', { className: 'catalog-toolbar-actions' }, [
+        categorySelect,
+        productSelect,
+        addButton.element
+      ]),
     ]);
+  }
+
+  #createProductSelect() {
+    const select = createElement(
+      'select',
+      {
+        className: 'catalog-category-filter',
+        onchange: (e) => this.#handleProductChange(e.target.value),
+      },
+      this.#products.map((product) => {
+        const option = createElement('option', { value: product.id }, [product.name]);
+        if (product.id === this.#selectedProductId) {
+          option.selected = true;
+        }
+        return option;
+      })
+    );
+
+    if (this.#products.length === 0) {
+      select.disabled = true;
+      select.appendChild(createElement('option', {}, ['Keine Produkte verfügbar']));
+    }
+
+    return select;
   }
 
   #createCategorySelect() {
@@ -163,6 +237,13 @@ export class ProviderManagementPanel {
 
   async #handleCategoryChange(categoryType) {
     this.#selectedCategoryType = categoryType;
+    this.#selectedProductId = null;
+    await this.#loadProducts();
+    this.#updateUI();
+  }
+
+  async #handleProductChange(productId) {
+    this.#selectedProductId = productId;
     await this.#loadProviders();
   }
 
@@ -184,8 +265,8 @@ export class ProviderManagementPanel {
   }
 
   #handleAddProvider() {
-    if (!this.#selectedCategoryType) {
-      alert('Bitte wählen Sie zuerst eine Kategorie aus.');
+    if (!this.#selectedProductId) {
+      alert('Bitte wählen Sie zuerst ein Produkt aus.');
       return;
     }
     this.#showProviderDialog(null);
@@ -215,10 +296,14 @@ export class ProviderManagementPanel {
   #showProviderDialog(provider) {
     const dialog = createElement('div', { className: 'dialog-overlay' });
 
-    const editor = new ProviderEditor(provider, this.#selectedCategoryType, {
+    // Get selected product for context
+    const selectedProduct = this.#products.find(p => p.id === this.#selectedProductId);
+
+    const editor = new ProviderEditor(provider, selectedProduct, {
       onSave: async (data) => {
+        let loadingOverlay;
         try {
-          const loadingOverlay = this.#createLoadingOverlay();
+          loadingOverlay = this.#createLoadingOverlay();
           dialog.querySelector('.dialog-content').appendChild(loadingOverlay);
           setTimeout(() => loadingOverlay.classList.add('visible'), 10);
 
@@ -226,7 +311,7 @@ export class ProviderManagementPanel {
             await this.#catalogService.updateProvider(provider.id, data);
             console.log('✓ Provider updated');
           } else {
-            await this.#catalogService.createProvider(this.#selectedCategoryType, data);
+            await this.#catalogService.createProvider(this.#selectedProductId, data);
             console.log('✓ Provider created');
           }
 

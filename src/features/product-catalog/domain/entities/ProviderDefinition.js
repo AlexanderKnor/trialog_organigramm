@@ -1,6 +1,6 @@
 /**
  * Entity: ProviderDefinition
- * Defines a product provider (Produktgeber) for a category
+ * Defines a product provider (Produktgeber) for a specific product
  */
 
 import { generateUUID } from '../../../../core/utils/index.js';
@@ -10,7 +10,7 @@ import { NodeMetadata } from '../../../hierarchy-tracking/domain/value-objects/N
 
 export class ProviderDefinition {
   #id;
-  #categoryType;
+  #productId;
   #name;
   #order;
   #status;
@@ -18,27 +18,27 @@ export class ProviderDefinition {
 
   constructor({
     id = null,
-    categoryType,
+    productId,
     name,
     order = 0,
     status = CATALOG_STATUS_TYPES.ACTIVE,
     metadata = null,
   }) {
     this.#id = id || generateUUID();
-    this.#validateCategoryType(categoryType);
+    this.#validateProductId(productId);
     this.#validateName(name);
     this.#validateOrder(order);
 
-    this.#categoryType = categoryType;
+    this.#productId = productId;
     this.#name = name;
     this.#order = order;
     this.#status = status instanceof CatalogStatus ? status : new CatalogStatus(status);
     this.#metadata = metadata instanceof NodeMetadata ? metadata : new NodeMetadata(metadata || {});
   }
 
-  #validateCategoryType(categoryType) {
-    if (typeof categoryType !== 'string' || categoryType.trim().length === 0) {
-      throw new ValidationError('Category type must be a non-empty string', 'categoryType');
+  #validateProductId(productId) {
+    if (typeof productId !== 'string' || productId.trim().length === 0) {
+      throw new ValidationError('Product ID must be a non-empty string', 'productId');
     }
   }
 
@@ -63,8 +63,8 @@ export class ProviderDefinition {
     return this.#id;
   }
 
-  get categoryType() {
-    return this.#categoryType;
+  get productId() {
+    return this.#productId;
   }
 
   get name() {
@@ -123,7 +123,7 @@ export class ProviderDefinition {
     return {
       entityType: 'provider',
       id: this.#id,
-      categoryType: this.#categoryType,
+      productId: this.#productId,
       name: this.#name,
       order: this.#order,
       status: this.#status.toJSON(),
@@ -135,7 +135,7 @@ export class ProviderDefinition {
   static fromJSON(json) {
     return new ProviderDefinition({
       id: json.id,
-      categoryType: json.categoryType,
+      productId: json.productId,
       name: json.name,
       order: json.order ?? 0,
       status: json.status ?? CATALOG_STATUS_TYPES.ACTIVE,
@@ -146,9 +146,9 @@ export class ProviderDefinition {
     });
   }
 
-  static create(categoryType, name) {
+  static create(productId, name) {
     return new ProviderDefinition({
-      categoryType,
+      productId,
       name,
     });
   }

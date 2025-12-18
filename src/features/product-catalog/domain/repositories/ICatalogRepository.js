@@ -56,8 +56,8 @@ export class ICatalogRepository {
     throw new Error('Method not implemented: findAllProviders');
   }
 
-  async findProvidersByCategory(categoryType, includeInactive = false) {
-    throw new Error('Method not implemented: findProvidersByCategory');
+  async findProvidersByProduct(productId, includeInactive = false) {
+    throw new Error('Method not implemented: findProvidersByProduct');
   }
 
   async findProviderById(providerId) {
@@ -70,6 +70,11 @@ export class ICatalogRepository {
 
   async deleteProvider(providerId) {
     throw new Error('Method not implemented: deleteProvider');
+  }
+
+  // Helper method for getting all providers for a category (via all products)
+  async findProvidersByCategoryViaProducts(categoryType, includeInactive = false) {
+    throw new Error('Method not implemented: findProvidersByCategoryViaProducts');
   }
 
   // ========================================
