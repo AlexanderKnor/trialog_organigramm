@@ -30,9 +30,21 @@ export class CatalogManagementScreen {
       throw new Error(`Container not found: ${this.#containerSelector}`);
     }
 
-    this.#element = this.#render();
+    // Render shell with loading state
+    this.#element = this.#renderShell();
     container.innerHTML = '';
     container.appendChild(this.#element);
+
+    // Load initial panel with data
+    const panelContainer = this.#element.querySelector('.catalog-panel-container');
+    panelContainer.style.opacity = '0';
+    this.#showLoadingState(panelContainer);
+
+    await this.#wait(100);
+    await this.#renderActivePanel(panelContainer);
+
+    await this.#wait(50);
+    panelContainer.style.opacity = '1';
 
     console.log('✓ CatalogManagementScreen mounted');
   }
@@ -51,10 +63,10 @@ export class CatalogManagementScreen {
     console.log('✓ CatalogManagementScreen unmounted');
   }
 
-  #render() {
+  #renderShell() {
     const header = this.#createHeader();
     const tabs = this.#createTabs();
-    const panelContainer = this.#createPanelContainer();
+    const panelContainer = createElement('div', { className: 'catalog-panel-container' }, []);
 
     return createElement('div', { className: 'catalog-screen' }, [
       header,
@@ -118,16 +130,7 @@ export class CatalogManagementScreen {
     return createElement('div', { className: 'catalog-tabs' }, tabButtons);
   }
 
-  #createPanelContainer() {
-    const panelContainer = createElement('div', { className: 'catalog-panel-container' }, []);
-
-    // Render initial panel
-    this.#renderActivePanel(panelContainer);
-
-    return panelContainer;
-  }
-
-  #renderActivePanel(container) {
+  async #renderActivePanel(container) {
     // Destroy current panel if exists
     if (this.#currentPanel) {
       this.#currentPanel.destroy();
@@ -153,14 +156,19 @@ export class CatalogManagementScreen {
         break;
     }
 
-    // Mount panel
-    container.innerHTML = '';
+    // Initialize panel (loads data + renders)
     if (this.#currentPanel) {
+      await this.#currentPanel.initialize();
+    }
+
+    // Mount panel (already fully initialized with data)
+    container.innerHTML = '';
+    if (this.#currentPanel && this.#currentPanel.element) {
       container.appendChild(this.#currentPanel.element);
     }
   }
 
-  #switchTab(tabId) {
+  async #switchTab(tabId) {
     if (this.#currentTab === tabId) return;
 
     this.#currentTab = tabId;
@@ -176,9 +184,36 @@ export class CatalogManagementScreen {
       }
     });
 
-    // Re-render panel
+    // Smooth transition: Fade out → Load → Fade in
     const panelContainer = this.#element.querySelector('.catalog-panel-container');
-    this.#renderActivePanel(panelContainer);
+
+    // 1. Fade out current panel
+    panelContainer.style.opacity = '0';
+    await this.#wait(200);
+
+    // 2. Show loading state
+    this.#showLoadingState(panelContainer);
+    await this.#wait(100);
+
+    // 3. Re-render panel (data loads here)
+    await this.#renderActivePanel(panelContainer);
+
+    // 4. Fade in new panel
+    await this.#wait(50);
+    panelContainer.style.opacity = '1';
+  }
+
+  #showLoadingState(container) {
+    container.innerHTML = '';
+    const loader = createElement('div', { className: 'catalog-loading-state' }, [
+      createElement('div', { className: 'loading-spinner' }),
+      createElement('p', { className: 'loading-text' }, ['Lädt...']),
+    ]);
+    container.appendChild(loader);
+  }
+
+  #wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   #handleBack() {

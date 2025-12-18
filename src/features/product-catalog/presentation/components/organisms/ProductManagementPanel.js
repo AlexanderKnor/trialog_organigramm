@@ -22,13 +22,18 @@ export class ProductManagementPanel {
     this.#products = [];
     this.#categories = [];
     this.#selectedCategoryType = null;
-    this.#element = this.#render();
-    this.#loadData();
-    this.#setupRealTimeListener();
+    this.#element = null;
   }
 
   get element() {
     return this.#element;
+  }
+
+  // Public method: Initialize panel with data BEFORE rendering
+  async initialize() {
+    await this.#loadData();
+    this.#element = this.#render();
+    await this.#setupRealTimeListener();
   }
 
   async #loadData() {
@@ -39,11 +44,10 @@ export class ProductManagementPanel {
         this.#selectedCategoryType = this.#selectedCategoryType || this.#categories[0].type;
         await this.#loadProducts();
       }
-
-      this.#updateUI();
+      // Don't update UI here - will be created in #render() with the data
     } catch (error) {
       console.error('Failed to load data:', error);
-      this.#showError('Fehler beim Laden der Daten');
+      throw error; // Re-throw so initialize() knows it failed
     }
   }
 
@@ -55,11 +59,11 @@ export class ProductManagementPanel {
 
     try {
       this.#products = await this.#catalogService.getProductsByCategory(this.#selectedCategoryType, true);
-      this.#updateTable();
+      // Don't update table here - will be created in #render() with the data
     } catch (error) {
       console.error('Failed to load products:', error);
       this.#products = [];
-      this.#updateTable();
+      // Don't try to update table that doesn't exist yet
     }
   }
 

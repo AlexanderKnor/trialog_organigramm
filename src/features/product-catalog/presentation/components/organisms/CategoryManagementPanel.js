@@ -18,22 +18,27 @@ export class CategoryManagementPanel {
   constructor(props = {}) {
     this.#catalogService = props.catalogService;
     this.#categories = [];
-    this.#element = this.#render();
-    this.#loadCategories();
-    this.#setupRealTimeListener();
+    this.#element = null;
   }
 
   get element() {
     return this.#element;
   }
 
+  // Public method: Initialize panel with data BEFORE rendering
+  async initialize() {
+    await this.#loadCategories();
+    this.#element = this.#render();
+    await this.#setupRealTimeListener();
+  }
+
   async #loadCategories() {
     try {
       this.#categories = await this.#catalogService.getAllCategories(true);
-      this.#updateTable();
+      // Don't update table here - it will be created in #render() with the data
     } catch (error) {
       console.error('Failed to load categories:', error);
-      this.#showError('Fehler beim Laden der Kategorien');
+      throw error; // Re-throw so initialize() knows it failed
     }
   }
 
