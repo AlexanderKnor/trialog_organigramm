@@ -2229,33 +2229,23 @@
     0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
+/* Team Grid - Responsive Grid Layout */
 .db-team-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: var(--spacing-4);
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: var(--spacing-3);
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
 }
 
-.db-team-grid::-webkit-scrollbar {
-  height: 6px;
+@media (min-width: 768px) {
+  .db-team-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-.db-team-grid::-webkit-scrollbar-track {
-  background: rgba(241, 245, 249, 0.5);
-  border-radius: 3px;
-}
-
-.db-team-grid::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, rgba(16, 39, 76, 0.2) 0%, rgba(16, 39, 76, 0.15) 100%);
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-}
-
-.db-team-grid::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(90deg, rgba(16, 39, 76, 0.3) 0%, rgba(16, 39, 76, 0.25) 100%);
+@media (min-width: 1200px) {
+  .db-team-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .db-team-card {
@@ -2268,9 +2258,6 @@
   border: 1px solid #e2e8f0;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  min-width: 320px;
-  flex-shrink: 0;
-  scroll-snap-align: start;
 }
 
 .db-team-card::before {
@@ -2474,133 +2461,112 @@
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 700px) {
-  .db-team-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* ========================================
    DASHBOARD HEADER (KPIs) - Rankings Style
    ======================================== */
 
+/* Dashboard Header - Structured Grid Layout */
 .db-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: var(--spacing-4);
   margin-bottom: var(--spacing-4);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: var(--spacing-2);
 }
 
-/* KPI Header scrollbar */
-.db-header::-webkit-scrollbar {
-  height: 6px;
+/* Main KPI spans full width on top */
+.db-header .db-kpi-main {
+  grid-column: 1 / -1;
 }
 
-.db-header::-webkit-scrollbar-track {
-  background: rgba(241, 245, 249, 0.5);
-  border-radius: 3px;
+/* Secondary KPIs in a responsive grid */
+.db-header .db-kpi:not(.db-kpi-main) {
+  min-width: 0;
 }
 
-.db-header::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, rgba(16, 39, 76, 0.2) 0%, rgba(16, 39, 76, 0.15) 100%);
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+@media (min-width: 640px) {
+  .db-header {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .db-header .db-kpi-main {
+    grid-column: 1 / -1;
+  }
 }
 
-.db-header::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(90deg, rgba(16, 39, 76, 0.3) 0%, rgba(16, 39, 76, 0.25) 100%);
+@media (min-width: 1024px) {
+  .db-header {
+    grid-template-columns: 2fr repeat(3, 1fr);
+    grid-template-rows: auto;
+  }
+
+  .db-header .db-kpi-main {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+  }
 }
 
 /* ========================================
    AVERAGES SECTION (Hochrechnungen)
    ======================================== */
 
+/* Averages Section - Clean Grid Layout */
 .db-averages {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%),
-    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: white;
   border-radius: 10px;
   border: 1px solid rgba(226, 232, 240, 0.8);
-  padding: var(--spacing-4);
+  padding: var(--spacing-5);
   margin-bottom: var(--spacing-4);
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.03),
-    0 4px 8px rgba(0, 0, 0, 0.02),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .db-averages-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--spacing-3);
-  padding: 0 2px;
+  margin-bottom: var(--spacing-4);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .db-averages-title {
-  font-size: clamp(0.875rem, 2vw, 1rem);
+  font-size: 1rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
+  color: #1e293b;
+  margin: 0;
 }
 
 .db-averages-period {
-  font-size: clamp(0.6875rem, 1.3vw, 0.75rem);
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: #64748b;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
+  background: #f8fafc;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
 }
 
 .db-averages-content {
-  display: flex;
-  gap: var(--spacing-3);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: var(--spacing-2);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-4);
 }
 
-/* Averages content scrollbar */
-.db-averages-content::-webkit-scrollbar {
-  height: 6px;
-}
-
-.db-averages-content::-webkit-scrollbar-track {
-  background: rgba(241, 245, 249, 0.5);
-  border-radius: 3px;
-}
-
-.db-averages-content::-webkit-scrollbar-thumb {
-  background: rgba(16, 39, 76, 0.15);
-  border-radius: 3px;
-}
-
-.db-averages-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 39, 76, 0.25);
+@media (min-width: 768px) {
+  .db-averages-content {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .db-averages-row {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3);
-  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.6) 100%);
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.5);
-  min-width: clamp(280px, 45vw, 400px);
-  flex-shrink: 0;
-  scroll-snap-align: start;
+  border: 1px solid rgba(226, 232, 240, 0.6);
 }
 
 .db-avg-row-label {
@@ -2609,31 +2575,26 @@
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  margin-bottom: var(--spacing-1);
 }
 
 .db-averages-grid {
-  display: flex;
-  gap: var(--spacing-2);
-  flex-wrap: nowrap;
-}
-
-.db-averages-grid > * {
-  flex: 1 1 0;
-  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-3);
 }
 
 .db-avg-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.375rem;
-  padding: var(--spacing-2) var(--spacing-3);
+  gap: 0.25rem;
+  padding: var(--spacing-3);
   background: white;
   border-radius: 6px;
-  border: 1px solid rgba(226, 232, 240, 0.4);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.02),
-    inset 0 1px 0 rgba(255, 255, 255, 1);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  text-align: center;
 }
 
 .db-avg-label {
@@ -2641,19 +2602,17 @@
   font-weight: 600;
   color: #94a3b8;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  text-align: center;
+  letter-spacing: 0.05em;
 }
 
 .db-avg-value {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 800;
   background: linear-gradient(135deg, var(--color-primary) 0%, #2a5298 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   font-variant-numeric: tabular-nums;
-  text-align: center;
 }
 
 .db-avg-value-muted {
@@ -2664,16 +2623,12 @@
 }
 
 .db-avg-note {
-  font-size: 0.625rem;
+  font-size: 0.5625rem;
   color: #94a3b8;
   font-weight: 500;
-  font-style: italic;
-  margin-top: 0.25rem;
-  text-align: center;
 }
 
-/* db-header now uses flex with horizontal scroll - no media queries needed */
-
+/* KPI Cards - Clean Grid Layout */
 .db-kpi {
   background: white;
   border-radius: 10px;
@@ -2683,9 +2638,9 @@
     0 1px 3px rgba(0, 0, 0, 0.04),
     0 1px 2px rgba(0, 0, 0, 0.02);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: clamp(160px, 22vw, 220px);
-  flex-shrink: 0;
-  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .db-kpi:hover {
@@ -2696,12 +2651,11 @@
 .db-kpi-main {
   background: linear-gradient(135deg, var(--color-primary) 0%, #2a5298 100%);
   border: none;
-  padding: var(--spacing-5);
+  padding: var(--spacing-5) var(--spacing-6);
   box-shadow:
     0 4px 12px rgba(16, 39, 76, 0.24),
     0 0 0 3px rgba(16, 39, 76, 0.08);
-  min-width: clamp(200px, 28vw, 280px);
-  flex: 0 0 auto;
+  text-align: center;
 }
 
 .db-kpi-main:hover {
@@ -2712,44 +2666,43 @@
 }
 
 .db-kpi-context {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.75);
   margin-top: var(--spacing-2);
 }
 
 .db-kpi-label {
-  font-size: clamp(0.625rem, 1.2vw, 0.6875rem);
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: clamp(0.04em, 0.5vw, 0.08em);
+  letter-spacing: 0.06em;
   color: #64748b;
-  margin-bottom: var(--spacing-1);
-  white-space: nowrap;
+  margin-bottom: var(--spacing-2);
 }
 
 .db-kpi-main .db-kpi-label {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.75rem;
 }
 
 .db-kpi-value {
-  font-size: clamp(1.125rem, 3vw, 1.5rem);
+  font-size: 1.5rem;
   font-weight: 800;
   color: #0f172a;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 .db-kpi-main .db-kpi-value {
-  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-size: 2.25rem;
   color: white;
 }
 
 .db-kpi-sub {
-  font-size: clamp(0.6875rem, 1.3vw, 0.75rem);
+  font-size: 0.75rem;
   color: #64748b;
   margin-top: var(--spacing-1);
-  white-space: nowrap;
 }
 
 .db-kpi-split {
@@ -2809,37 +2762,32 @@
   border: 1px solid #e2e8f0;
 }
 
-/* Category Grid */
+/* Category Grid - Responsive Grid Layout */
 .db-cat-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: var(--spacing-4);
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: var(--spacing-3);
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
 }
 
-.db-cat-grid::-webkit-scrollbar {
-  height: 6px;
+@media (min-width: 640px) {
+  .db-cat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-.db-cat-grid::-webkit-scrollbar-track {
-  background: rgba(241, 245, 249, 0.5);
-  border-radius: 3px;
+@media (min-width: 1024px) {
+  .db-cat-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-.db-cat-grid::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, rgba(16, 39, 76, 0.2) 0%, rgba(16, 39, 76, 0.15) 100%);
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+@media (min-width: 1400px) {
+  .db-cat-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
-.db-cat-grid::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(90deg, rgba(16, 39, 76, 0.3) 0%, rgba(16, 39, 76, 0.25) 100%);
-}
-
-/* Category Card - Rankings Style with left accent */
+/* Category Card - Clean Card Style */
 .db-cat-card {
   background: white;
   border-radius: 8px;
@@ -2850,9 +2798,6 @@
   border: 1px solid #e2e8f0;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  min-width: clamp(260px, 40vw, 320px);
-  flex-shrink: 0;
-  scroll-snap-align: start;
 }
 
 .db-cat-card::before {
@@ -3141,31 +3086,37 @@
    DASHBOARD RESPONSIVE
    ======================================== */
 
-/* Dashboard now uses horizontal scroll - simplified responsive rules */
-
-@media (max-width: 700px) {
+/* Mobile adjustments */
+@media (max-width: 640px) {
   .db-kpi-value {
-    font-size: clamp(1.125rem, 4vw, 1.375rem);
+    font-size: 1.25rem;
   }
 
   .db-kpi-main .db-kpi-value {
-    font-size: clamp(1.5rem, 5vw, 1.75rem);
+    font-size: 1.75rem;
   }
 
-  .db-categories {
+  .db-categories,
+  .db-team-section,
+  .db-averages {
     padding: var(--spacing-4);
   }
 
-  .db-team-section {
-    padding: var(--spacing-4);
-  }
-
-  .db-team-card {
-    padding: var(--spacing-3);
-  }
-
+  .db-team-card,
   .db-cat-card {
     padding: var(--spacing-3);
+  }
+
+  .db-avg-value {
+    font-size: 0.875rem;
+  }
+
+  .db-averages-grid {
+    gap: var(--spacing-2);
+  }
+
+  .db-avg-item {
+    padding: var(--spacing-2);
   }
 }
 
