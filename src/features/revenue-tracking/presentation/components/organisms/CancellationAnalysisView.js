@@ -62,6 +62,7 @@ export class CancellationAnalysisView {
           provisioned: 0,
           rejected: 0,
           cancelled: 0,
+          submittedRate: 0,
           cancellationRate: 0,
           rejectionRate: 0,
           successRate: 0,
@@ -83,6 +84,7 @@ export class CancellationAnalysisView {
 
     // Calculate rates
     Object.values(employeeStats).forEach((emp) => {
+      emp.submittedRate = emp.total > 0 ? (emp.submitted / emp.total) * 100 : 0;
       emp.cancellationRate = emp.total > 0 ? (emp.cancelled / emp.total) * 100 : 0;
       emp.rejectionRate = emp.total > 0 ? (emp.rejected / emp.total) * 100 : 0;
       emp.successRate = emp.total > 0 ? (emp.provisioned / emp.total) * 100 : 0;
@@ -273,6 +275,13 @@ export class CancellationAnalysisView {
           createElement('th', { className: 'th-employee' }, ['Mitarbeiter']),
           createElement('th', { className: 'th-total' }, ['Gesamt']),
           createElement('th', {
+            className: `th-submitted sortable ${this.#sortBy === 'submittedRate' ? 'active' : ''}`,
+            onclick: () => this.#changeSort('submittedRate'),
+          }, [
+            'Offen',
+            this.#renderSortIndicator('submittedRate'),
+          ]),
+          createElement('th', {
             className: `th-success sortable ${this.#sortBy === 'successRate' ? 'active' : ''}`,
             onclick: () => this.#changeSort('successRate'),
           }, [
@@ -352,6 +361,16 @@ export class CancellationAnalysisView {
       createElement('td', { className: 'td-total' }, [
         employee.total.toString(),
       ]),
+      createElement('td', { className: 'td-submitted' }, [
+        createElement('div', { className: 'rate-cell' }, [
+          createElement('span', { className: 'rate-value' }, [
+            `${employee.submittedRate.toFixed(1)}%`,
+          ]),
+          createElement('span', { className: 'rate-count' }, [
+            `(${employee.submitted})`,
+          ]),
+        ]),
+      ]),
       createElement('td', { className: `td-success ${hasLowSuccess ? 'value-low' : ''}` }, [
         createElement('div', { className: 'rate-cell' }, [
           createElement('span', { className: 'rate-value' }, [
@@ -398,6 +417,7 @@ export class CancellationAnalysisView {
 
   #getSortLabel() {
     const labels = {
+      submittedRate: 'Offene Quote',
       cancellationRate: 'Stornoquote',
       rejectionRate: 'Ablehnungsquote',
       successRate: 'Erfolgsquote',
