@@ -85,37 +85,34 @@ export class CatalogService {
   }
 
   async deleteCategory(categoryType) {
-    // Check if used in products
-    const products = await this.#catalogRepository.findProductsByCategory(categoryType, true);
-    if (products.length > 0) {
-      throw new ValidationError(
-        `Cannot delete category '${categoryType}': ${products.length} product(s) still reference this category`,
-        'categoryType'
-      );
-    }
-
-    // Check if used in providers
-    const providers = await this.#catalogRepository.findProvidersByCategory(categoryType, true);
-    if (providers.length > 0) {
-      throw new ValidationError(
-        `Cannot delete category '${categoryType}': ${providers.length} provider(s) still reference this category`,
-        'categoryType'
-      );
-    }
-
-    // Check if used in revenue entries (if revenueService available)
+    // CRITICAL: Check if used in revenue entries (CANNOT delete if in use)
     if (this.#revenueService) {
       const usageInfo = await this.#checkCategoryInUse(categoryType);
       if (usageInfo.inUse) {
         throw new ValidationError(
-          `Cannot delete category '${categoryType}': ${usageInfo.revenueCount} revenue entry/entries still reference this category`,
+          `Kategorie kann nicht gelöscht werden: ${usageInfo.revenueCount} Umsatz-Einträge verwenden diese Kategorie`,
           'categoryType'
         );
       }
     }
 
+    // CASCADE DELETE: Delete all products in this category
+    const products = await this.#catalogRepository.findProductsByCategory(categoryType, true);
+    console.log(`🔄 Cascading delete: Deleting ${products.length} product(s) in category '${categoryType}'`);
+    for (const product of products) {
+      await this.deleteProduct(product.id);
+    }
+
+    // CASCADE DELETE: Delete all providers in this category
+    const providers = await this.#catalogRepository.findProvidersByCategory(categoryType, true);
+    console.log(`🔄 Cascading delete: Deleting ${providers.length} provider(s) in category '${categoryType}'`);
+    for (const provider of providers) {
+      await this.deleteProvider(provider.id);
+    }
+
+    // Delete the category itself
     await this.#catalogRepository.deleteCategory(categoryType);
-    console.log(`✓ Category deleted: ${categoryType}`);
+    console.log(`✅ Category deleted with cascade: ${categoryType} (${products.length} products, ${providers.length} providers)`);
   }
 
   async deactivateCategory(categoryType) {

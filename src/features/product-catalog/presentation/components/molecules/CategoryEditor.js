@@ -15,7 +15,9 @@ export class CategoryEditor {
   #displayNameInput;
   #typeInput;
   #provisionTypeSelect;
+  #provisionTypeSelectElement;
   #requiresPropertyAddressCheckbox;
+  #requiresPropertyAddressCheckboxElement;
   #orderInput;
 
   constructor(category = null, props = {}) {
@@ -111,6 +113,8 @@ export class CategoryEditor {
       })
     );
 
+    this.#provisionTypeSelectElement = select;
+
     const label = createElement('label', { className: 'editor-label', for: 'provision-type-select' }, [
       'Provisions-Typ',
       createElement('span', { className: 'required-marker' }, ['*']),
@@ -129,12 +133,20 @@ export class CategoryEditor {
   }
 
   #createPropertyAddressCheckbox() {
-    const checkbox = createElement('input', {
+    const checkboxProps = {
       type: 'checkbox',
       id: 'requires-property-address',
       className: 'editor-checkbox',
-      checked: this.#category?.requiresPropertyAddress || false,
-    });
+    };
+
+    // Only set checked attribute if true (avoid checked="false" which still checks the box)
+    if (this.#category?.requiresPropertyAddress === true) {
+      checkboxProps.checked = true;
+    }
+
+    const checkbox = createElement('input', checkboxProps);
+
+    this.#requiresPropertyAddressCheckboxElement = checkbox;
 
     const label = createElement(
       'label',
@@ -220,8 +232,8 @@ export class CategoryEditor {
     const data = {
       displayName,
       type: this.#category?.type || this.#generateTypeFromDisplayName(displayName),
-      provisionType: this.#provisionTypeSelect.value,
-      requiresPropertyAddress: this.#requiresPropertyAddressCheckbox.checked,
+      provisionType: this.#provisionTypeSelectElement.value,
+      requiresPropertyAddress: this.#requiresPropertyAddressCheckboxElement.checked,
       order: 0, // Alphabetic sorting - order field not used
     };
 

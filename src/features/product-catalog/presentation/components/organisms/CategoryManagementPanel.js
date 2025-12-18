@@ -126,15 +126,32 @@ export class CategoryManagementPanel {
   }
 
   async #handleDeleteCategory(category) {
-    const confirmed = confirm(
-      `Kategorie "${category.displayName}" wirklich löschen?\n\nDies ist nicht rückgängig zu machen und kann fehlschlagen, wenn die Kategorie noch verwendet wird.`
-    );
+    // Get count of products and providers to inform user
+    const products = await this.#catalogService.getProductsByCategory(category.type, true);
+    const providers = await this.#catalogService.getProvidersByCategory(category.type, true);
+
+    let confirmMessage = `Kategorie "${category.displayName}" wirklich löschen?\n\n`;
+
+    if (products.length > 0 || providers.length > 0) {
+      confirmMessage += '⚠️ KASKADIERENDES LÖSCHEN:\n';
+      if (products.length > 0) {
+        confirmMessage += `• ${products.length} Produkt(e) werden gelöscht\n`;
+      }
+      if (providers.length > 0) {
+        confirmMessage += `• ${providers.length} Produktgeber werden gelöscht\n`;
+      }
+      confirmMessage += '\n';
+    }
+
+    confirmMessage += 'Dies ist nicht rückgängig zu machen!';
+
+    const confirmed = confirm(confirmMessage);
 
     if (!confirmed) return;
 
     try {
       await this.#catalogService.deleteCategory(category.type);
-      console.log('✓ Category deleted successfully');
+      console.log('✓ Category deleted successfully with cascade');
       await this.#loadCategories();
     } catch (error) {
       console.error('Failed to delete category:', error);
@@ -147,9 +164,10 @@ export class CategoryManagementPanel {
 
     const editor = new CategoryEditor(category, {
       onSave: async (data) => {
+        let loadingOverlay;
         try {
           // Show loading
-          const loadingOverlay = this.#createLoadingOverlay();
+          loadingOverlay = this.#createLoadingOverlay();
           dialog.querySelector('.dialog-content').appendChild(loadingOverlay);
           setTimeout(() => loadingOverlay.classList.add('visible'), 10);
 
