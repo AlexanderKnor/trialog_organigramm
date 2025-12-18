@@ -286,6 +286,10 @@
   z-index: 1;
 }
 
+.catalog-table thead th.table-header-actions {
+  text-align: right;
+}
+
 .catalog-table tbody tr {
   transition: background-color 0.15s ease;
   border-bottom: 1px solid #f1f5f9;
@@ -306,7 +310,7 @@
   font-weight: 400;
 }
 
-.table-cell-actions {
+.catalog-table tbody td.table-cell-actions {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);

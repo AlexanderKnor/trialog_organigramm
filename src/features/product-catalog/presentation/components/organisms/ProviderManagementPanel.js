@@ -54,16 +54,24 @@ export class ProviderManagementPanel {
   async #loadProviders() {
     if (!this.#selectedCategoryType) {
       this.#providers = [];
+      if (this.#table) {
+        this.#updateTable();
+      }
       return;
     }
 
     try {
       this.#providers = await this.#catalogService.getProvidersByCategory(this.#selectedCategoryType, true);
-      // Don't update table here - will be created in #render() with the data
+      // Update table if it exists (for category changes after initialization)
+      if (this.#table) {
+        this.#updateTable();
+      }
     } catch (error) {
       console.error('Failed to load providers:', error);
       this.#providers = [];
-      // Don't try to update table that doesn't exist yet
+      if (this.#table) {
+        this.#updateTable();
+      }
     }
   }
 
