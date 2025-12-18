@@ -99,6 +99,13 @@ export class ProductDefinition {
     return this;
   }
 
+  updateCategoryType(categoryType) {
+    this.#validateCategoryType(categoryType);
+    this.#categoryType = categoryType;
+    this.#metadata = this.#metadata.withUpdatedTimestamp();
+    return this;
+  }
+
   updateOrder(order) {
     this.#validateOrder(order);
     this.#order = order;

@@ -178,6 +178,7 @@ export class AddRevenueDialog {
     // Product select (will be populated dynamically)
     this.#productSelect = createElement('select', {
       className: 'input-field',
+      onchange: (e) => this.#onProductChange(e.target.value),
     }, [createElement('option', {}, ['Produkte werden geladen...'])]);
 
     // Provider select (will be populated dynamically)
@@ -363,7 +364,7 @@ export class AddRevenueDialog {
     }
 
     await this.#updateProductOptions(categoryType);
-    await this.#updateProviderOptions(categoryType);
+    // Providers are loaded automatically in #updateProductOptions() for first product
 
     // Toggle property address field visibility
     const providerWrapper = this.#element.querySelector('.provider-wrapper');
@@ -401,12 +402,67 @@ export class AddRevenueDialog {
 
     products.forEach((product) => {
       const name = product.name || product;
-      const option = createElement('option', { value: name }, [name]);
+      const productId = product.id || name;
+      const option = createElement('option', { value: productId }, [name]);
+      option.dataset.productName = name;
+      option.dataset.productId = productId;
       this.#productSelect.appendChild(option);
     });
 
     if (products.length > 0) {
       this.#formData.product = products[0];
+      // Update providers for first product
+      if (products[0].id) {
+        await this.#updateProviderOptionsForProduct(products[0].id);
+      } else {
+        await this.#updateProviderOptions(categoryType);
+      }
+    }
+  }
+
+  async #onProductChange(productValue) {
+    // Find selected option
+    const selectedOption = Array.from(this.#productSelect.options).find(opt => opt.value === productValue);
+    const productId = selectedOption?.dataset.productId;
+    const productName = selectedOption?.dataset.productName || productValue;
+
+    this.#formData.product = { id: productId, name: productName };
+
+    // Update providers for this specific product
+    if (productId && productId !== productName) {
+      await this.#updateProviderOptionsForProduct(productId);
+    } else {
+      await this.#updateProviderOptions(this.#formData.category);
+    }
+  }
+
+  async #updateProviderOptionsForProduct(productId) {
+    let providers = [];
+
+    // Load providers for specific product
+    if (this.#revenueService && this.#revenueService.getProvidersForProduct) {
+      try {
+        providers = await this.#revenueService.getProvidersForProduct(productId);
+      } catch (error) {
+        console.error('Failed to load providers for product:', error);
+        await this.#updateProviderOptions(this.#formData.category);
+        return;
+      }
+    } else {
+      await this.#updateProviderOptions(this.#formData.category);
+      return;
+    }
+
+    this.#providerSelect.innerHTML = '';
+
+    providers.forEach((provider) => {
+      const name = provider.name || provider;
+      const option = createElement('option', { value: name }, [name]);
+      this.#providerSelect.appendChild(option);
+    });
+
+    if (providers.length > 0) {
+      this.#formData.provider = providers[0];
     }
   }
 
@@ -461,7 +517,13 @@ export class AddRevenueDialog {
     }
 
     const categoryType = this.#categorySelect.value;
-    const productName = this.#productSelect.value;
+
+    // Extract product ID and name from selected option
+    const productValue = this.#productSelect.value;
+    const selectedProductOption = this.#productSelect.querySelector('option:checked');
+    const productId = selectedProductOption?.dataset.productId || productValue;
+    const productName = selectedProductOption?.dataset.productName || productValue;
+
     const providerName = this.#providerSelect.value;
     const propertyAddress = this.#propertyAddressInput.value.trim();
     const entryDate = this.#dateInput.value || new Date().toISOString().split('T')[0];
@@ -477,6 +539,7 @@ export class AddRevenueDialog {
       },
       category: categoryType,
       product: {
+        id: productId,
         name: productName,
         category: categoryType,
       },

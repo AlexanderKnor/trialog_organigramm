@@ -10,14 +10,17 @@ import { createElement } from '../../../../../core/utils/dom.js';
 export class ProductEditor {
   #product;
   #categoryType;
+  #categories;
   #props;
   #element;
   #nameInput;
+  #categorySelectElement;
   #orderInput;
 
-  constructor(product = null, categoryType = null, props = {}) {
+  constructor(product = null, categoryType = null, categories = [], props = {}) {
     this.#product = product;
     this.#categoryType = categoryType || product?.categoryType;
+    this.#categories = categories;
     this.#props = {
       onSave: props.onSave || (() => {}),
       onCancel: props.onCancel || (() => {}),
@@ -45,10 +48,14 @@ export class ProductEditor {
       helpText: 'Produkte werden alphabetisch sortiert',
     });
 
+    // Category Select
+    const categorySelect = this.#createCategorySelect();
+
     // Basic Section
     const basicSection = createElement('div', { className: 'editor-section-group' }, [
       createElement('h4', { className: 'editor-section-title' }, ['Produktinformationen']),
       this.#nameInput.element,
+      categorySelect,
     ]);
 
     // Action Bar
@@ -86,6 +93,32 @@ export class ProductEditor {
     );
   }
 
+  #createCategorySelect() {
+    const select = createElement(
+      'select',
+      {
+        className: 'editor-select',
+        id: 'category-select',
+      },
+      this.#categories.map((category) => {
+        const option = createElement('option', { value: category.type }, [category.displayName]);
+        if (category.type === this.#categoryType) {
+          option.selected = true;
+        }
+        return option;
+      })
+    );
+
+    this.#categorySelectElement = select;
+
+    const label = createElement('label', { className: 'editor-label', for: 'category-select' }, [
+      'Kategorie',
+      createElement('span', { className: 'required-marker' }, ['*']),
+    ]);
+
+    return createElement('div', { className: 'editor-field' }, [label, select]);
+  }
+
   #validate() {
     let isValid = true;
 
@@ -108,7 +141,8 @@ export class ProductEditor {
 
     const data = {
       name: this.#nameInput.value.trim(),
-      order: 0, // Alphabetic sorting - order field not used
+      categoryType: this.#categorySelectElement.value,
+      order: 0,
     };
 
     if (this.#props.onSave) {

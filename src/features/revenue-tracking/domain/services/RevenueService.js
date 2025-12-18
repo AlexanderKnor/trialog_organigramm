@@ -383,6 +383,15 @@ export class RevenueService {
    * Get providers for a specific category from catalog
    * Falls back to hardcoded providers if CatalogService not available
    */
+  async getProvidersForProduct(productId) {
+    if (!this.#catalogService) {
+      throw new Error('CatalogService not available');
+    }
+
+    // Load providers for specific product
+    return await this.#catalogService.getProvidersByProduct(productId, false);
+  }
+
   async getProvidersForCategory(categoryType) {
     if (!this.#catalogService) {
       throw new Error('CatalogService not available');

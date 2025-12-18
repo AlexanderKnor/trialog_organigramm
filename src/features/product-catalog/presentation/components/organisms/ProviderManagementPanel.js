@@ -42,7 +42,9 @@ export class ProviderManagementPanel {
 
   async #loadData() {
     try {
-      this.#categories = await this.#catalogService.getAllCategories(false);
+      // Load all categories and filter out those requiring property address
+      const allCategories = await this.#catalogService.getAllCategories(false);
+      this.#categories = allCategories.filter(c => !c.requiresPropertyAddress);
 
       if (this.#categories.length > 0) {
         this.#selectedCategoryType = this.#selectedCategoryType || this.#categories[0].type;
@@ -116,7 +118,8 @@ export class ProviderManagementPanel {
       this.#unsubscribe = await this.#catalogService.subscribeToCatalogUpdates((data) => {
         console.log('🔄 Catalog updated (real-time)');
         this.#categories = data.categories || [];
-        this.#providers = (data.providers || []).filter((p) => p.categoryType === this.#selectedCategoryType);
+        this.#products = (data.products || []).filter((p) => p.categoryType === this.#selectedCategoryType);
+        this.#providers = (data.providers || []).filter((p) => p.productId === this.#selectedProductId);
         this.#updateUI();
       });
     } catch (error) {
@@ -238,13 +241,43 @@ export class ProviderManagementPanel {
   async #handleCategoryChange(categoryType) {
     this.#selectedCategoryType = categoryType;
     this.#selectedProductId = null;
+
+    // Smooth transition
+    if (this.#element) {
+      this.#element.style.opacity = '0';
+      await this.#wait(150);
+    }
+
     await this.#loadProducts();
     this.#updateUI();
+
+    if (this.#element) {
+      await this.#wait(50);
+      this.#element.style.opacity = '1';
+    }
   }
 
   async #handleProductChange(productId) {
     this.#selectedProductId = productId;
+
+    // Smooth transition for table
+    const tableWrapper = this.#element?.querySelector('.catalog-table-wrapper');
+    if (tableWrapper) {
+      tableWrapper.style.opacity = '0';
+      await this.#wait(150);
+    }
+
     await this.#loadProviders();
+
+    const newTableWrapper = this.#element?.querySelector('.catalog-table-wrapper');
+    if (newTableWrapper) {
+      await this.#wait(50);
+      newTableWrapper.style.opacity = '1';
+    }
+  }
+
+  #wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   #updateUI() {
@@ -300,6 +333,9 @@ export class ProviderManagementPanel {
     const selectedProduct = this.#products.find(p => p.id === this.#selectedProductId);
 
     const editor = new ProviderEditor(provider, selectedProduct, {
+      categories: this.#categories,
+      products: this.#products,
+      catalogService: this.#catalogService,
       onSave: async (data) => {
         let loadingOverlay;
         try {
@@ -311,7 +347,7 @@ export class ProviderManagementPanel {
             await this.#catalogService.updateProvider(provider.id, data);
             console.log('✓ Provider updated');
           } else {
-            await this.#catalogService.createProvider(this.#selectedProductId, data);
+            await this.#catalogService.createProvider(data.productId, data);
             console.log('✓ Provider created');
           }
 

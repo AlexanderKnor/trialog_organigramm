@@ -99,6 +99,13 @@ export class ProviderDefinition {
     return this;
   }
 
+  updateProductId(productId) {
+    this.#validateProductId(productId);
+    this.#productId = productId;
+    this.#metadata = this.#metadata.withUpdatedTimestamp();
+    return this;
+  }
+
   updateOrder(order) {
     this.#validateOrder(order);
     this.#order = order;

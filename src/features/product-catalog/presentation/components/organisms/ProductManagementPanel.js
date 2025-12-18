@@ -163,7 +163,25 @@ export class ProductManagementPanel {
 
   async #handleCategoryChange(categoryType) {
     this.#selectedCategoryType = categoryType;
+
+    // Smooth transition
+    const tableWrapper = this.#element?.querySelector('.catalog-table-wrapper');
+    if (tableWrapper) {
+      tableWrapper.style.opacity = '0';
+      await this.#wait(150);
+    }
+
     await this.#loadProducts();
+
+    const newTableWrapper = this.#element?.querySelector('.catalog-table-wrapper');
+    if (newTableWrapper) {
+      await this.#wait(50);
+      newTableWrapper.style.opacity = '1';
+    }
+  }
+
+  #wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   #updateUI() {
@@ -215,10 +233,11 @@ export class ProductManagementPanel {
   #showProductDialog(product) {
     const dialog = createElement('div', { className: 'dialog-overlay' });
 
-    const editor = new ProductEditor(product, this.#selectedCategoryType, {
+    const editor = new ProductEditor(product, this.#selectedCategoryType, this.#categories, {
       onSave: async (data) => {
+        let loadingOverlay;
         try {
-          const loadingOverlay = this.#createLoadingOverlay();
+          loadingOverlay = this.#createLoadingOverlay();
           dialog.querySelector('.dialog-content').appendChild(loadingOverlay);
           setTimeout(() => loadingOverlay.classList.add('visible'), 10);
 
@@ -226,7 +245,7 @@ export class ProductManagementPanel {
             await this.#catalogService.updateProduct(product.id, data);
             console.log('✓ Product updated');
           } else {
-            await this.#catalogService.createProduct(this.#selectedCategoryType, data);
+            await this.#catalogService.createProduct(data.categoryType, data);
             console.log('✓ Product created');
           }
 

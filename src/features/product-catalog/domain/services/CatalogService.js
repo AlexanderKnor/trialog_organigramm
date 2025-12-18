@@ -187,12 +187,16 @@ export class CatalogService {
       product.updateName(updates.name);
     }
 
+    if (updates.categoryType !== undefined) {
+      product.updateCategoryType(updates.categoryType);
+    }
+
     if (updates.order !== undefined) {
       product.updateOrder(updates.order);
     }
 
     await this.#catalogRepository.saveProduct(product);
-    console.log(`✓ Product updated: ${product.name}`);
+    console.log(`✓ Product updated: ${product.name} (category: ${product.categoryType})`);
 
     return product;
   }
@@ -296,12 +300,19 @@ export class CatalogService {
       provider.updateName(updates.name);
     }
 
+    if (updates.productId !== undefined) {
+      provider.updateProductId(updates.productId);
+    }
+
     if (updates.order !== undefined) {
       provider.updateOrder(updates.order);
     }
 
     await this.#catalogRepository.saveProvider(provider);
-    console.log(`✓ Provider updated: ${provider.name}`);
+
+    // Get product for logging
+    const product = await this.#catalogRepository.findProductById(provider.productId);
+    console.log(`✓ Provider updated: ${provider.name} (product: ${product?.name || provider.productId})`);
 
     return provider;
   }

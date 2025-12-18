@@ -158,6 +158,8 @@
   box-shadow: 0 1px 3px rgba(16, 39, 76, 0.04);
   border: 1px solid #e2e8f0;
   padding: 0;
+  transition: opacity 0.2s ease;
+  opacity: 1;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -262,6 +264,8 @@
   flex: 1;
   overflow: auto;
   padding: var(--spacing-6) var(--spacing-7);
+  transition: opacity 0.15s ease;
+  opacity: 1;
 }
 
 .catalog-table {
