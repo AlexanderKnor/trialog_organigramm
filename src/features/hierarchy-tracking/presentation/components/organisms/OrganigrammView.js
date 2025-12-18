@@ -374,29 +374,27 @@ export class OrganigrammView {
       return;
     }
 
-    // Get logo center position
+    // Get logo center position in viewport
     const logoRect = headerLogo.getBoundingClientRect();
-    const logoCenterX = logoRect.left + (logoRect.width / 2);
+    const logoCenterInViewport = logoRect.left + (logoRect.width / 2);
 
-    // Get scroll container position
-    const containerRect = scrollContainer.getBoundingClientRect();
-    const containerLeft = containerRect.left;
+    // Get card center position in viewport (current position)
+    const cardRect = rootCardWrapper.getBoundingClientRect();
+    const cardCenterInViewport = cardRect.left + (cardRect.width / 2);
 
-    // Get card dimensions
-    const cardOffsetLeft = rootCardWrapper.offsetLeft;
-    const cardWidth = rootCardWrapper.offsetWidth;
-    const cardCenterX = cardOffsetLeft + (cardWidth / 2);
+    // Calculate offset between card center and logo center
+    const offset = cardCenterInViewport - logoCenterInViewport;
 
-    // Calculate scroll needed to align card center with logo center
-    // Logo position relative to container + current scroll - card center
-    const targetScrollLeft = (logoCenterX - containerLeft) + scrollContainer.scrollLeft - (cardWidth / 2);
+    // Adjust scroll by this offset to align centers
+    const targetScrollLeft = scrollContainer.scrollLeft + offset;
 
     // Apply scroll position (instant)
     scrollContainer.scrollLeft = Math.max(0, targetScrollLeft);
 
     console.log('✓ Root card centered under logo:', {
-      logoCenterX,
-      cardCenterX,
+      logoCenterInViewport,
+      cardCenterInViewport,
+      offset,
       targetScrollLeft: Math.max(0, targetScrollLeft),
       actualScrollLeft: scrollContainer.scrollLeft,
     });
@@ -433,6 +431,16 @@ export class OrganigrammView {
 
     // Check on resize
     window.addEventListener('resize', checkScroll);
+
+    // Re-center on window resize (debounced)
+    let resizeTimeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        this.#centerOnRootCard();
+      }, 200);
+    };
+    window.addEventListener('resize', handleResize);
 
     // Re-check after tree renders
     setTimeout(checkScroll, 500);
