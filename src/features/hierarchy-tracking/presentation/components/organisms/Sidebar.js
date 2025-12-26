@@ -8,6 +8,8 @@ import { authService } from '../../../../../core/auth/index.js';
 import { Button } from '../atoms/Button.js';
 import { Icon } from '../atoms/Icon.js';
 import { NodeEditor } from '../molecules/NodeEditor.js';
+import { AddEmployeeWizard } from '../../../../user-profile/presentation/components/AddEmployeeWizard.js';
+import { NODE_TYPES } from '../../../domain/value-objects/NodeType.js';
 import { formatDate } from '../../../../../core/utils/index.js';
 
 export class Sidebar {
@@ -17,6 +19,7 @@ export class Sidebar {
   #node;
   #treeId;
   #tree;
+  #profileService;
   #props;
   #mode;
   #animationTimeout;
@@ -25,6 +28,7 @@ export class Sidebar {
     this.#node = props.node || null;
     this.#treeId = props.treeId || null;
     this.#tree = props.tree || null;
+    this.#profileService = props.profileService || null;
     this.#mode = 'view';
     this.#props = {
       onClose: props.onClose || null,
@@ -32,6 +36,7 @@ export class Sidebar {
       onDelete: props.onDelete || null,
       onAddChild: props.onAddChild || null,
       onRevenueTracking: props.onRevenueTracking || null,
+      profileService: props.profileService || null,
       className: props.className || '',
     };
 
@@ -90,7 +95,7 @@ export class Sidebar {
     }
   }
 
-  #renderContent() {
+  async #renderContent() {
     clearElement(this.#contentContainer);
 
     if (!this.#node) {
@@ -102,7 +107,7 @@ export class Sidebar {
     // Update header title based on mode
     if (this.#mode === 'edit') {
       this.#headerTitle.textContent = 'Bearbeiten';
-      this.#renderEditMode();
+      await this.#renderEditMode();  // AWAIT for async data loading!
     } else {
       this.#headerTitle.textContent = this.#node.name || 'Details';
       this.#renderViewMode();
@@ -316,20 +321,249 @@ export class Sidebar {
     ]);
   }
 
-  #renderEditMode() {
-    const editor = new NodeEditor(this.#node, {
-      onSave: (data) => {
-        if (this.#props.onSave) {
-          this.#props.onSave(this.#node.id, data);
+  async #renderEditMode() {
+    clearElement(this.#contentContainer);
+
+    // Check if node is an employee
+    const isEmployee = this.#node.type?.value === 'person' ||
+                       this.#node.type === 'person' ||
+                       (this.#node.type && this.#node.type.toString().toLowerCase() === 'person');
+
+    if (isEmployee && this.#profileService) {
+      // Show loading state
+      this.#contentContainer.appendChild(
+        createElement('div', { className: 'sidebar-loading' }, [
+          createElement('div', { className: 'loading-spinner' }),
+          createElement('p', {}, ['Lade Profil-Daten...']),
+        ])
+      );
+
+      // Load user profile
+      let userProfile = null;
+      try {
+        if (this.#node.email) {
+          userProfile = await this.#profileService.getUserByEmail(this.#node.email);
+          console.log('✓ User profile loaded for edit:', userProfile);
+          console.log('  First Name:', userProfile?.firstName);
+          console.log('  Last Name:', userProfile?.lastName);
+          console.log('  Address:', userProfile?.address);
+          console.log('  Full User Object:', JSON.stringify(userProfile, null, 2));
         }
-        this.setMode('view');
-      },
-      onCancel: () => this.setMode('view'),
-      onDelete: this.#props.onDelete,
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+      }
+
+      // Clear loading state
+      clearElement(this.#contentContainer);
+
+      // Show Wizard
+      console.log('Creating wizard with user:', userProfile);
+      const wizard = new AddEmployeeWizard({
+        existingUser: userProfile,
+        existingNode: this.#node,
+        onComplete: async (formData) => {
+          try {
+            if (userProfile) {
+              await this.#updateEmployeeProfile(userProfile.uid, formData);
+            }
+
+            const nodeData = {
+              name: `${formData.firstName} ${formData.lastName}`,
+              email: formData.email,
+              phone: formData.phone,
+              bankProvision: parseFloat(formData.bankProvision) || 0,
+              insuranceProvision: parseFloat(formData.insuranceProvision) || 0,
+              realEstateProvision: parseFloat(formData.realEstateProvision) || 0,
+            };
+
+            if (this.#props.onSave) {
+              this.#props.onSave(this.#node.id, nodeData);
+            }
+
+            wizard.remove();
+            this.setMode('view');
+            this.show();
+          } catch (error) {
+            console.error('Failed to update employee:', error);
+            alert('Fehler: ' + error.message);
+          }
+        },
+        onDelete: async (deleteData) => {
+          try {
+            console.log('🗑️ Deleting employee account completely...');
+
+            // Close wizard & sidebar first
+            wizard.remove();
+            this.hide();
+
+            // Show loading overlay (covers everything)
+            this.#showLoadingOverlay('Mitarbeiter wird gelöscht...');
+
+            await this.#deleteEmployeeCompletely(deleteData);
+
+            // Wait for all real-time updates
+            await new Promise(resolve => setTimeout(resolve, 4000));
+            this.#hideLoadingOverlay();
+
+            console.log('✓ Employee deleted, organigramm updated!');
+          } catch (error) {
+            this.#hideLoadingOverlay();
+            console.error('Failed to delete employee:', error);
+            alert('Fehler beim Löschen: ' + error.message);
+          }
+        },
+        onCancel: () => {
+          wizard.remove();
+          this.setMode('view');
+          this.show();
+        },
+      });
+
+      wizard.show();
+      this.hide();
+    } else {
+      // Use NodeEditor for root/custom nodes
+      const editor = new NodeEditor(this.#node, {
+        onSave: (data) => {
+          if (this.#props.onSave) {
+            this.#props.onSave(this.#node.id, data);
+          }
+          this.setMode('view');
+        },
+        onCancel: () => this.setMode('view'),
+        onDelete: this.#props.onDelete,  // NodeEditor has its own confirmation, keep as-is
+      });
+
+      this.#contentContainer.appendChild(editor.element);
+      editor.focus();
+    }
+  }
+
+  async #deleteEmployeeCompletely(deleteData) {
+    const { uid, email, nodeId } = deleteData;
+
+    console.log('Step 1: Delete all revenue entries...');
+    // Note: Revenue deletion should be handled by HierarchyScreen
+    // via onDelete callback which cascades to all related data
+
+    console.log('Step 2: Delete via Cloud Function...');
+    // Call Cloud Function to delete Firebase Auth User + Firestore User Document
+    const { getFunctions, httpsCallable } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js');
+    const { firebaseApp } = await import('../../../../../core/firebase/index.js');
+
+    const functions = getFunctions(firebaseApp.app);
+    const deleteEmployee = httpsCallable(functions, 'deleteEmployeeAccount');
+
+    try {
+      await deleteEmployee({ email });
+      console.log('✓ Firebase Auth User + User Document deleted');
+    } catch (error) {
+      console.warn('Cloud function delete failed (may not exist):', error);
+      // Continue with client-side deletion
+    }
+
+    console.log('Step 3: Delete HierarchyNode...');
+    console.log('  Calling onDelete with nodeId:', nodeId, 'skipConfirmation: TRUE');
+    // Call HierarchyScreen onDelete to handle node + revenue entries deletion
+    // Pass true to skip confirmation (already confirmed in Wizard)
+    if (this.#props.onDelete) {
+      this.#props.onDelete(nodeId, true);
+      console.log('  onDelete callback executed with skipConfirmation=true');
+    } else {
+      console.error('  ❌ onDelete callback is null!');
+    }
+
+    console.log('✅ Employee account deleted completely');
+  }
+
+  #showLoadingOverlay(message) {
+    let overlay = document.querySelector('.hierarchy-loading-overlay');
+    if (!overlay) {
+      overlay = createElement('div', {
+        className: 'hierarchy-loading-overlay',
+        style: 'position: fixed; inset: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease;'
+      }, [
+        createElement('div', { style: 'text-align: center;' }, [
+          createElement('div', {
+            className: 'loading-spinner',
+            style: 'width: 48px; height: 48px; border: 4px solid #e5e7eb; border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem;'
+          }),
+          createElement('p', {
+            style: 'font-size: 1.125rem; font-weight: 500; color: var(--color-primary);'
+          }, [message]),
+        ])
+      ]);
+      document.body.appendChild(overlay);
+    }
+    requestAnimationFrame(() => overlay.style.opacity = '1');
+  }
+
+  #hideLoadingOverlay() {
+    const overlay = document.querySelector('.hierarchy-loading-overlay');
+    if (overlay) {
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), 300);
+    }
+  }
+
+  async #updateEmployeeProfile(uid, formData) {
+    const { Address } = await import('../../../user-profile/domain/value-objects/Address.js');
+    const { TaxInfo } = await import('../../../user-profile/domain/value-objects/TaxInfo.js');
+    const { BankInfo } = await import('../../../user-profile/domain/value-objects/BankInfo.js');
+    const { LegalInfo } = await import('../../../user-profile/domain/value-objects/LegalInfo.js');
+    const { Qualifications } = await import('../../../user-profile/domain/value-objects/Qualifications.js');
+    const { CareerLevel } = await import('../../../user-profile/domain/value-objects/CareerLevel.js');
+
+    const user = await this.#profileService.getUserProfile(uid);
+    if (!user) throw new Error('User not found');
+
+    user.updatePersonalInfo({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      birthDate: formData.birthDate,
+      phone: formData.phone,
     });
 
-    this.#contentContainer.appendChild(editor.element);
-    editor.focus();
+    user.updateAddress(new Address({
+      street: formData.street,
+      houseNumber: formData.houseNumber,
+      postalCode: formData.postalCode,
+      city: formData.city,
+    }));
+
+    user.updateTaxInfo(new TaxInfo({
+      taxNumber: formData.taxNumber,
+      vatNumber: formData.vatNumber,
+      taxOffice: formData.taxOffice,
+      isSmallBusiness: formData.isSmallBusiness,
+      isVatLiable: formData.isVatLiable,
+    }));
+
+    user.updateBankInfo(new BankInfo({
+      iban: formData.iban,
+      bic: formData.bic,
+      bankName: formData.bankName,
+      accountHolder: formData.accountHolder,
+    }));
+
+    user.updateLegalInfo(new LegalInfo({
+      legalForm: formData.legalForm,
+      registrationCourt: formData.registrationCourt,
+    }));
+
+    user.updateQualifications(new Qualifications({
+      ihkQualifications: formData.ihkQualifications,
+      ihkRegistrationNumber: formData.ihkRegistrationNumber,
+    }));
+
+    user.updateCareerLevel(new CareerLevel({
+      rankName: formData.rankName,
+      bankProvisionRate: parseFloat(formData.bankProvision) || 0,
+      insuranceProvisionRate: parseFloat(formData.insuranceProvision) || 0,
+      realEstateProvisionRate: parseFloat(formData.realEstateProvision) || 0,
+    }));
+
+    await this.#profileService.update(user);
   }
 
   get element() {
@@ -359,10 +593,10 @@ export class Sidebar {
     }
   }
 
-  setMode(mode) {
+  async setMode(mode) {
     if (this.#mode === mode) return; // Skip if already in this mode
     this.#mode = mode;
-    this.#updateContent(true);
+    await this.#updateContent(true);
   }
 
   // Combined method to set node and mode in a single render

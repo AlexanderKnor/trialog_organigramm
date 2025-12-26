@@ -12,12 +12,14 @@ import { Sidebar } from '../components/organisms/Sidebar.js';
 import { NodeEditor } from '../components/molecules/NodeEditor.js';
 import { HierarchyNode } from '../../domain/entities/HierarchyNode.js';
 import { NODE_TYPES } from '../../domain/value-objects/NodeType.js';
+import { AddEmployeeWizard } from '../../../user-profile/presentation/components/AddEmployeeWizard.js';
 
 export class HierarchyScreen {
   #element;
   #container;
   #hierarchyService;
   #revenueService;
+  #profileService;
   #state;
   #orgView;
   #sidebar;
@@ -31,10 +33,11 @@ export class HierarchyScreen {
   #zoomControls;
   #keyboardHandler;
 
-  constructor(container, hierarchyService, revenueService = null) {
+  constructor(container, hierarchyService, revenueService = null, profileService = null) {
     this.#container = typeof container === 'string' ? getElement(container) : container;
     this.#hierarchyService = hierarchyService;
     this.#revenueService = revenueService;
+    this.#profileService = profileService;
     this.#state = new HierarchyState();
     this.#currentTreeId = null;
     this.#updateTimeout = null;
@@ -60,6 +63,7 @@ export class HierarchyScreen {
       onSave: (nodeId, data) => this.#handleNodeSave(nodeId, data),
       onDelete: (nodeId) => this.#handleNodeDelete(nodeId),
       onAddChild: (parentId) => this.#handleAddNode(parentId),
+      profileService: this.#profileService,
     });
 
     const mainContent = createElement('div', { className: 'main-content' }, [
@@ -251,20 +255,18 @@ export class HierarchyScreen {
     }
   }
 
-async #handleNodeDelete(nodeId) {
+async #handleNodeDelete(nodeId, skipConfirmation = false) {
+    console.log('🗑️ #handleNodeDelete called - skipConfirmation:', skipConfirmation);
+
     const tree = this.#state.currentTree;
     if (!tree || !tree.hasNode(nodeId)) return;
 
     const node = tree.getNode(nodeId);
     const hasEmail = node.email && node.email.trim() !== '';
 
-    // Enhanced confirmation with data deletion warning
-    const confirmMessage = hasEmail
-      ? `⚠️ WARNUNG: Vollständige Datenlöschung\n\nSie sind dabei, "${node.name}" zu löschen.\n\nDies wird ALLE Daten permanent löschen:\n✓ Mitarbeiter-Profil\n✓ Firebase Auth Account (${node.email})\n✓ Alle Umsatz-Einträge\n✓ Alle Tracking-Events\n\nDieser Vorgang kann NICHT rückgängig gemacht werden!\n\nMöchten Sie wirklich fortfahren?`
-      : `Möchten Sie "${node.name}" wirklich löschen?\n\nHinweis: Untergeordnete Elemente werden eine Ebene nach oben verschoben.`;
-
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) return;
+    // REMOVED: Third confirmation dialog
+    // Wizard already shows 2 confirmations, this is redundant
+    // Skip confirmation completely when called from Wizard
 
     try {
       // Delete node from tree
@@ -338,6 +340,7 @@ async #deleteEmployeeRevenueEntries(employeeId) {
       const { collection, query, where, getDocs, deleteDoc, doc } = await import(
         'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js'
       );
+      const { firebaseApp } = await import('../../../../core/firebase/index.js');
 
       const firestore = firebaseApp.firestore;
 
@@ -395,9 +398,224 @@ async #deleteEmployeeRevenueEntries(employeeId) {
   }
 
   #showNewNodeDialog(parentId) {
-    const dialog = createElement('div', { className: 'dialog-overlay' });
     const isAddingEmployee = parentId !== null;
-    const dialogTitle = isAddingEmployee ? 'Mitarbeiter hinzufügen' : 'Organisation erstellen';
+
+    // Use Wizard for employees, NodeEditor for root/custom nodes
+    if (isAddingEmployee) {
+      this.#showEmployeeWizard(parentId);
+    } else {
+      this.#showRootNodeDialog();
+    }
+  }
+
+  #showEmployeeWizard(parentId) {
+    const wizard = new AddEmployeeWizard({
+      onComplete: async (formData) => {
+        try {
+          // Close wizard first
+          wizard.remove();
+
+          // Show fullscreen loading (covers organigramm)
+          this.#showLoadingOverlay('Mitarbeiter wird angelegt...');
+
+          // Create employee
+          await this.#createEmployeeWithProfile(formData, parentId);
+
+          // Wait for real-time updates to complete (all renders)
+          // Increased to 4s to ensure ALL updates are done
+          await new Promise(resolve => setTimeout(resolve, 4000));
+
+          // Hide overlay smoothly
+          this.#hideLoadingOverlay();
+
+          console.log('✓ Employee created, organigramm updated!');
+        } catch (error) {
+          this.#hideLoadingOverlay();
+          console.error('Failed to create employee:', error);
+          alert('Fehler beim Anlegen: ' + error.message);
+        }
+      },
+      onCancel: () => wizard.remove(),
+    });
+
+    wizard.show();
+  }
+
+  #showLoadingOverlay(message = 'Laden...') {
+    let overlay = document.querySelector('.hierarchy-loading-overlay');
+    if (!overlay) {
+      overlay = createElement('div', {
+        className: 'hierarchy-loading-overlay',
+        style: 'position: fixed; inset: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease;'
+      }, [
+        createElement('div', {
+          style: 'text-align: center;'
+        }, [
+          createElement('div', {
+            className: 'loading-spinner',
+            style: 'width: 48px; height: 48px; border: 4px solid #e5e7eb; border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem;'
+          }),
+          createElement('p', {
+            style: 'font-size: 1.125rem; font-weight: 500; color: var(--color-primary);'
+          }, [message]),
+        ])
+      ]);
+      document.body.appendChild(overlay);
+    }
+
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+    });
+  }
+
+  #hideLoadingOverlay() {
+    const overlay = document.querySelector('.hierarchy-loading-overlay');
+    if (overlay) {
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), 300);
+    }
+  }
+
+  async #createEmployeeWithProfile(formData, parentId) {
+    console.log('🚀 Creating employee with complete profile...');
+
+    // Step 1: Create Firebase Auth User via Cloud Function (Admin stays logged in!)
+    try {
+      const { getFunctions, httpsCallable } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js');
+      const { firebaseApp } = await import('../../../../core/firebase/index.js');
+
+      const functions = getFunctions(firebaseApp.app);
+      const createEmployee = httpsCallable(functions, 'createEmployeeAccount');
+
+      const result = await createEmployee({
+        email: formData.email,
+        password: formData.password,
+        displayName: `${formData.firstName} ${formData.lastName}`,
+      });
+
+      const employeeUid = result.data.uid;
+      console.log('✓ Firebase Auth user created via Cloud Function:', employeeUid);
+      console.log('✓ Admin stays logged in! ✅');
+
+    // Step 2: Import User Profile entities
+    const { User } = await import('../../../user-profile/domain/entities/User.js');
+    const { Address } = await import('../../../user-profile/domain/value-objects/Address.js');
+    const { TaxInfo } = await import('../../../user-profile/domain/value-objects/TaxInfo.js');
+    const { BankInfo } = await import('../../../user-profile/domain/value-objects/BankInfo.js');
+    const { LegalInfo } = await import('../../../user-profile/domain/value-objects/LegalInfo.js');
+    const { Qualifications } = await import('../../../user-profile/domain/value-objects/Qualifications.js');
+    const { CareerLevel } = await import('../../../user-profile/domain/value-objects/CareerLevel.js');
+
+    // Step 3: Create User Entity with Profile
+    const userEntity = User.create(employeeUid, formData.email, 'employee');
+
+    // Update with all profile data
+    userEntity.updatePersonalInfo({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      birthDate: formData.birthDate,
+      phone: formData.phone,
+    });
+
+    userEntity.updateAddress(new Address({
+      street: formData.street,
+      houseNumber: formData.houseNumber,
+      postalCode: formData.postalCode,
+      city: formData.city,
+    }));
+
+    userEntity.updateTaxInfo(new TaxInfo({
+      taxNumber: formData.taxNumber,
+      vatNumber: formData.vatNumber,
+      taxOffice: formData.taxOffice,
+      isSmallBusiness: formData.isSmallBusiness,
+      isVatLiable: formData.isVatLiable,
+    }));
+
+    userEntity.updateBankInfo(new BankInfo({
+      iban: formData.iban,
+      bic: formData.bic,
+      bankName: formData.bankName,
+      accountHolder: formData.accountHolder,
+    }));
+
+    userEntity.updateLegalInfo(new LegalInfo({
+      legalForm: formData.legalForm,
+      registrationCourt: formData.registrationCourt,
+    }));
+
+    userEntity.updateQualifications(new Qualifications({
+      ihkQualifications: formData.ihkQualifications,
+      ihkRegistrationNumber: formData.ihkRegistrationNumber,
+    }));
+
+    userEntity.updateCareerLevel(new CareerLevel({
+      rankName: formData.rankName,
+      bankProvisionRate: parseFloat(formData.bankProvision) || 0,
+      insuranceProvisionRate: parseFloat(formData.insuranceProvision) || 0,
+      realEstateProvisionRate: parseFloat(formData.realEstateProvision) || 0,
+    }));
+
+    // Step 4: Save User Profile to Firestore
+    console.log('💾 Saving complete user profile...');
+    console.log('  Profile data:', {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      address: formData.street,
+      taxNumber: formData.taxNumber,
+      iban: formData.iban,
+    });
+
+    await this.#profileService.save(userEntity);
+    console.log('✓ User profile saved to Firestore');
+
+    // Verify save
+    const savedUser = await this.#profileService.getUserProfile(employeeUid);
+    console.log('✓ Verification - Saved user:', {
+      firstName: savedUser?.firstName,
+      lastName: savedUser?.lastName,
+      hasAddress: !!savedUser?.address,
+    });
+
+    // Step 5: Create HierarchyNode
+    const nodeData = {
+      name: `${formData.firstName} ${formData.lastName}`,
+      email: formData.email,
+      phone: formData.phone,
+      bankProvision: parseFloat(formData.bankProvision) || 0,
+      insuranceProvision: parseFloat(formData.insuranceProvision) || 0,
+      realEstateProvision: parseFloat(formData.realEstateProvision) || 0,
+      type: NODE_TYPES.PERSON,
+    };
+
+    const node = await this.#hierarchyService.addNode(this.#currentTreeId, nodeData, parentId);
+    console.log('✓ HierarchyNode created');
+
+    // Step 6: Link User to Node
+    await this.#profileService.linkToHierarchyNode(userEntity.uid, node.id);
+    console.log('✓ User linked to HierarchyNode');
+
+      console.log('✅ Employee created successfully with complete profile!');
+      console.log('✓ Admin remains logged in!');
+
+    } catch (error) {
+      console.error('❌ Failed to create employee:', error);
+
+      // Check if it's a Firebase Auth error
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('Diese E-Mail-Adresse wird bereits verwendet');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('Passwort ist zu schwach (mindestens 6 Zeichen)');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('E-Mail-Adresse ungültig');
+      }
+
+      throw error;
+    }
+  }
+
+  #showRootNodeDialog() {
+    const dialog = createElement('div', { className: 'dialog-overlay' });
 
     const editor = new NodeEditor(null, {
       onSave: async (data) => {

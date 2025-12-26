@@ -24,12 +24,17 @@ import { FirebaseCatalogRepository } from './features/product-catalog/data/repos
 import { CatalogService } from './features/product-catalog/domain/services/CatalogService.js';
 import { MigrationService } from './features/product-catalog/domain/services/MigrationService.js';
 import { CatalogManagementScreen } from './features/product-catalog/presentation/screens/CatalogManagementScreen.js';
+import { UserFirestoreDataSource } from './features/user-profile/data/data-sources/UserFirestoreDataSource.js';
+import { FirebaseUserRepository } from './features/user-profile/data/repositories/FirebaseUserRepository.js';
+import { ProfileService } from './features/user-profile/domain/services/ProfileService.js';
+import { ProfileScreen } from './features/user-profile/presentation/screens/ProfileScreen.js';
 import { APP_CONFIG } from './core/config/index.js';
 
 class Application {
   #hierarchyService;
   #revenueService;
   #catalogService;
+  #profileService;
   #currentScreen;
   #loginScreen;
   #currentTreeId;
@@ -177,6 +182,12 @@ class Application {
       this.#catalogService.setRevenueService(this.#revenueService);
       console.log('✓ Circular dependency resolved: CatalogService ↔ RevenueService');
 
+      // Initialize Profile Service
+      const userFirestoreDataSource = new UserFirestoreDataSource();
+      const userRepository = new FirebaseUserRepository(userFirestoreDataSource);
+      this.#profileService = new ProfileService(userRepository);
+      console.log('✓ Profile Service initialized with Firebase');
+
       // Run automatic migration (only on first app start)
       await this.#runCatalogMigration();
 
@@ -313,6 +324,10 @@ class Application {
     window.navigateToCatalog = () => {
       window.location.hash = 'catalog';
     };
+
+    window.navigateToProfile = () => {
+      window.location.hash = 'profile';
+    };
   }
 
   async #handleRoute() {
@@ -347,6 +362,8 @@ class Application {
       await this.#showRevenueScreen(employeeId, treeId);
     } else if (parts[0] === 'catalog') {
       await this.#showCatalogScreen();
+    } else if (parts[0] === 'profile') {
+      await this.#showProfileScreen();
     } else {
       await this.#showHierarchyScreen();
     }
@@ -389,7 +406,7 @@ class Application {
       return;
     }
 
-    this.#currentScreen = new HierarchyScreen('#app', this.#hierarchyService, this.#revenueService);
+    this.#currentScreen = new HierarchyScreen('#app', this.#hierarchyService, this.#revenueService, this.#profileService);
     await this.#currentScreen.mount();
   }
 
@@ -430,6 +447,19 @@ class Application {
     }
 
     this.#currentScreen = new CatalogManagementScreen('#app', this.#catalogService);
+    await this.#currentScreen.mount();
+  }
+
+  async #showProfileScreen() {
+    // SECURITY: Verify authentication
+    if (!authService.isAuthenticated()) {
+      console.error('🔒 SECURITY: Not authenticated - redirecting to login');
+      window.location.hash = '';
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    this.#currentScreen = new ProfileScreen('#app', this.#profileService, currentUser.uid);
     await this.#currentScreen.mount();
   }
 

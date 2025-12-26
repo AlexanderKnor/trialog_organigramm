@@ -39,17 +39,18 @@ service cloud.firestore {
     // ========================================
 
     match /users/{userId} {
-      // Users can read their own profile
-      allow read: if isOwner(userId);
+      // Users can read their own profile, admins can read all
+      allow read: if isOwner(userId) || isAdmin();
 
-      // Users can create their own profile on first login
-      allow create: if isOwner(userId);
+      // User creation: Allow user to create their OWN document (first login)
+      // Special case: No userDocumentExists check to avoid chicken-egg problem
+      allow create: if isAuthenticated() && request.auth.uid == userId;
 
-      // Users can update their own profile
-      allow update: if isOwner(userId);
+      // Users can update their own profile, admins can update all
+      allow update: if isOwner(userId) || isAdmin();
 
-      // Prevent user deletion
-      allow delete: if false;
+      // Only admins can delete users
+      allow delete: if isAdmin();
     }
 
     // ========================================
