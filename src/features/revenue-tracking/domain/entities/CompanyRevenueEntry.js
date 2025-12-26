@@ -55,16 +55,26 @@ export class CompanyRevenueEntry {
     company,
     hierarchyPath,
   }) {
-    // Get owner's provision based on category
-    const ownerProvision = this.#getProvisionForCategory(entryOwner, entry.category.type);
-    const directSubProvision = this.#getProvisionForCategory(directSubordinate, entry.category.type);
+    // Use provisionType if available (new entries), otherwise fall back to category type (legacy)
+    const provisionType = entry.provisionType;
+
+    // Get owner's provision based on provisionType or category
+    const ownerProvision = provisionType
+      ? this.#getProvisionForType(entryOwner, provisionType)
+      : this.#getProvisionForCategory(entryOwner, entry.category.type);
+
+    const directSubProvision = provisionType
+      ? this.#getProvisionForType(directSubordinate, provisionType)
+      : this.#getProvisionForCategory(directSubordinate, entry.category.type);
 
     // Find the HIGHEST provision percentage in the entire hierarchy path
     // (excluding the company itself)
     let highestProvision = 0;
     for (const employee of hierarchyPath) {
       if (employee.id !== company.id) {
-        const provision = this.#getProvisionForCategory(employee, entry.category.type);
+        const provision = provisionType
+          ? this.#getProvisionForType(employee, provisionType)
+          : this.#getProvisionForCategory(employee, entry.category.type);
         if (provision > highestProvision) {
           highestProvision = provision;
         }
@@ -93,7 +103,24 @@ export class CompanyRevenueEntry {
   }
 
   /**
-   * Get provision percentage for employee based on category
+   * Get provision percentage for employee based on provisionType
+   * provisionType is one of: 'bank', 'insurance', 'realEstate'
+   */
+  static #getProvisionForType(employee, provisionType) {
+    switch (provisionType) {
+      case 'bank':
+        return employee.bankProvision || 0;
+      case 'insurance':
+        return employee.insuranceProvision || 0;
+      case 'realEstate':
+        return employee.realEstateProvision || 0;
+      default:
+        return 0;
+    }
+  }
+
+  /**
+   * Get provision percentage for employee based on category (legacy support)
    */
   static #getProvisionForCategory(employee, categoryType) {
     switch (categoryType) {
@@ -105,7 +132,7 @@ export class CompanyRevenueEntry {
       case 'propertyManagement':
         return employee.realEstateProvision || 0;
       case 'energyContracts':
-        return 0;
+        return employee.bankProvision || 0; // Default to bank for energy
       default:
         return 0;
     }

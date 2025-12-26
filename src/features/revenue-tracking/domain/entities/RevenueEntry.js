@@ -17,6 +17,7 @@ export class RevenueEntry {
   #customerName;
   #customerAddress;
   #category;
+  #provisionType;
   #product;
   #productProvider;
   #propertyAddress;
@@ -27,6 +28,9 @@ export class RevenueEntry {
   #entryDate;
   #createdAt;
   #updatedAt;
+  #ownerProvisionSnapshot;
+  #managerProvisionSnapshot;
+  #hierarchySnapshot;
 
   constructor({
     id = null,
@@ -35,6 +39,7 @@ export class RevenueEntry {
     customerName,
     customerAddress = null,
     category,
+    provisionType = null,
     product,
     productProvider,
     propertyAddress = null,
@@ -45,6 +50,9 @@ export class RevenueEntry {
     entryDate = null,
     createdAt = null,
     updatedAt = null,
+    ownerProvisionSnapshot = null,
+    managerProvisionSnapshot = null,
+    hierarchySnapshot = null,
   }) {
     this.#id = id || generateUUID();
     this.#employeeId = employeeId;
@@ -58,6 +66,9 @@ export class RevenueEntry {
       category instanceof RevenueCategory
         ? category
         : new RevenueCategory(category);
+    // provisionType determines which HierarchyNode provision field to use (bank, insurance, realEstate)
+    // Fallback to category type for backward compatibility with legacy entries
+    this.#provisionType = provisionType || this.#inferProvisionType(this.#category.type);
     this.#product =
       product instanceof Product ? product : Product.fromJSON(product);
     this.#productProvider =
@@ -75,6 +86,11 @@ export class RevenueEntry {
     this.#entryDate = entryDate ? new Date(entryDate) : new Date();
     this.#createdAt = createdAt ? new Date(createdAt) : new Date();
     this.#updatedAt = updatedAt ? new Date(updatedAt) : new Date();
+
+    // Provision Snapshots - captured at creation time for immutability
+    this.#ownerProvisionSnapshot = ownerProvisionSnapshot;
+    this.#managerProvisionSnapshot = managerProvisionSnapshot;
+    this.#hierarchySnapshot = hierarchySnapshot || null;
   }
 
   get id() {
@@ -99,6 +115,10 @@ export class RevenueEntry {
 
   get category() {
     return this.#category;
+  }
+
+  get provisionType() {
+    return this.#provisionType;
   }
 
   get product() {
@@ -141,6 +161,22 @@ export class RevenueEntry {
     return this.#entryDate;
   }
 
+  get ownerProvisionSnapshot() {
+    return this.#ownerProvisionSnapshot;
+  }
+
+  get managerProvisionSnapshot() {
+    return this.#managerProvisionSnapshot;
+  }
+
+  get hierarchySnapshot() {
+    return this.#hierarchySnapshot;
+  }
+
+  get hasProvisionSnapshot() {
+    return this.#ownerProvisionSnapshot !== null && this.#ownerProvisionSnapshot !== undefined;
+  }
+
   get requiresPropertyAddress() {
     return ProductProvider.requiresFreeTextProvider(this.#category.type);
   }
@@ -162,6 +198,22 @@ export class RevenueEntry {
     );
   }
 
+  /**
+   * Infer provisionType from category type for backward compatibility
+   * Used when provisionType is not explicitly provided (legacy entries)
+   */
+  #inferProvisionType(categoryType) {
+    // Map known category types to provision types
+    const CATEGORY_TO_PROVISION = {
+      bank: 'bank',
+      insurance: 'insurance',
+      realEstate: 'realEstate',
+      propertyManagement: 'realEstate',
+      energyContracts: 'bank', // Default to bank for energy contracts
+    };
+    return CATEGORY_TO_PROVISION[categoryType] || 'bank';
+  }
+
   update(updates) {
     if (updates.customerName !== undefined) {
       this.#customerName = updates.customerName;
@@ -177,6 +229,9 @@ export class RevenueEntry {
         updates.category instanceof RevenueCategory
           ? updates.category
           : new RevenueCategory(updates.category);
+    }
+    if (updates.provisionType !== undefined) {
+      this.#provisionType = updates.provisionType;
     }
     if (updates.product !== undefined) {
       this.#product =
@@ -224,6 +279,7 @@ export class RevenueEntry {
       customerName: this.#customerName,
       customerAddress: this.#customerAddress.toJSON(),
       category: this.#category.type,
+      provisionType: this.#provisionType,
       product: this.#product.toJSON(),
       productProvider: this.#productProvider.toJSON(),
       propertyAddress: this.#propertyAddress,
@@ -234,6 +290,10 @@ export class RevenueEntry {
       entryDate: this.#entryDate.toISOString(),
       createdAt: this.#createdAt.toISOString(),
       updatedAt: this.#updatedAt.toISOString(),
+      // Provision snapshots for immutability
+      ownerProvisionSnapshot: this.#ownerProvisionSnapshot,
+      managerProvisionSnapshot: this.#managerProvisionSnapshot,
+      hierarchySnapshot: this.#hierarchySnapshot,
     };
   }
 
@@ -247,6 +307,7 @@ export class RevenueEntry {
         ? CustomerAddress.fromJSON(json.customerAddress)
         : null,
       category: json.category,
+      provisionType: json.provisionType || null,
       product: json.product,
       productProvider: json.productProvider,
       propertyAddress: json.propertyAddress,
@@ -257,6 +318,10 @@ export class RevenueEntry {
       entryDate: json.entryDate,
       createdAt: json.createdAt,
       updatedAt: json.updatedAt,
+      // Provision snapshots (may be null for legacy entries)
+      ownerProvisionSnapshot: json.ownerProvisionSnapshot ?? null,
+      managerProvisionSnapshot: json.managerProvisionSnapshot ?? null,
+      hierarchySnapshot: json.hierarchySnapshot ?? null,
     });
   }
 }

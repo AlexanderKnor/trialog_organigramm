@@ -471,6 +471,12 @@ export class RevenueTable {
   }
 
   #getEmployeeProvision(entry) {
+    // PRIORITY: Use provision snapshot if available (immutable, point-in-time value)
+    if (entry.hasProvisionSnapshot) {
+      return entry.ownerProvisionSnapshot || 0;
+    }
+
+    // FALLBACK: Dynamic calculation for legacy entries without snapshots
     if (!this.#employee) return 0;
 
     switch (entry.category.type) {

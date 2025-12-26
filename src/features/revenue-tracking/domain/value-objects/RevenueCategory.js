@@ -2,9 +2,9 @@
  * Value Object: RevenueCategory
  * Represents revenue categories with their display names
  *
- * @deprecated Use CatalogService to load categories dynamically.
- *             This hardcoded implementation is kept as fallback for backward compatibility.
- *             New code should use: revenueService.getAvailableCategories()
+ * NOTE: This class now supports dynamic categories from the CatalogService.
+ *       The hardcoded REVENUE_CATEGORY_TYPES are kept as fallback for backward compatibility.
+ *       New categories can be added via the Catalog Management UI.
  */
 
 export const REVENUE_CATEGORY_TYPES = {
@@ -27,8 +27,10 @@ export class RevenueCategory {
   #type;
 
   constructor(type) {
-    if (!Object.values(REVENUE_CATEGORY_TYPES).includes(type)) {
-      throw new Error(`Invalid category type: ${type}`);
+    // Accept any non-empty string as category type
+    // Dynamic categories are validated in CatalogService, not here
+    if (typeof type !== 'string' || type.trim().length === 0) {
+      throw new Error('Category type must be a non-empty string');
     }
     this.#type = type;
   }

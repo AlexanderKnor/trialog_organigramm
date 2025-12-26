@@ -75,32 +75,67 @@ export class HierarchicalRevenueEntry {
     return this.#managerProvisionPercentage - this.#ownerProvisionPercentage;
   }
 
+  /**
+   * Get employee's provision rate based on provisionType
+   * provisionType is one of: 'bank', 'insurance', 'realEstate'
+   */
+  static #getProvisionForType(employee, provisionType) {
+    switch (provisionType) {
+      case 'bank':
+        return employee.bankProvision || 0;
+      case 'insurance':
+        return employee.insuranceProvision || 0;
+      case 'realEstate':
+        return employee.realEstateProvision || 0;
+      default:
+        // Fallback: try to infer from provisionType string
+        // or return 0 if unknown
+        return 0;
+    }
+  }
+
+  /**
+   * Legacy method for backward compatibility with old entries
+   * that don't have explicit provisionType
+   */
   static #getProvisionForCategory(employee, categoryType) {
     switch (categoryType) {
       case REVENUE_CATEGORY_TYPES.BANK:
-        return employee.bankProvision;
+        return employee.bankProvision || 0;
       case REVENUE_CATEGORY_TYPES.INSURANCE:
-        return employee.insuranceProvision;
+        return employee.insuranceProvision || 0;
       case REVENUE_CATEGORY_TYPES.REAL_ESTATE:
-        return employee.realEstateProvision;
       case REVENUE_CATEGORY_TYPES.PROPERTY_MANAGEMENT:
-        return employee.realEstateProvision;
+        return employee.realEstateProvision || 0;
       case REVENUE_CATEGORY_TYPES.ENERGY_CONTRACTS:
-        return 0;
+        return employee.bankProvision || 0; // Default to bank for energy
       default:
         return 0;
     }
   }
 
   static calculate({ entry, owner, manager, hierarchyLevel }) {
-    const ownerProvision = this.#getProvisionForCategory(
-      owner,
-      entry.category.type,
-    );
-    const managerProvision = this.#getProvisionForCategory(
-      manager,
-      entry.category.type,
-    );
+    let ownerProvision, managerProvision;
+
+    // PRIORITY 1: Use provision snapshots if available (immutable, point-in-time values)
+    // This ensures that provision calculations remain consistent even if hierarchy provisions change
+    if (entry.hasProvisionSnapshot) {
+      ownerProvision = entry.ownerProvisionSnapshot;
+      managerProvision = entry.managerProvisionSnapshot || 0; // May be null if no manager at creation
+    }
+    // FALLBACK: Dynamic calculation for legacy entries without snapshots
+    else {
+      const provisionType = entry.provisionType;
+
+      if (provisionType) {
+        ownerProvision = this.#getProvisionForType(owner, provisionType);
+        managerProvision = this.#getProvisionForType(manager, provisionType);
+      } else {
+        // Legacy fallback for entries without provisionType
+        ownerProvision = this.#getProvisionForCategory(owner, entry.category.type);
+        managerProvision = this.#getProvisionForCategory(manager, entry.category.type);
+      }
+    }
 
     const provisionDifference = managerProvision - ownerProvision;
     const managerAmount =

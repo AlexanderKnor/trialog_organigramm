@@ -32,10 +32,14 @@ export class RevenueService {
       employeeId,
     );
 
+    // Capture provision snapshots from hierarchy at creation time
+    const snapshots = await this.#captureProvisionSnapshots(employeeId, entryData);
+
     const entry = new RevenueEntry({
       ...entryData,
       employeeId,
       customerNumber,
+      ...snapshots, // Add provision snapshots
     });
 
     await this.#revenueRepository.save(entry);
@@ -180,6 +184,109 @@ export class RevenueService {
   }
 
   /**
+   * Capture provision snapshots from hierarchy at entry creation time
+   * This ensures immutable provision calculations even if hierarchy provisions change later
+   */
+  async #captureProvisionSnapshots(employeeId, entryData) {
+    console.log('📸 Capturing provision snapshots for employee:', employeeId);
+
+    try {
+      // Get the main organization tree (use first tree if mainTreeId doesn't exist)
+      let tree = null;
+
+      try {
+        const { APP_CONFIG } = await import('../../../../core/config/index.js');
+        tree = await this.#hierarchyService.getTree(APP_CONFIG.mainTreeId);
+      } catch (error) {
+        // Fallback: Get first available tree
+        console.log('   Fallback: Using first available tree');
+        const allTrees = await this.#hierarchyService.getAllTrees();
+        tree = allTrees.length > 0 ? allTrees[0] : null;
+      }
+
+      if (!tree) {
+        console.warn('❌ Could not load tree for provision snapshot - entry will use dynamic calculation');
+        return {
+          ownerProvisionSnapshot: null,
+          managerProvisionSnapshot: null,
+          hierarchySnapshot: null,
+        };
+      }
+
+      console.log('   ✓ Tree loaded:', tree.name);
+
+      // Get owner (employee) node
+      const owner = tree.getNode(employeeId);
+      if (!owner) {
+        console.warn(`❌ Employee node ${employeeId} not found in tree - entry will use dynamic calculation`);
+        return {
+          ownerProvisionSnapshot: null,
+          managerProvisionSnapshot: null,
+          hierarchySnapshot: null,
+        };
+      }
+
+      console.log('   ✓ Owner node:', owner.name);
+
+      // Get manager (parent) node - may be null for root-level employees
+      const manager = owner.parentId ? tree.getNode(owner.parentId) : null;
+      console.log('   Manager:', manager ? manager.name : 'none');
+
+      // Determine provision type (from entryData or infer from category)
+      const provisionType = entryData.provisionType || this.#inferProvisionType(entryData.category);
+      console.log('   Provision type:', provisionType);
+
+      // Get provision rates at this point in time
+      const ownerProvision = this.#getProvisionRateByType(owner, provisionType);
+      const managerProvision = manager ? this.#getProvisionRateByType(manager, provisionType) : null;
+
+      console.log('   📊 Snapshot values:');
+      console.log('      Owner provision:', ownerProvision + '%');
+      console.log('      Manager provision:', managerProvision ? managerProvision + '%' : 'null');
+
+      // Create hierarchy snapshot for audit trail
+      const hierarchySnapshot = {
+        ownerId: owner.id,
+        ownerName: owner.name,
+        managerId: manager?.id || null,
+        managerName: manager?.name || null,
+        capturedAt: new Date().toISOString(),
+      };
+
+      const snapshots = {
+        ownerProvisionSnapshot: ownerProvision,
+        managerProvisionSnapshot: managerProvision,
+        hierarchySnapshot,
+      };
+
+      console.log('✅ Provision snapshots captured successfully');
+      return snapshots;
+    } catch (error) {
+      console.error('❌ Failed to capture provision snapshots:', error);
+      // Return null values - entry will fall back to dynamic calculation
+      return {
+        ownerProvisionSnapshot: null,
+        managerProvisionSnapshot: null,
+        hierarchySnapshot: null,
+      };
+    }
+  }
+
+  /**
+   * Infer provisionType from category type for backward compatibility
+   */
+  #inferProvisionType(categoryType) {
+    const CATEGORY_TO_PROVISION = {
+      bank: 'bank',
+      insurance: 'insurance',
+      realEstate: 'realEstate',
+      propertyManagement: 'realEstate',
+      energyContracts: 'bank',
+    };
+    return CATEGORY_TO_PROVISION[categoryType] || 'bank';
+  }
+
+  /**
    * Get all employees in the tree recursively (excluding root)
    */
   #getAllEmployeesRecursive(tree, nodeId, result = []) {
@@ -269,8 +376,8 @@ export class RevenueService {
         monthlyRevenue += entryRevenue;
         activeEntryCount++;
 
-        // Calculate employee's provision based on category
-        const provisionRate = this.#getEmployeeProvisionRate(employee, entry.category?.type);
+        // Calculate employee's provision based on provisionType (or fallback to category)
+        const provisionRate = this.#getEmployeeProvisionRateForEntry(employee, entry);
         employeeProvision += entryRevenue * (provisionRate / 100);
       }
 
@@ -304,9 +411,50 @@ export class RevenueService {
   }
 
   /**
-   * Get employee's provision rate for a category
+   * Get employee's provision rate for an entry
+   * PRIORITY: Uses provision snapshot if available (immutable)
+   * FALLBACK: Uses current provision rate from employee node (legacy entries)
    */
-  #getEmployeeProvisionRate(employee, categoryType) {
+  #getEmployeeProvisionRateForEntry(employee, entry) {
+    // PRIORITY: Use provision snapshot if available (immutable, point-in-time value)
+    if (entry.hasProvisionSnapshot) {
+      return entry.ownerProvisionSnapshot || 0;
+    }
+
+    // FALLBACK: Dynamic calculation for legacy entries without snapshots
+    if (!employee) return 0;
+
+    // Use provisionType if available (new entries with dynamic categories)
+    const provisionType = entry.provisionType;
+    if (provisionType) {
+      return this.#getProvisionRateByType(employee, provisionType);
+    }
+
+    // Fallback to category type for legacy entries
+    return this.#getProvisionRateByCategory(employee, entry.category?.type);
+  }
+
+  /**
+   * Get employee's provision rate by provisionType
+   * provisionType is one of: 'bank', 'insurance', 'realEstate'
+   */
+  #getProvisionRateByType(employee, provisionType) {
+    switch (provisionType) {
+      case 'bank':
+        return employee.bankProvision || 0;
+      case 'insurance':
+        return employee.insuranceProvision || 0;
+      case 'realEstate':
+        return employee.realEstateProvision || 0;
+      default:
+        return 0;
+    }
+  }
+
+  /**
+   * Get employee's provision rate for a category (legacy support)
+   */
+  #getProvisionRateByCategory(employee, categoryType) {
     if (!employee) return 0;
 
     switch (categoryType) {
@@ -317,6 +465,8 @@ export class RevenueService {
       case 'realEstate':
       case 'propertyManagement':
         return employee.realEstateProvision || 0;
+      case 'energyContracts':
+        return employee.bankProvision || 0; // Default to bank for energy
       default:
         return 0;
     }

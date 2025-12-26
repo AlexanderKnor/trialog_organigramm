@@ -528,6 +528,11 @@ export class AddRevenueDialog {
     const propertyAddress = this.#propertyAddressInput.value.trim();
     const entryDate = this.#dateInput.value || new Date().toISOString().split('T')[0];
 
+    // Get provisionType from category data (determines which HierarchyNode provision field to use)
+    const provisionType = this.#currentCategoryData?.provisionType?.type ||
+      this.#currentCategoryData?.provisionType ||
+      null;
+
     const data = {
       customerName,
       entryDate: new Date(entryDate).toISOString(),
@@ -538,6 +543,7 @@ export class AddRevenueDialog {
         city: this.#cityInput.value.trim(),
       },
       category: categoryType,
+      provisionType: provisionType,
       product: {
         id: productId,
         name: productName,
