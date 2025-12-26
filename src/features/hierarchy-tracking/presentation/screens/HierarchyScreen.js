@@ -32,6 +32,7 @@ export class HierarchyScreen {
   #zoomLevel;
   #zoomControls;
   #keyboardHandler;
+  #pendingUpdateResolvers = [];
 
   constructor(container, hierarchyService, revenueService = null, profileService = null) {
     this.#container = typeof container === 'string' ? getElement(container) : container;
@@ -61,7 +62,7 @@ export class HierarchyScreen {
     this.#sidebar = new Sidebar({
       onClose: () => this.#state.deselectNode(),
       onSave: (nodeId, data) => this.#handleNodeSave(nodeId, data),
-      onDelete: (nodeId) => this.#handleNodeDelete(nodeId),
+      onDelete: (nodeId, skipConfirmation) => this.#handleNodeDelete(nodeId, skipConfirmation),
       onAddChild: (parentId) => this.#handleAddNode(parentId),
       profileService: this.#profileService,
     });
@@ -421,9 +422,13 @@ async #deleteEmployeeRevenueEntries(employeeId) {
           // Create employee
           await this.#createEmployeeWithProfile(formData, parentId);
 
-          // Wait for real-time updates to complete (all renders)
-          // Increased to 4s to ensure ALL updates are done
-          await new Promise(resolve => setTimeout(resolve, 4000));
+          // Wait for real-time update EVENT (event-driven, not timeout!)
+          console.log('⏳ Waiting for organigramm to update...');
+          await this.#waitForNextTreeUpdate();
+          console.log('✓ Tree update received, hiding overlay...');
+
+          // Small delay for smooth transition
+          await new Promise(resolve => setTimeout(resolve, 300));
 
           // Hide overlay smoothly
           this.#hideLoadingOverlay();
@@ -439,6 +444,65 @@ async #deleteEmployeeRevenueEntries(employeeId) {
     });
 
     wizard.show();
+  }
+
+  async #validateEmployeeData(formData) {
+    // Import Value Objects for validation
+    const { Address } = await import('../../../user-profile/domain/value-objects/Address.js');
+    const { TaxInfo } = await import('../../../user-profile/domain/value-objects/TaxInfo.js');
+    const { BankInfo } = await import('../../../user-profile/domain/value-objects/BankInfo.js');
+
+    // Validate by creating Value Objects (throws ValidationError if invalid)
+    new Address({
+      street: formData.street,
+      houseNumber: formData.houseNumber,
+      postalCode: formData.postalCode,
+      city: formData.city,
+    });
+
+    new TaxInfo({
+      taxNumber: formData.taxNumber,
+      vatNumber: formData.vatNumber,
+      taxOffice: formData.taxOffice,
+      isSmallBusiness: formData.isSmallBusiness,
+      isVatLiable: formData.isVatLiable,
+    });
+
+    new BankInfo({
+      iban: formData.iban,
+      bic: formData.bic,
+      bankName: formData.bankName,
+      accountHolder: formData.accountHolder,
+    });
+
+    // All validations passed!
+    return true;
+  }
+
+  #waitForNextTreeUpdate(timeoutMs = 5000) {
+    return new Promise((resolve, reject) => {
+      console.log('⏳ Waiting for next tree update event...');
+
+      // Add to pending resolvers
+      this.#pendingUpdateResolvers.push(resolve);
+
+      // Safety timeout (fallback if update never comes)
+      const timeout = setTimeout(() => {
+        console.warn('⚠️ Tree update timeout - forcing resolve after', timeoutMs, 'ms');
+        const index = this.#pendingUpdateResolvers.indexOf(resolve);
+        if (index > -1) {
+          this.#pendingUpdateResolvers.splice(index, 1);
+        }
+        resolve();
+      }, timeoutMs);
+
+      // Clean up timeout when resolved
+      const originalResolve = this.#pendingUpdateResolvers[this.#pendingUpdateResolvers.length - 1];
+      this.#pendingUpdateResolvers[this.#pendingUpdateResolvers.length - 1] = () => {
+        clearTimeout(timeout);
+        originalResolve();
+      };
+    });
   }
 
   #showLoadingOverlay(message = 'Laden...') {
@@ -478,6 +542,16 @@ async #deleteEmployeeRevenueEntries(employeeId) {
 
   async #createEmployeeWithProfile(formData, parentId) {
     console.log('🚀 Creating employee with complete profile...');
+
+    // Step 0: VALIDATE ALL DATA FIRST (before creating anything!)
+    try {
+      console.log('🔍 Pre-validation: Checking all data before creation...');
+      await this.#validateEmployeeData(formData);
+      console.log('✓ All data valid, proceeding with creation');
+    } catch (validationError) {
+      console.error('❌ Validation failed:', validationError.message);
+      throw new Error(`Validierung fehlgeschlagen: ${validationError.message}`);
+    }
 
     // Step 1: Create Firebase Auth User via Cloud Function (Admin stays logged in!)
     try {
@@ -899,6 +973,13 @@ async #checkEmailExists(email) {
   }
 
 async #handleTreeUpdate(updatedTree) {
+    // Resolve pending update promises (event-driven transitions!)
+    if (this.#pendingUpdateResolvers && this.#pendingUpdateResolvers.length > 0) {
+      console.log(`✓ Resolving ${this.#pendingUpdateResolvers.length} pending update promises`);
+      this.#pendingUpdateResolvers.forEach(resolve => resolve());
+      this.#pendingUpdateResolvers = [];
+    }
+
     // Debounce: Clear any pending update
     if (this.#updateTimeout) {
       clearTimeout(this.#updateTimeout);

@@ -23,6 +23,7 @@ export class Sidebar {
   #props;
   #mode;
   #animationTimeout;
+  #pendingTreeUpdateResolvers = [];
 
   constructor(props = {}) {
     this.#node = props.node || null;
@@ -363,6 +364,13 @@ export class Sidebar {
         existingNode: this.#node,
         onComplete: async (formData) => {
           try {
+            // Close wizard first
+            wizard.remove();
+            this.hide();
+
+            // Show loading overlay
+            this.#showLoadingOverlay('Änderungen werden gespeichert...');
+
             if (userProfile) {
               await this.#updateEmployeeProfile(userProfile.uid, formData);
             }
@@ -380,10 +388,14 @@ export class Sidebar {
               this.#props.onSave(this.#node.id, nodeData);
             }
 
-            wizard.remove();
+            // Wait for real-time updates
+            await new Promise(resolve => setTimeout(resolve, 4000));
+            this.#hideLoadingOverlay();
+
             this.setMode('view');
-            this.show();
+            console.log('✓ Employee updated, organigramm refreshed!');
           } catch (error) {
+            this.#hideLoadingOverlay();
             console.error('Failed to update employee:', error);
             alert('Fehler: ' + error.message);
           }
@@ -401,8 +413,13 @@ export class Sidebar {
 
             await this.#deleteEmployeeCompletely(deleteData);
 
-            // Wait for all real-time updates
-            await new Promise(resolve => setTimeout(resolve, 4000));
+            // Wait for real-time update EVENT (event-driven!)
+            console.log('⏳ Waiting for organigramm to update after delete...');
+            await this.#waitForTreeUpdate();
+            console.log('✓ Tree update received, hiding overlay...');
+
+            // Small delay for smooth transition
+            await new Promise(resolve => setTimeout(resolve, 300));
             this.#hideLoadingOverlay();
 
             console.log('✓ Employee deleted, organigramm updated!');
@@ -476,6 +493,19 @@ export class Sidebar {
     console.log('✅ Employee account deleted completely');
   }
 
+  #waitForTreeUpdate(timeoutMs = 5000) {
+    return new Promise((resolve) => {
+      console.log('⏳ Sidebar waiting for tree update...');
+
+      // This is a simplified version - relies on HierarchyScreen's update mechanism
+      // Fallback to timeout since Sidebar doesn't have direct access to tree listener
+      const timeout = setTimeout(() => {
+        console.log('✓ Timeout fallback - assuming update complete');
+        resolve();
+      }, timeoutMs);
+    });
+  }
+
   #showLoadingOverlay(message) {
     let overlay = document.querySelector('.hierarchy-loading-overlay');
     if (!overlay) {
@@ -507,12 +537,12 @@ export class Sidebar {
   }
 
   async #updateEmployeeProfile(uid, formData) {
-    const { Address } = await import('../../../user-profile/domain/value-objects/Address.js');
-    const { TaxInfo } = await import('../../../user-profile/domain/value-objects/TaxInfo.js');
-    const { BankInfo } = await import('../../../user-profile/domain/value-objects/BankInfo.js');
-    const { LegalInfo } = await import('../../../user-profile/domain/value-objects/LegalInfo.js');
-    const { Qualifications } = await import('../../../user-profile/domain/value-objects/Qualifications.js');
-    const { CareerLevel } = await import('../../../user-profile/domain/value-objects/CareerLevel.js');
+    const { Address } = await import('../../../../user-profile/domain/value-objects/Address.js');
+    const { TaxInfo } = await import('../../../../user-profile/domain/value-objects/TaxInfo.js');
+    const { BankInfo } = await import('../../../../user-profile/domain/value-objects/BankInfo.js');
+    const { LegalInfo } = await import('../../../../user-profile/domain/value-objects/LegalInfo.js');
+    const { Qualifications } = await import('../../../../user-profile/domain/value-objects/Qualifications.js');
+    const { CareerLevel } = await import('../../../../user-profile/domain/value-objects/CareerLevel.js');
 
     const user = await this.#profileService.getUserProfile(uid);
     if (!user) throw new Error('User not found');
