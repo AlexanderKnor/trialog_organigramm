@@ -55,28 +55,39 @@ export class CompanyRevenueEntry {
     company,
     hierarchyPath,
   }) {
-    // Use provisionType if available (new entries), otherwise fall back to category type (legacy)
-    const provisionType = entry.provisionType;
+    let ownerProvision, directSubProvision, highestProvision;
 
-    // Get owner's provision based on provisionType or category
-    const ownerProvision = provisionType
-      ? this.#getProvisionForType(entryOwner, provisionType)
-      : this.#getProvisionForCategory(entryOwner, entry.category.type);
+    // PRIORITY: Use snapshots if available
+    if (entry.hasProvisionSnapshot) {
+      ownerProvision = entry.ownerProvisionSnapshot;
 
-    const directSubProvision = provisionType
-      ? this.#getProvisionForType(directSubordinate, provisionType)
-      : this.#getProvisionForCategory(directSubordinate, entry.category.type);
+      // For highest provision, use owner's snapshot (simplification - could iterate hierarchy snapshots)
+      highestProvision = ownerProvision;
+    }
+    // FALLBACK: Dynamic calculation for legacy entries
+    else {
+      const provisionType = entry.provisionType;
 
-    // Find the HIGHEST provision percentage in the entire hierarchy path
-    // (excluding the company itself)
-    let highestProvision = 0;
-    for (const employee of hierarchyPath) {
-      if (employee.id !== company.id) {
-        const provision = provisionType
-          ? this.#getProvisionForType(employee, provisionType)
-          : this.#getProvisionForCategory(employee, entry.category.type);
-        if (provision > highestProvision) {
-          highestProvision = provision;
+      // Get owner's provision based on provisionType or category
+      ownerProvision = provisionType
+        ? this.#getProvisionForType(entryOwner, provisionType)
+        : this.#getProvisionForCategory(entryOwner, entry.category.type);
+
+      directSubProvision = provisionType
+        ? this.#getProvisionForType(directSubordinate, provisionType)
+        : this.#getProvisionForCategory(directSubordinate, entry.category.type);
+
+      // Find the HIGHEST provision percentage in the entire hierarchy path
+      // (excluding the company itself)
+      highestProvision = 0;
+      for (const employee of hierarchyPath) {
+        if (employee.id !== company.id) {
+          const provision = provisionType
+            ? this.#getProvisionForType(employee, provisionType)
+            : this.#getProvisionForCategory(employee, entry.category.type);
+          if (provision > highestProvision) {
+            highestProvision = provision;
+          }
         }
       }
     }
@@ -85,8 +96,12 @@ export class CompanyRevenueEntry {
     const companyProvision = 100 - highestProvision;
 
     // Calculate amounts
+    // Note: Owner amount is reduced by tip provider if present
+    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
+    const ownerEffectiveProvision = Math.max(0, ownerProvision - tipProviderPercentage);
+
     const companyAmount = entry.provisionAmount * (companyProvision / 100);
-    const ownerAmount = entry.provisionAmount * (ownerProvision / 100);
+    const ownerAmount = entry.provisionAmount * (ownerEffectiveProvision / 100);
 
     return new CompanyRevenueEntry({
       originalEntry: entry,

@@ -68,6 +68,27 @@ export class RevenueService {
     return await this.#revenueRepository.search(query);
   }
 
+  /**
+   * Get all entries where the given employee is the tip provider
+   */
+  async getEntriesByTipProvider(tipProviderId) {
+    return await this.#revenueRepository.findByTipProviderId(tipProviderId);
+  }
+
+  /**
+   * Get tip provider revenue data for an employee
+   * Returns entries where employee is tip provider with calculated amounts
+   */
+  async getTipProviderRevenues(tipProviderId) {
+    const entries = await this.getEntriesByTipProvider(tipProviderId);
+
+    return entries.map(entry => ({
+      entry,
+      tipProviderProvision: entry.tipProviderProvisionPercentage || 0,
+      tipProviderAmount: entry.tipProviderProvisionAmount || 0,
+    }));
+  }
+
   async getHierarchicalRevenues(managerId, treeId) {
     const tree = await this.#hierarchyService.getTree(treeId);
     if (!tree || !tree.hasNode(managerId)) {
@@ -355,10 +376,15 @@ export class RevenueService {
     const allPersons = [...allEmployees, ...geschaeftsfuehrerIds.map(id => ({ id, ...geschaeftsfuehrerData[id] }))];
 
     for (const employee of allPersons) {
+      // Load entries where employee is OWNER
       const entries = await this.#revenueRepository.findByEmployeeId(employee.id);
+
+      // Load entries where employee is TIP PROVIDER
+      const tipProviderEntries = await this.#revenueRepository.findByTipProviderId(employee.id);
 
       // Filter by month/year if specified
       const filteredEntries = this.#filterEntriesByMonth(entries, month, year);
+      const filteredTipProviderEntries = this.#filterEntriesByMonth(tipProviderEntries, month, year);
 
       // Calculate totals - exclude rejected and cancelled entries
       let monthlyRevenue = 0;
@@ -381,10 +407,34 @@ export class RevenueService {
         employeeProvision += entryRevenue * (provisionRate / 100);
       }
 
+      // Calculate tip provider revenue and provision
+      let tipProviderRevenue = 0;
+      let tipProviderProvision = 0;
+      let tipProviderEntryCount = 0;
+
+      for (const entry of filteredTipProviderEntries) {
+        // Skip rejected and cancelled entries in calculations
+        if (entry.status?.type === REVENUE_STATUS_TYPES.REJECTED ||
+            entry.status?.type === REVENUE_STATUS_TYPES.CANCELLED) {
+          continue;
+        }
+
+        const entryRevenue = entry.provisionAmount || 0;
+        const tipProvision = entry.tipProviderProvisionAmount || 0;
+
+        tipProviderRevenue += entryRevenue;
+        tipProviderProvision += tipProvision;
+        tipProviderEntryCount++;
+      }
+
       revenueDataMap.set(employee.id, {
         monthlyRevenue,
         entryCount: activeEntryCount,
         employeeProvision,
+        // Tip Provider data (new)
+        tipProviderRevenue,
+        tipProviderProvision,
+        tipProviderEntryCount,
       });
 
       // Accumulate for company total
@@ -414,24 +464,30 @@ export class RevenueService {
    * Get employee's provision rate for an entry
    * PRIORITY: Uses provision snapshot if available (immutable)
    * FALLBACK: Uses current provision rate from employee node (legacy entries)
+   * DEDUCTION: Subtracts tip provider provision if present
    */
   #getEmployeeProvisionRateForEntry(employee, entry) {
+    let baseProvision = 0;
+
     // PRIORITY: Use provision snapshot if available (immutable, point-in-time value)
     if (entry.hasProvisionSnapshot) {
-      return entry.ownerProvisionSnapshot || 0;
+      baseProvision = entry.ownerProvisionSnapshot || 0;
     }
-
     // FALLBACK: Dynamic calculation for legacy entries without snapshots
-    if (!employee) return 0;
-
-    // Use provisionType if available (new entries with dynamic categories)
-    const provisionType = entry.provisionType;
-    if (provisionType) {
-      return this.#getProvisionRateByType(employee, provisionType);
+    else if (employee) {
+      // Use provisionType if available (new entries with dynamic categories)
+      const provisionType = entry.provisionType;
+      if (provisionType) {
+        baseProvision = this.#getProvisionRateByType(employee, provisionType);
+      } else {
+        // Fallback to category type for legacy entries
+        baseProvision = this.#getProvisionRateByCategory(employee, entry.category?.type);
+      }
     }
 
-    // Fallback to category type for legacy entries
-    return this.#getProvisionRateByCategory(employee, entry.category?.type);
+    // Deduct tip provider provision if present (owner shares with tip provider)
+    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
+    return Math.max(0, baseProvision - tipProviderPercentage);
   }
 
   /**

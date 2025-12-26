@@ -260,7 +260,7 @@ createElement('svg', {
       this.#isAnimating = true;
 
       const content = this.#element.querySelector('.revenue-content');
-      const currentView = content?.querySelector('.revenue-own, .revenue-team, .revenue-company');
+      const currentView = content?.querySelector('.revenue-own, .revenue-team, .revenue-company, .revenue-tip-provider');
 
       // Update button states immediately
       this.#viewMode = mode;
@@ -290,8 +290,10 @@ createElement('svg', {
             newContent = this.#renderCompanyRevenues();
           } else if (this.#activeTab === 'own') {
             newContent = this.#renderOwnRevenues();
-          } else {
+          } else if (this.#activeTab === 'team') {
             newContent = this.#renderTeamRevenues();
+          } else if (this.#activeTab === 'tipProvider') {
+            newContent = this.#renderTipProviderRevenues();
           }
 
           content.appendChild(newContent);
@@ -406,23 +408,29 @@ createElement('svg', {
 
     const isGeschaeftsfuehrer = this.#employee?.isGeschaeftsfuehrer || false;
 
-    // Geschäftsführer: only "Eigene Umsätze" tab (no team)
-    if (isGeschaeftsfuehrer) {
-      return null; // No tabs needed for Geschäftsführer
-    }
-
-    // Employee view: own + team tabs (visible in both table and dashboard mode)
+    // Create tabs based on role
     const ownTab = createElement('button', {
       className: `revenue-tab ${this.#activeTab === 'own' ? 'active' : ''}`,
       onclick: () => this.#switchTab('own'),
     }, ['Eigene Umsätze']);
 
+    const tipProviderTab = createElement('button', {
+      className: `revenue-tab ${this.#activeTab === 'tipProvider' ? 'active' : ''}`,
+      onclick: () => this.#switchTab('tipProvider'),
+    }, ['Tippgeber-Umsätze']);
+
+    // Geschäftsführer: only "Eigene" + "Tippgeber" tabs (no team)
+    if (isGeschaeftsfuehrer) {
+      return createElement('div', { className: 'revenue-tabs' }, [ownTab, tipProviderTab]);
+    }
+
+    // Regular employees: all three tabs
     const teamTab = createElement('button', {
       className: `revenue-tab ${this.#activeTab === 'team' ? 'active' : ''}`,
       onclick: () => this.#switchTab('team'),
     }, ['Team-Umsätze']);
 
-    return createElement('div', { className: 'revenue-tabs' }, [ownTab, teamTab]);
+    return createElement('div', { className: 'revenue-tabs' }, [ownTab, teamTab, tipProviderTab]);
   }
 
   #switchTab(tab) {
@@ -435,11 +443,24 @@ createElement('svg', {
 
     // Update tab buttons immediately
     const tabs = this.#element.querySelectorAll('.revenue-tab');
+    const isGeschaeftsfuehrer = this.#employee?.isGeschaeftsfuehrer || false;
+
     tabs.forEach((t, i) => {
       if (this.#isCompanyView) {
         t.classList.toggle('active', i === 0 && tab === 'company');
+      } else if (isGeschaeftsfuehrer) {
+        // Geschäftsführer: only 2 tabs (own, tipProvider)
+        t.classList.toggle('active',
+          (i === 0 && tab === 'own') ||
+          (i === 1 && tab === 'tipProvider')
+        );
       } else {
-        t.classList.toggle('active', (i === 0 && tab === 'own') || (i === 1 && tab === 'team'));
+        // Regular employees: 3 tabs (own, team, tipProvider)
+        t.classList.toggle('active',
+          (i === 0 && tab === 'own') ||
+          (i === 1 && tab === 'team') ||
+          (i === 2 && tab === 'tipProvider')
+        );
       }
     });
 
@@ -460,8 +481,10 @@ createElement('svg', {
         let newContent;
         if (this.#activeTab === 'own') {
           newContent = this.#renderOwnRevenues();
-        } else {
+        } else if (this.#activeTab === 'team') {
           newContent = this.#renderTeamRevenues();
+        } else if (this.#activeTab === 'tipProvider') {
+          newContent = this.#renderTipProviderRevenues();
         }
 
         content.appendChild(newContent);
@@ -521,6 +544,10 @@ createElement('svg', {
           this.#treeId,
         );
         this.#state.setHierarchicalEntries(hierarchicalEntries);
+
+        // Load tip provider revenues (entries where this employee is tip provider)
+        const tipProviderEntries = await this.#revenueService.getEntriesByTipProvider(this.#employeeId);
+        this.#state.setTipProviderEntries(tipProviderEntries);
       }
     } catch (error) {
       console.error('Failed to load revenue data:', error);
@@ -557,8 +584,10 @@ createElement('svg', {
       content.appendChild(this.#renderCompanyRevenues());
     } else if (this.#activeTab === 'own') {
       content.appendChild(this.#renderOwnRevenues());
-    } else {
+    } else if (this.#activeTab === 'team') {
       content.appendChild(this.#renderTeamRevenues());
+    } else if (this.#activeTab === 'tipProvider') {
+      content.appendChild(this.#renderTipProviderRevenues());
     }
   }
 
@@ -732,6 +761,96 @@ createElement('svg', {
     ]);
 
     return createElement('div', { className: 'revenue-team' }, [
+      periodHeader,
+      statsBar,
+      createElement('div', { className: 'revenue-table-container' }, [table]),
+    ]);
+  }
+
+  #renderTipProviderRevenues() {
+    const state = this.#state.getState();
+    let entries = state.tipProviderEntries;
+
+    // Apply date range filter
+    entries = this.#filterEntriesByDateRange(entries);
+
+    // Dashboard view - show tip provider data
+    if (this.#viewMode === 'dashboard') {
+      const dashboard = new RevenueDashboard({
+        entries: entries,
+        employee: this.#employee,
+        mode: 'tipProvider',
+        startDate: this.#startDate,
+        endDate: this.#endDate,
+      });
+
+      return createElement('div', { className: 'revenue-tip-provider' }, [
+        dashboard.element,
+      ]);
+    }
+
+    // Period header
+    const periodHeader = createElement('div', { className: 'period-header' }, [
+      createElement('h2', { className: 'period-title' }, [
+        this.#formatDateRangeDisplay(),
+      ]),
+    ]);
+
+    if (entries.length === 0) {
+      return createElement('div', { className: 'revenue-tip-provider' }, [
+        periodHeader,
+        createElement('div', { className: 'revenue-empty-state' }, [
+          createElement('h3', { className: 'empty-state-title' }, [
+            'Keine Tippgeber-Umsätze in diesem Monat',
+          ]),
+          createElement('p', { className: 'empty-state-text' }, [
+            'Umsätze bei denen Sie als Tippgeber beteiligt sind erscheinen hier',
+          ]),
+        ]),
+      ]);
+    }
+
+    // Filter out rejected and cancelled entries for calculations
+    const activeEntries = entries.filter(
+      (e) => e.status?.type !== REVENUE_STATUS_TYPES.REJECTED &&
+             e.status?.type !== REVENUE_STATUS_TYPES.CANCELLED,
+    );
+
+    const totalTipProviderProvision = activeEntries.reduce(
+      (sum, entry) => sum + (entry.tipProviderProvisionAmount || 0),
+      0
+    );
+
+    const statsBar = createElement('div', { className: 'revenue-stats-bar' }, [
+      createElement('div', { className: 'stat-item' }, [
+        createElement('span', { className: 'stat-label' }, ['Tippgeber-Einträge:']),
+        createElement('span', { className: 'stat-value' }, [activeEntries.length.toString()]),
+      ]),
+      createElement('div', { className: 'stat-item highlight' }, [
+        createElement('span', { className: 'stat-label' }, ['Ihre Tippgeber-Provision:']),
+        createElement('span', { className: 'stat-value' }, [`${totalTipProviderProvision.toFixed(2)} EUR`]),
+      ]),
+    ]);
+
+    const tableRows = entries.map((entry) => this.#renderTipProviderRow(entry));
+    const table = createElement('table', { className: 'revenue-table tip-provider-table' }, [
+      createElement('thead', {}, [
+        createElement('tr', {}, [
+          createElement('th', {}, ['Datum']),
+          createElement('th', {}, ['Mitarbeiter']),
+          createElement('th', {}, ['Kunde']),
+          createElement('th', {}, ['Kategorie']),
+          createElement('th', {}, ['Produkt']),
+          createElement('th', { className: 'text-right' }, ['Umsatz']),
+          createElement('th', { className: 'text-right' }, ['Ihre %']),
+          createElement('th', { className: 'text-right' }, ['Ihre Provision']),
+          createElement('th', {}, ['Status']),
+        ]),
+      ]),
+      createElement('tbody', {}, tableRows),
+    ]);
+
+    return createElement('div', { className: 'revenue-tip-provider' }, [
       periodHeader,
       statsBar,
       createElement('div', { className: 'revenue-table-container' }, [table]),
@@ -1196,6 +1315,48 @@ createElement('svg', {
     ]);
   }
 
+  #renderTipProviderRow(entry) {
+    const tipProviderPercent = entry.tipProviderProvisionPercentage || 0;
+    const tipProviderAmount = entry.tipProviderProvisionAmount || 0;
+    const ownerName = entry.hierarchySnapshot?.ownerName || 'Unbekannt';
+    const status = entry.status;
+    const statusClass = `status-${status.type}`;
+
+    // Format date
+    const dateStr = this.#formatDate(entry.entryDate);
+
+    return createElement('tr', {}, [
+      createElement('td', {}, [dateStr]),
+      createElement('td', {}, [ownerName]),
+      createElement('td', {}, [entry.customerName]),
+      createElement('td', {}, [entry.category.displayName]),
+      createElement('td', {}, [entry.product.name]),
+      createElement('td', { className: 'text-right' }, [
+        `${entry.provisionAmount.toFixed(2)} EUR`,
+      ]),
+      createElement('td', { className: 'text-right' }, [
+        `${tipProviderPercent.toFixed(1)}%`,
+      ]),
+      createElement('td', { className: 'text-right' }, [
+        createElement('span', { className: 'provision-badge tip-provider' }, [
+          `${tipProviderAmount.toFixed(2)} EUR`,
+        ]),
+      ]),
+      createElement('td', {}, [
+        createElement('span', { className: `status-badge ${statusClass}` }, [
+          status.displayName,
+        ]),
+      ]),
+    ]);
+  }
+
+  #formatDate(date) {
+    const d = new Date(date);
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
 
   #calculateTotalProvision(entries) {
     if (!this.#employee) return 0;
@@ -1225,6 +1386,8 @@ createElement('svg', {
   #showAddDialog() {
     const dialog = new AddRevenueDialog({
       revenueService: this.#revenueService,
+      hierarchyService: this.#hierarchyService,
+      employeeId: this.#employeeId,
       onSave: async (data) => {
         try {
           const entry = await this.#revenueService.addEntry(this.#employeeId, data);
@@ -1244,6 +1407,8 @@ createElement('svg', {
     const dialog = new AddRevenueDialog({
       entry,
       revenueService: this.#revenueService,
+      hierarchyService: this.#hierarchyService,
+      employeeId: this.#employeeId,
       onSave: async (data) => {
         try {
           const updatedEntry = await this.#revenueService.updateEntry(data.id, data);

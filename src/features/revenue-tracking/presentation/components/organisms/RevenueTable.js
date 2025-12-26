@@ -21,6 +21,8 @@ const COLUMNS = [
   { key: 'provisionAmount', label: 'Umsatz', sortable: true, align: 'right' },
   { key: 'employeePercent', label: 'Ihre %', sortable: true, align: 'right' },
   { key: 'employeeProvision', label: 'Ihre Provision', sortable: true, align: 'right' },
+  { key: 'tipProvider', label: 'Tippgeber', sortable: true },
+  { key: 'tipProviderProvision', label: 'Tippgeber %', sortable: true, align: 'right' },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'actions', label: 'Aktionen', sortable: false },
 ];
@@ -198,6 +200,10 @@ export class RevenueTable {
         return this.#getEmployeeProvision(entry);
       case 'employeeProvision':
         return entry.provisionAmount * (this.#getEmployeeProvision(entry) / 100);
+      case 'tipProvider':
+        return entry.tipProviderName?.toLowerCase() || '';
+      case 'tipProviderProvision':
+        return entry.tipProviderProvisionPercentage || 0;
       case 'status':
         return entry.status?.displayName?.toLowerCase() || '';
       default:
@@ -229,6 +235,8 @@ export class RevenueTable {
       this.#renderCurrencyCell(entry.provisionAmount),
       this.#renderPercentCell(employeeProvision),
       this.#renderProvisionCell(provisionAmount),
+      this.#renderTipProviderCell(entry),
+      this.#renderTipProviderProvisionCell(entry),
       this.#renderStatusCell(entry),
       this.#renderActionsCell(entry),
     ];
@@ -298,6 +306,29 @@ export class RevenueTable {
     return createElement('td', { className: 'revenue-table-td text-right' }, [
       createElement('span', { className: 'provision-badge' }, [
         this.#formatCurrency(amount),
+      ]),
+    ]);
+  }
+
+  #renderTipProviderCell(entry) {
+    const tipProviderName = entry.tipProviderName || '-';
+    return createElement('td', { className: 'revenue-table-td' }, [
+      createElement('span', { className: 'tip-provider-name' }, [tipProviderName]),
+    ]);
+  }
+
+  #renderTipProviderProvisionCell(entry) {
+    const tipProviderPercent = entry.tipProviderProvisionPercentage || 0;
+
+    if (tipProviderPercent === 0) {
+      return createElement('td', { className: 'revenue-table-td text-right' }, [
+        createElement('span', { className: 'percent-value muted' }, ['-']),
+      ]);
+    }
+
+    return createElement('td', { className: 'revenue-table-td text-right' }, [
+      createElement('span', { className: 'percent-value tip-provider' }, [
+        `${tipProviderPercent.toFixed(1)}%`,
       ]),
     ]);
   }
@@ -471,25 +502,33 @@ export class RevenueTable {
   }
 
   #getEmployeeProvision(entry) {
+    let baseProvision = 0;
+
     // PRIORITY: Use provision snapshot if available (immutable, point-in-time value)
     if (entry.hasProvisionSnapshot) {
-      return entry.ownerProvisionSnapshot || 0;
+      baseProvision = entry.ownerProvisionSnapshot || 0;
     }
-
     // FALLBACK: Dynamic calculation for legacy entries without snapshots
-    if (!this.#employee) return 0;
-
-    switch (entry.category.type) {
-      case 'bank':
-        return this.#employee.bankProvision;
-      case 'insurance':
-        return this.#employee.insuranceProvision;
-      case 'realEstate':
-      case 'propertyManagement':
-        return this.#employee.realEstateProvision;
-      default:
-        return 0;
+    else if (this.#employee) {
+      switch (entry.category.type) {
+        case 'bank':
+          baseProvision = this.#employee.bankProvision;
+          break;
+        case 'insurance':
+          baseProvision = this.#employee.insuranceProvision;
+          break;
+        case 'realEstate':
+        case 'propertyManagement':
+          baseProvision = this.#employee.realEstateProvision;
+          break;
+        default:
+          baseProvision = 0;
+      }
     }
+
+    // Deduct tip provider provision if present
+    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
+    return Math.max(0, baseProvision - tipProviderPercentage);
   }
 
   #formatDate(date) {

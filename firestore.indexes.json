@@ -113,6 +113,23 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "name", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "revenue_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tipProviderId", "order": "ASCENDING" },
+        { "fieldPath": "entryDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "revenue_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tipProviderId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "entryDate", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -32,6 +32,10 @@ export class IRevenueRepository {
     throw new Error('Method not implemented');
   }
 
+  async findByTipProviderId(tipProviderId) {
+    throw new Error('Method not implemented');
+  }
+
   async getNextCustomerNumber(employeeId) {
     throw new Error('Method not implemented');
   }

@@ -24,6 +24,9 @@ const MODE_CONFIG = {
   company: {
     title: 'Unternehmens-Anteil',
   },
+  tipProvider: {
+    title: 'Tippgeber-Provision',
+  },
 };
 
 export class RevenueDashboard {
@@ -150,6 +153,20 @@ export class RevenueDashboard {
         teamMembers[ownerId].categories[cat].revenue += revenue;
         teamMembers[ownerId].categories[cat].provision += provision;
         teamMembers[ownerId].categories[cat].count++;
+      } else if (this.#mode === 'tipProvider') {
+        // Tip Provider mode: entry is RevenueEntry where employee is tip provider
+        const cat = entry.category.type;
+        const revenue = entry.provisionAmount;
+        const provision = entry.tipProviderProvisionAmount || 0;
+
+        totalRevenue += revenue;
+        totalProvision += provision;
+
+        if (categories[cat]) {
+          categories[cat].count++;
+          categories[cat].revenue += revenue;
+          categories[cat].provision += provision;
+        }
       } else {
         // Own mode: entry is RevenueEntry
         const cat = entry.category.type;
@@ -224,11 +241,11 @@ export class RevenueDashboard {
         // Revenue KPI
         createElement('div', { className: 'db-kpi' }, [
           createElement('div', { className: 'db-kpi-label' }, [
-            this.#mode === 'company' ? 'Gesamt-Umsatz' : this.#mode === 'team' ? 'Team-Umsatz' : 'Umsatz',
+            this.#mode === 'company' ? 'Gesamt-Umsatz' : this.#mode === 'team' ? 'Team-Umsatz' : this.#mode === 'tipProvider' ? 'Tippgeber-Umsatz' : 'Umsatz',
           ]),
           createElement('div', { className: 'db-kpi-value' }, [this.#formatCurrency(stats.revenue)]),
           createElement('div', { className: 'db-kpi-sub' }, [
-            this.#mode === 'company' ? 'Alle Mitarbeiter' : this.#mode === 'team' ? 'Gesamt der Mitarbeiter' : 'Ihr Gesamtumsatz',
+            this.#mode === 'company' ? 'Alle Mitarbeiter' : this.#mode === 'team' ? 'Gesamt der Mitarbeiter' : this.#mode === 'tipProvider' ? 'Tippgeber-Gesamt' : 'Ihr Gesamtumsatz',
           ]),
         ]),
         // Entry Count KPI
@@ -236,7 +253,7 @@ export class RevenueDashboard {
           createElement('div', { className: 'db-kpi-label' }, ['Einträge']),
           createElement('div', { className: 'db-kpi-value' }, [stats.count.toString()]),
           createElement('div', { className: 'db-kpi-sub' }, [
-            this.#mode === 'company' ? 'Gesamt-Einträge' : this.#mode === 'team' ? 'Von Ihrem Team' : 'Eigene Einträge',
+            this.#mode === 'company' ? 'Gesamt-Einträge' : this.#mode === 'team' ? 'Von Ihrem Team' : this.#mode === 'tipProvider' ? 'Tippgeber-Einträge' : 'Eigene Einträge',
           ]),
         ]),
         // Average per Entry KPI
@@ -474,7 +491,7 @@ export class RevenueDashboard {
     provisionDetails.push(
       createElement('div', { className: 'db-cat-prov-row' }, [
         createElement('span', { className: 'db-cat-prov-label' }, [
-          this.#mode === 'company' ? 'Unternehmens-Anteil' : this.#mode === 'team' ? 'Ihre Provision' : 'Provision',
+          this.#mode === 'company' ? 'Unternehmens-Anteil' : this.#mode === 'team' ? 'Ihre Provision' : this.#mode === 'tipProvider' ? 'Ihre Tippgeber-Provision' : 'Provision',
         ]),
         createElement('span', { className: 'db-cat-prov-value' }, [this.#formatCurrency(cat.provision)]),
       ]),

@@ -20,6 +20,7 @@ export class AddRevenueDialog {
   #entry; // Existing entry for edit mode
   #isEditMode;
   #revenueService;
+  #hierarchyService;
 
   // Form inputs
   #dateInput;
@@ -35,19 +36,24 @@ export class AddRevenueDialog {
   #contractNumberInput;
   #provisionAmountInput;
   #notesInput;
+  #tipProviderSelect;
+  #tipProviderProvisionInput;
 
   // Dynamic catalog data
   #categories;
   #currentCategoryData;
+  #allEmployees;
 
   constructor(props = {}) {
     this.#entry = props.entry || null;
     this.#isEditMode = !!this.#entry;
     this.#revenueService = props.revenueService || null;
+    this.#hierarchyService = props.hierarchyService || null;
 
     this.#props = {
       onSave: props.onSave || null,
       onCancel: props.onCancel || null,
+      employeeId: props.employeeId || null, // Current employee ID (to exclude from tip provider)
       className: props.className || '',
     };
 
@@ -55,10 +61,13 @@ export class AddRevenueDialog {
       category: this.#entry?.category?.type || REVENUE_CATEGORY_TYPES.BANK,
       product: null,
       provider: null,
+      tipProvider: null,
+      tipProviderProvision: null,
     };
 
     this.#categories = [];
     this.#currentCategoryData = null;
+    this.#allEmployees = [];
 
     this.#element = this.#render();
 
@@ -69,6 +78,9 @@ export class AddRevenueDialog {
   async #initializeForm() {
     // Load categories from catalog
     await this.#loadCategories();
+
+    // Load employees for tip provider dropdown
+    await this.#loadEmployeesForTipProvider();
 
     // Populate form if editing
     if (this.#isEditMode) {
@@ -127,6 +139,15 @@ export class AddRevenueDialog {
     this.#contractNumberInput.setValue(this.#entry.contractNumber || '');
     this.#provisionAmountInput.setValue(this.#entry.provisionAmount?.toString() || '');
     this.#notesInput.setValue(this.#entry.notes || '');
+
+    // Set tip provider if present
+    if (this.#entry.tipProviderId) {
+      this.#tipProviderSelect.value = this.#entry.tipProviderId;
+      this.#tipProviderProvisionInput.setValue(this.#entry.tipProviderProvisionPercentage?.toString() || '');
+      this.#tipProviderProvisionInput.setDisabled(false);
+    } else {
+      this.#tipProviderProvisionInput.setDisabled(true);
+    }
   }
 
   #render() {
@@ -213,6 +234,28 @@ export class AddRevenueDialog {
       placeholder: 'Optionale Notizen...',
     });
 
+    // Tip Provider (Tippgeber) select - will be populated dynamically
+    this.#tipProviderSelect = createElement('select', {
+      className: 'input-field',
+      onchange: (e) => this.#onTipProviderChange(e.target.value),
+    }, [
+      createElement('option', { value: '' }, ['Kein Tippgeber']),
+      createElement('option', {}, ['Mitarbeiter werden geladen...'])
+    ]);
+
+    // Tip Provider Provision input
+    this.#tipProviderProvisionInput = new Input({
+      label: 'Tippgeber-Provision (%)',
+      type: 'number',
+      placeholder: '0',
+      min: '0',
+      max: '100',
+      step: '0.1',
+    });
+
+    // Disable tip provider provision input initially
+    this.#tipProviderProvisionInput.setDisabled(true);
+
     // Form layout
     const addressRow = createElement('div', { className: 'dialog-form-row' }, [
       createElement('div', { className: 'dialog-form-col-3' }, [
@@ -276,6 +319,21 @@ export class AddRevenueDialog {
       ]),
     ]);
 
+    // Tip Provider row (Tippgeber)
+    const tipProviderWrapper = createElement('div', { className: 'input-wrapper' }, [
+      createElement('label', { className: 'input-label' }, ['Tippgeber (optional)']),
+      this.#tipProviderSelect,
+    ]);
+
+    const tipProviderRow = createElement('div', { className: 'dialog-form-row tip-provider-row' }, [
+      createElement('div', { className: 'dialog-form-col-2' }, [
+        tipProviderWrapper,
+      ]),
+      createElement('div', { className: 'dialog-form-col-1' }, [
+        this.#tipProviderProvisionInput.element,
+      ]),
+    ]);
+
     // Actions
     const cancelBtn = new Button({
       label: 'Abbrechen',
@@ -303,6 +361,7 @@ export class AddRevenueDialog {
         cityRow,
         selectionRow,
         dateAndContractRow,
+        tipProviderRow,
         this.#notesInput.element,
       ]),
       actions,
@@ -348,6 +407,136 @@ export class AddRevenueDialog {
       const option = createElement('option', { value: type }, [displayName]);
       this.#categorySelect.appendChild(option);
     });
+  }
+
+  async #loadEmployeesForTipProvider() {
+    if (!this.#hierarchyService) {
+      console.warn('HierarchyService not available - tip provider dropdown will be empty');
+      this.#allEmployees = [];
+      this.#populateTipProviderSelect();
+      return;
+    }
+
+    try {
+      // Load all trees (should be only one: the main organization tree)
+      const allTrees = await this.#hierarchyService.getAllTrees();
+
+      if (allTrees.length === 0) {
+        console.warn('No trees found - tip provider dropdown will be empty');
+        this.#allEmployees = [];
+        this.#populateTipProviderSelect();
+        return;
+      }
+
+      const tree = allTrees[0]; // Get first tree
+      const allNodes = tree.getAllNodes();
+
+      // Filter out root node and current employee
+      let employees = allNodes
+        .filter(node =>
+          !node.isRoot &&
+          node.id !== this.#props.employeeId
+        );
+
+      // Add hardcoded Geschäftsführer (not in tree)
+      const geschaeftsfuehrerIds = ['marcel-liebetrau', 'daniel-lippa'];
+      const geschaeftsfuehrerData = {
+        'marcel-liebetrau': { id: 'marcel-liebetrau', name: 'Marcel Liebetrau' },
+        'daniel-lippa': { id: 'daniel-lippa', name: 'Daniel Lippa' },
+      };
+
+      for (const gfId of geschaeftsfuehrerIds) {
+        if (gfId !== this.#props.employeeId) {
+          employees.push(geschaeftsfuehrerData[gfId]);
+        }
+      }
+
+      // Sort alphabetically
+      this.#allEmployees = employees.sort((a, b) => a.name.localeCompare(b.name));
+
+      this.#populateTipProviderSelect();
+    } catch (error) {
+      console.error('Failed to load employees for tip provider:', error);
+      this.#allEmployees = [];
+      this.#populateTipProviderSelect();
+    }
+  }
+
+  #populateTipProviderSelect() {
+    this.#tipProviderSelect.innerHTML = '';
+
+    // Add "No tip provider" option
+    const noneOption = createElement('option', { value: '' }, ['Kein Tippgeber']);
+    this.#tipProviderSelect.appendChild(noneOption);
+
+    // Add all employees
+    this.#allEmployees.forEach((employee) => {
+      const option = createElement('option', { value: employee.id }, [employee.name]);
+      this.#tipProviderSelect.appendChild(option);
+    });
+  }
+
+  #onTipProviderChange(tipProviderId) {
+    this.#formData.tipProvider = tipProviderId || null;
+
+    // Enable/disable provision input based on selection
+    if (tipProviderId) {
+      this.#tipProviderProvisionInput.setDisabled(false);
+    } else {
+      this.#tipProviderProvisionInput.setValue('');
+      this.#tipProviderProvisionInput.setDisabled(true);
+    }
+  }
+
+  async #getOwnerProvision(categoryType) {
+    if (!this.#hierarchyService) {
+      return 100; // Fallback if no hierarchy service
+    }
+
+    try {
+      // Get the tree and owner node
+      const allTrees = await this.#hierarchyService.getAllTrees();
+      if (allTrees.length === 0) {
+        return 100;
+      }
+
+      const tree = allTrees[0];
+      const owner = tree.getNode(this.#props.employeeId);
+
+      if (!owner) {
+        return 100;
+      }
+
+      // Get provision based on category type
+      const provisionType = this.#currentCategoryData?.provisionType?.type ||
+        this.#currentCategoryData?.provisionType ||
+        this.#inferProvisionType(categoryType);
+
+      switch (provisionType) {
+        case 'bank':
+          return owner.bankProvision || 0;
+        case 'insurance':
+          return owner.insuranceProvision || 0;
+        case 'realEstate':
+          return owner.realEstateProvision || 0;
+        default:
+          return 0;
+      }
+    } catch (error) {
+      console.error('Failed to get owner provision:', error);
+      return 100; // Fallback
+    }
+  }
+
+  #inferProvisionType(categoryType) {
+    const CATEGORY_TO_PROVISION = {
+      bank: 'bank',
+      insurance: 'insurance',
+      realEstate: 'realEstate',
+      propertyManagement: 'realEstate',
+      energyContracts: 'bank',
+    };
+    return CATEGORY_TO_PROVISION[categoryType] || 'bank';
   }
 
   async #onCategoryChange(categoryType) {
@@ -495,7 +684,7 @@ export class AddRevenueDialog {
     }
   }
 
-  #handleSave() {
+  async #handleSave() {
     const customerName = this.#customerNameInput.value.trim();
     const contractNumber = this.#contractNumberInput.value.trim();
     const provisionAmount = parseFloat(this.#provisionAmountInput.value) || 0;
@@ -527,6 +716,40 @@ export class AddRevenueDialog {
     const providerName = this.#providerSelect.value;
     const propertyAddress = this.#propertyAddressInput.value.trim();
     const entryDate = this.#dateInput.value || new Date().toISOString().split('T')[0];
+
+    // Get tip provider data
+    const tipProviderId = this.#tipProviderSelect.value || null;
+    const tipProviderProvision = tipProviderId
+      ? parseFloat(this.#tipProviderProvisionInput.value) || 0
+      : null;
+
+    // Validation: Tip provider provision must be set if tip provider is selected
+    if (tipProviderId && (tipProviderProvision === null || tipProviderProvision <= 0)) {
+      this.#tipProviderProvisionInput.setError('Tippgeber-Provision ist erforderlich');
+      return;
+    }
+
+    // Validation: Tip provider provision cannot exceed 100%
+    if (tipProviderProvision > 100) {
+      this.#tipProviderProvisionInput.setError('Tippgeber-Provision darf nicht über 100% sein');
+      return;
+    }
+
+    // Validation: Tip provider provision cannot exceed owner's provision
+    if (tipProviderId && tipProviderProvision > 0) {
+      const ownerProvision = await this.#getOwnerProvision(categoryType);
+      if (tipProviderProvision > ownerProvision) {
+        this.#tipProviderProvisionInput.setError(
+          `Tippgeber-Provision darf nicht höher als Ihre Provision (${ownerProvision}%) sein`
+        );
+        return;
+      }
+    }
+
+    // Find tip provider name
+    const tipProviderName = tipProviderId
+      ? this.#allEmployees.find(e => e.id === tipProviderId)?.name || null
+      : null;
 
     // Get provisionType from category data (determines which HierarchyNode provision field to use)
     const provisionType = this.#currentCategoryData?.provisionType?.type ||
@@ -561,6 +784,10 @@ export class AddRevenueDialog {
       contractNumber,
       provisionAmount,
       notes: this.#notesInput.value.trim(),
+      // Tip Provider (Tippgeber)
+      tipProviderId,
+      tipProviderName,
+      tipProviderProvisionPercentage: tipProviderProvision,
     };
 
     // Include entry ID if editing

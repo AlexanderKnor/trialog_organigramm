@@ -2125,7 +2125,8 @@
 /* View transition animations */
 .revenue-own,
 .revenue-team,
-.revenue-company {
+.revenue-company,
+.revenue-tip-provider {
   display: flex;
   flex-direction: column;
   padding: var(--spacing-6);
@@ -2134,7 +2135,8 @@
 
 .revenue-own.view-exit,
 .revenue-team.view-exit,
-.revenue-company.view-exit {
+.revenue-company.view-exit,
+.revenue-tip-provider.view-exit {
   animation: viewFadeOut 0.2s ease-out forwards;
 }
 

@@ -50,6 +50,11 @@ export class FirebaseRevenueRepository extends IRevenueRepository {
     return data.map((item) => RevenueEntry.fromJSON(item));
   }
 
+  async findByTipProviderId(tipProviderId) {
+    const data = await this.#dataSource.findByTipProviderId(tipProviderId);
+    return data.map((item) => RevenueEntry.fromJSON(item));
+  }
+
   async getNextCustomerNumber(employeeId) {
     const maxNumber = await this.#dataSource.getMaxCustomerNumber(employeeId);
     return maxNumber + 1;

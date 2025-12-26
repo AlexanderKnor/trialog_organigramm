@@ -213,6 +213,27 @@ export class RevenueFirestoreDataSource {
     }
   }
 
+  async findByTipProviderId(tipProviderId) {
+    try {
+      const firestore = this.#getFirestore();
+      const { collection, query, where, getDocs } = await this.#importFirestoreHelpers();
+
+      // Query entries where this employee is the tip provider
+      const q = query(
+        collection(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES),
+        where('tipProviderId', '==', tipProviderId)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const entries = querySnapshot.docs.map((doc) => doc.data());
+
+      console.log(`✓ Loaded ${entries.length} revenue entries where ${tipProviderId} is tip provider`);
+      return entries;
+    } catch (error) {
+      throw new StorageError(`Failed to load revenue entries by tip provider: ${error.message}`);
+    }
+  }
+
   async getMaxCustomerNumber(employeeId) {
     try {
       const entries = await this.findByEmployeeId(employeeId);

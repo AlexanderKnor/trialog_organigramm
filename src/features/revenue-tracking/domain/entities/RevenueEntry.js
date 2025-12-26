@@ -4,6 +4,7 @@
  */
 
 import { generateUUID } from '../../../../core/utils/index.js';
+import { ValidationError } from '../../../../core/errors/index.js';
 import { RevenueCategory } from '../value-objects/RevenueCategory.js';
 import { RevenueStatus, REVENUE_STATUS_TYPES } from '../value-objects/RevenueStatus.js';
 import { Product } from '../value-objects/Product.js';
@@ -31,6 +32,10 @@ export class RevenueEntry {
   #ownerProvisionSnapshot;
   #managerProvisionSnapshot;
   #hierarchySnapshot;
+  #tipProviderId;
+  #tipProviderName;
+  #tipProviderProvisionPercentage;
+  #tipProviderProvisionSnapshot;
 
   constructor({
     id = null,
@@ -53,6 +58,10 @@ export class RevenueEntry {
     ownerProvisionSnapshot = null,
     managerProvisionSnapshot = null,
     hierarchySnapshot = null,
+    tipProviderId = null,
+    tipProviderName = null,
+    tipProviderProvisionPercentage = null,
+    tipProviderProvisionSnapshot = null,
   }) {
     this.#id = id || generateUUID();
     this.#employeeId = employeeId;
@@ -91,6 +100,42 @@ export class RevenueEntry {
     this.#ownerProvisionSnapshot = ownerProvisionSnapshot;
     this.#managerProvisionSnapshot = managerProvisionSnapshot;
     this.#hierarchySnapshot = hierarchySnapshot || null;
+
+    // Tip Provider (Tippgeber) - Independent provision allocation
+    this.#validateTipProvider(tipProviderId, employeeId, tipProviderProvisionPercentage);
+    this.#tipProviderId = tipProviderId;
+    this.#tipProviderName = tipProviderName;
+    this.#tipProviderProvisionPercentage = this.#validateProvisionPercentage(tipProviderProvisionPercentage);
+    this.#tipProviderProvisionSnapshot = tipProviderProvisionSnapshot;
+  }
+
+  #validateTipProvider(tipProviderId, employeeId, tipProviderProvision) {
+    // Business Rule: Tip provider cannot be the entry owner
+    if (tipProviderId && tipProviderId === employeeId) {
+      throw new ValidationError('Tip provider cannot be the same as the entry owner', 'tipProviderId');
+    }
+
+    // Business Rule: If tip provider is set, provision percentage must be provided
+    if (tipProviderId && (tipProviderProvision === null || tipProviderProvision === undefined)) {
+      throw new ValidationError('Tip provider provision percentage is required when tip provider is set', 'tipProviderProvisionPercentage');
+    }
+  }
+
+  #validateProvisionPercentage(percentage) {
+    if (percentage === null || percentage === undefined) {
+      return null;
+    }
+
+    const num = parseFloat(percentage);
+    if (isNaN(num)) {
+      throw new ValidationError('Provision percentage must be a number', 'tipProviderProvisionPercentage');
+    }
+
+    if (num < 0 || num > 100) {
+      throw new ValidationError('Provision percentage must be between 0 and 100', 'tipProviderProvisionPercentage');
+    }
+
+    return num;
   }
 
   get id() {
@@ -175,6 +220,41 @@ export class RevenueEntry {
 
   get hasProvisionSnapshot() {
     return this.#ownerProvisionSnapshot !== null && this.#ownerProvisionSnapshot !== undefined;
+  }
+
+  get tipProviderId() {
+    return this.#tipProviderId;
+  }
+
+  get tipProviderName() {
+    return this.#tipProviderName;
+  }
+
+  get tipProviderProvisionPercentage() {
+    return this.#tipProviderProvisionPercentage;
+  }
+
+  get tipProviderProvisionSnapshot() {
+    return this.#tipProviderProvisionSnapshot;
+  }
+
+  get hasTipProvider() {
+    return this.#tipProviderId !== null && this.#tipProviderId !== undefined;
+  }
+
+  get tipProviderProvisionAmount() {
+    if (!this.hasTipProvider || this.#tipProviderProvisionPercentage === null) {
+      return 0;
+    }
+    return this.#provisionAmount * (this.#tipProviderProvisionPercentage / 100);
+  }
+
+  get ownerProvisionAfterTipProvider() {
+    if (!this.#ownerProvisionSnapshot) {
+      return 0;
+    }
+    const tipProviderDeduction = this.#tipProviderProvisionPercentage || 0;
+    return Math.max(0, this.#ownerProvisionSnapshot - tipProviderDeduction);
   }
 
   get requiresPropertyAddress() {
@@ -266,6 +346,21 @@ export class RevenueEntry {
     if (updates.entryDate !== undefined) {
       this.#entryDate = new Date(updates.entryDate);
     }
+    // Tip Provider fields
+    if (updates.tipProviderId !== undefined) {
+      this.#validateTipProvider(updates.tipProviderId, this.#employeeId, updates.tipProviderProvisionPercentage);
+      this.#tipProviderId = updates.tipProviderId;
+    }
+    if (updates.tipProviderName !== undefined) {
+      this.#tipProviderName = updates.tipProviderName;
+    }
+    if (updates.tipProviderProvisionPercentage !== undefined) {
+      this.#tipProviderProvisionPercentage = this.#validateProvisionPercentage(updates.tipProviderProvisionPercentage);
+    }
+    if (updates.tipProviderProvisionSnapshot !== undefined) {
+      this.#tipProviderProvisionSnapshot = updates.tipProviderProvisionSnapshot;
+    }
+
     this.#updatedAt = new Date();
 
     return this;
@@ -294,6 +389,11 @@ export class RevenueEntry {
       ownerProvisionSnapshot: this.#ownerProvisionSnapshot,
       managerProvisionSnapshot: this.#managerProvisionSnapshot,
       hierarchySnapshot: this.#hierarchySnapshot,
+      // Tip Provider (Tippgeber)
+      tipProviderId: this.#tipProviderId,
+      tipProviderName: this.#tipProviderName,
+      tipProviderProvisionPercentage: this.#tipProviderProvisionPercentage,
+      tipProviderProvisionSnapshot: this.#tipProviderProvisionSnapshot,
     };
   }
 
@@ -322,6 +422,11 @@ export class RevenueEntry {
       ownerProvisionSnapshot: json.ownerProvisionSnapshot ?? null,
       managerProvisionSnapshot: json.managerProvisionSnapshot ?? null,
       hierarchySnapshot: json.hierarchySnapshot ?? null,
+      // Tip Provider (may be null)
+      tipProviderId: json.tipProviderId ?? null,
+      tipProviderName: json.tipProviderName ?? null,
+      tipProviderProvisionPercentage: json.tipProviderProvisionPercentage ?? null,
+      tipProviderProvisionSnapshot: json.tipProviderProvisionSnapshot ?? null,
     });
   }
 }

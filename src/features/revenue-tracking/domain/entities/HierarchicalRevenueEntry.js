@@ -137,13 +137,18 @@ export class HierarchicalRevenueEntry {
       }
     }
 
-    const provisionDifference = managerProvision - ownerProvision;
+    // Calculate provision amounts with tip provider consideration
+    // Tip provider reduces owner's provision, but doesn't affect manager's calculation
+    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
+    const ownerEffectiveProvision = Math.max(0, ownerProvision - tipProviderPercentage);
+
+    const provisionDifference = managerProvision - ownerProvision; // Based on ORIGINAL owner provision
     const managerAmount =
       provisionDifference > 0
         ? entry.provisionAmount * (provisionDifference / 100)
         : 0;
 
-    const ownerAmount = entry.provisionAmount * (ownerProvision / 100);
+    const ownerAmount = entry.provisionAmount * (ownerEffectiveProvision / 100);
 
     return new HierarchicalRevenueEntry({
       originalEntry: entry,

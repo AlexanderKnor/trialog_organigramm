@@ -7,6 +7,7 @@ export class RevenueState {
   #entries = [];
   #hierarchicalEntries = [];
   #companyEntries = [];
+  #tipProviderEntries = [];
   #selectedEmployeeId = null;
   #searchQuery = '';
   #isLoading = false;
@@ -17,6 +18,7 @@ export class RevenueState {
     this.#entries = [];
     this.#hierarchicalEntries = [];
     this.#companyEntries = [];
+    this.#tipProviderEntries = [];
   }
 
   get entries() {
@@ -29,6 +31,10 @@ export class RevenueState {
 
   get companyEntries() {
     return [...this.#companyEntries];
+  }
+
+  get tipProviderEntries() {
+    return [...this.#tipProviderEntries];
   }
 
   get selectedEmployeeId() {
@@ -101,6 +107,11 @@ export class RevenueState {
     this.#notify();
   }
 
+  setTipProviderEntries(entries) {
+    this.#tipProviderEntries = entries;
+    this.#notify();
+  }
+
   setSearchQuery(query) {
     this.#searchQuery = query;
     this.#notify();
@@ -148,11 +159,19 @@ export class RevenueState {
     return () => this.#listeners.delete(listener);
   }
 
+  get totalTipProviderProvision() {
+    return this.#tipProviderEntries.reduce(
+      (sum, entry) => sum + (entry.tipProviderProvisionAmount || 0),
+      0,
+    );
+  }
+
   #notify() {
     const state = {
       entries: this.#entries,
       hierarchicalEntries: this.#hierarchicalEntries,
       companyEntries: this.#companyEntries,
+      tipProviderEntries: this.#tipProviderEntries,
       selectedEmployeeId: this.#selectedEmployeeId,
       searchQuery: this.#searchQuery,
       isLoading: this.#isLoading,
@@ -167,6 +186,7 @@ export class RevenueState {
       entries: this.#entries,
       hierarchicalEntries: this.#hierarchicalEntries,
       companyEntries: this.#companyEntries,
+      tipProviderEntries: this.#tipProviderEntries,
       selectedEmployeeId: this.#selectedEmployeeId,
       searchQuery: this.#searchQuery,
       isLoading: this.#isLoading,
