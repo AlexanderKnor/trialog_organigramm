@@ -65,6 +65,18 @@ export class FirebaseCatalogRepository extends ICatalogRepository {
     return data ? ProductDefinition.fromJSON(data) : null;
   }
 
+  async findProductByNameInCategory(categoryType, name, excludeId = null) {
+    const products = await this.findProductsByCategory(categoryType, true);
+
+    // Find product with matching name (case-insensitive)
+    const found = products.find(p =>
+      p.name.toLowerCase().trim() === name.toLowerCase().trim() &&
+      (excludeId === null || p.id !== excludeId)
+    );
+
+    return found || null;
+  }
+
   async saveProduct(product) {
     const data = product.toJSON();
     await this.#dataSource.save(data);
@@ -117,6 +129,18 @@ export class FirebaseCatalogRepository extends ICatalogRepository {
   async findProviderById(providerId) {
     const data = await this.#dataSource.findById(providerId);
     return data ? ProviderDefinition.fromJSON(data) : null;
+  }
+
+  async findProviderByNameInProduct(productId, name, excludeId = null) {
+    const providers = await this.findProvidersByProduct(productId, true);
+
+    // Find provider with matching name (case-insensitive)
+    const found = providers.find(p =>
+      p.name.toLowerCase().trim() === name.toLowerCase().trim() &&
+      (excludeId === null || p.id !== excludeId)
+    );
+
+    return found || null;
   }
 
   async saveProvider(provider) {

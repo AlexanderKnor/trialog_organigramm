@@ -32,7 +32,7 @@ export class CatalogService {
     // Validate unique type
     const existing = await this.#catalogRepository.findCategoryByType(categoryData.type);
     if (existing) {
-      throw new ValidationError(`Category with type '${categoryData.type}' already exists`, 'type');
+      throw new ValidationError(`Eine Kategorie mit dem Typ '${categoryData.type}' existiert bereits`, 'type');
     }
 
     const category = CategoryDefinition.create(
@@ -164,6 +164,18 @@ export class CatalogService {
       throw new NotFoundError('CategoryDefinition', categoryType);
     }
 
+    // Validate unique product name within category
+    const existingProduct = await this.#catalogRepository.findProductByNameInCategory(
+      categoryType,
+      productData.name
+    );
+    if (existingProduct) {
+      throw new ValidationError(
+        `Ein Produkt mit dem Namen "${productData.name}" existiert bereits in dieser Kategorie`,
+        'name'
+      );
+    }
+
     const product = ProductDefinition.create(categoryType, productData.name);
 
     if (productData.order !== undefined) {
@@ -183,7 +195,20 @@ export class CatalogService {
       throw new NotFoundError('ProductDefinition', productId);
     }
 
-    if (updates.name !== undefined) {
+    // If name is being updated, validate uniqueness
+    if (updates.name !== undefined && updates.name !== product.name) {
+      const categoryType = updates.categoryType !== undefined ? updates.categoryType : product.categoryType;
+      const existingProduct = await this.#catalogRepository.findProductByNameInCategory(
+        categoryType,
+        updates.name,
+        productId // Exclude current product from check
+      );
+      if (existingProduct) {
+        throw new ValidationError(
+          `Ein Produkt mit dem Namen "${updates.name}" existiert bereits in dieser Kategorie`,
+          'name'
+        );
+      }
       product.updateName(updates.name);
     }
 
@@ -277,6 +302,18 @@ export class CatalogService {
       throw new NotFoundError('ProductDefinition', productId);
     }
 
+    // Validate unique provider name within product
+    const existingProvider = await this.#catalogRepository.findProviderByNameInProduct(
+      productId,
+      providerData.name
+    );
+    if (existingProvider) {
+      throw new ValidationError(
+        `Ein Produktgeber mit dem Namen "${providerData.name}" existiert bereits für dieses Produkt`,
+        'name'
+      );
+    }
+
     const provider = ProviderDefinition.create(productId, providerData.name);
 
     if (providerData.order !== undefined) {
@@ -296,7 +333,20 @@ export class CatalogService {
       throw new NotFoundError('ProviderDefinition', providerId);
     }
 
-    if (updates.name !== undefined) {
+    // If name is being updated, validate uniqueness
+    if (updates.name !== undefined && updates.name !== provider.name) {
+      const productId = updates.productId !== undefined ? updates.productId : provider.productId;
+      const existingProvider = await this.#catalogRepository.findProviderByNameInProduct(
+        productId,
+        updates.name,
+        providerId // Exclude current provider from check
+      );
+      if (existingProvider) {
+        throw new ValidationError(
+          `Ein Produktgeber mit dem Namen "${updates.name}" existiert bereits für dieses Produkt`,
+          'name'
+        );
+      }
       provider.updateName(updates.name);
     }
 

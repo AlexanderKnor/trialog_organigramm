@@ -40,6 +40,10 @@ export class ICatalogRepository {
     throw new Error('Method not implemented: findProductById');
   }
 
+  async findProductByNameInCategory(categoryType, name, excludeId = null) {
+    throw new Error('Method not implemented: findProductByNameInCategory');
+  }
+
   async saveProduct(product) {
     throw new Error('Method not implemented: saveProduct');
   }
@@ -62,6 +66,10 @@ export class ICatalogRepository {
 
   async findProviderById(providerId) {
     throw new Error('Method not implemented: findProviderById');
+  }
+
+  async findProviderByNameInProduct(productId, name, excludeId = null) {
+    throw new Error('Method not implemented: findProviderByNameInProduct');
   }
 
   async saveProvider(provider) {
