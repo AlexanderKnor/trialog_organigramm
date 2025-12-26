@@ -16,6 +16,8 @@ export class ProductManagementPanel {
   #categories;
   #selectedCategoryType;
   #unsubscribe;
+  #sortColumn;
+  #sortDirection;
 
   constructor(props = {}) {
     this.#catalogService = props.catalogService;
@@ -23,6 +25,8 @@ export class ProductManagementPanel {
     this.#categories = [];
     this.#selectedCategoryType = null;
     this.#element = null;
+    this.#sortColumn = null;
+    this.#sortDirection = null;
   }
 
   get element() {
@@ -92,6 +96,9 @@ export class ProductManagementPanel {
   #render() {
     const toolbar = this.#createToolbar();
 
+    // Apply sorting to data
+    const sortedProducts = this.#applySorting(this.#products);
+
     this.#table = new CatalogTable({
       columns: [
         { key: 'name', label: 'Produktname' },
@@ -112,13 +119,64 @@ export class ProductManagementPanel {
               : createElement('span', { className: 'badge badge-muted' }, ['Inaktiv']),
         },
       ],
-      data: this.#products,
+      data: sortedProducts,
+      sortColumn: this.#sortColumn,
+      sortDirection: this.#sortDirection,
+      onSort: (column, direction) => this.#handleSort(column, direction),
       onEdit: (product) => this.#handleEditProduct(product),
       onDelete: (product) => this.#handleDeleteProduct(product),
       emptyMessage: 'Keine Produkte vorhanden. Wählen Sie eine Kategorie und erstellen Sie das erste Produkt.',
     });
 
     return createElement('div', { className: 'catalog-panel' }, [toolbar, this.#table.element]);
+  }
+
+  #applySorting(products) {
+    if (!this.#sortColumn || !this.#sortDirection) {
+      return products;
+    }
+
+    const direction = this.#sortDirection === 'asc' ? 1 : -1;
+
+    return [...products].sort((a, b) => {
+      const valueA = this.#getSortValue(a, this.#sortColumn);
+      const valueB = this.#getSortValue(b, this.#sortColumn);
+
+      if (valueA === null || valueA === undefined) return 1;
+      if (valueB === null || valueB === undefined) return -1;
+
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        return valueA.localeCompare(valueB, 'de') * direction;
+      }
+
+      if (typeof valueA === 'boolean' && typeof valueB === 'boolean') {
+        return (valueA === valueB ? 0 : valueA ? -1 : 1) * direction;
+      }
+
+      if (valueA < valueB) return -1 * direction;
+      if (valueA > valueB) return 1 * direction;
+      return 0;
+    });
+  }
+
+  #getSortValue(product, columnKey) {
+    switch (columnKey) {
+      case 'name':
+        return product.name?.toLowerCase() || '';
+      case 'categoryType':
+        const category = this.#categories.find((c) => c.type === product.categoryType);
+        return category?.displayName?.toLowerCase() || product.categoryType?.toLowerCase() || '';
+      case 'status':
+        return product.isActive;
+      default:
+        return '';
+    }
+  }
+
+  #handleSort(column, direction) {
+    this.#sortColumn = column;
+    this.#sortDirection = direction;
+    this.#updateTable();
   }
 
   #createToolbar() {
@@ -193,7 +251,8 @@ export class ProductManagementPanel {
 
   #updateTable() {
     if (this.#table && typeof this.#table.update === 'function') {
-      this.#table.update(this.#products);
+      const sortedProducts = this.#applySorting(this.#products);
+      this.#table.update(sortedProducts, this.#sortColumn, this.#sortDirection);
     } else {
       // Fallback: full UI update if table reference is lost
       console.warn('⚠ Table reference lost, performing full UI update');

@@ -662,6 +662,56 @@
 }
 
 /* ========================================
+   TABLE SORTING
+   ======================================== */
+
+.catalog-table thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.catalog-table thead th.sortable:hover {
+  background-color: #f8fafc;
+}
+
+.catalog-table thead th.sort-active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.sort-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.5rem;
+  opacity: 0.4;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.catalog-table thead th.sortable:hover .sort-indicator {
+  opacity: 0.6;
+}
+
+.catalog-table thead th.sort-active .sort-indicator {
+  opacity: 1;
+}
+
+.sort-indicator svg {
+  display: block;
+}
+
+/* Sort direction animations */
+.catalog-table thead th.sort-asc .sort-indicator {
+  transform: rotate(0deg);
+}
+
+.catalog-table thead th.sort-desc .sort-indicator {
+  transform: rotate(180deg);
+}
+
+/* ========================================
    ACCESSIBILITY
    ======================================== */
 

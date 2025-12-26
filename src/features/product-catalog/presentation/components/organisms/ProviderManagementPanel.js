@@ -18,6 +18,8 @@ export class ProviderManagementPanel {
   #selectedCategoryType;
   #selectedProductId;
   #unsubscribe;
+  #sortColumn;
+  #sortDirection;
 
   constructor(props = {}) {
     this.#catalogService = props.catalogService;
@@ -27,6 +29,8 @@ export class ProviderManagementPanel {
     this.#selectedCategoryType = null;
     this.#selectedProductId = null;
     this.#element = null;
+    this.#sortColumn = null;
+    this.#sortDirection = null;
   }
 
   get element() {
@@ -131,6 +135,9 @@ export class ProviderManagementPanel {
   #render() {
     const toolbar = this.#createToolbar();
 
+    // Apply sorting to data
+    const sortedProviders = this.#applySorting(this.#providers);
+
     this.#table = new CatalogTable({
       columns: [
         { key: 'name', label: 'Produktgeber' },
@@ -160,13 +167,68 @@ export class ProviderManagementPanel {
               : createElement('span', { className: 'badge badge-muted' }, ['Inaktiv']),
         },
       ],
-      data: this.#providers,
+      data: sortedProviders,
+      sortColumn: this.#sortColumn,
+      sortDirection: this.#sortDirection,
+      onSort: (column, direction) => this.#handleSort(column, direction),
       onEdit: (provider) => this.#handleEditProvider(provider),
       onDelete: (provider) => this.#handleDeleteProvider(provider),
       emptyMessage: 'Keine Produktgeber vorhanden. Wählen Sie ein Produkt und erstellen Sie den ersten Produktgeber.',
     });
 
     return createElement('div', { className: 'catalog-panel' }, [toolbar, this.#table.element]);
+  }
+
+  #applySorting(providers) {
+    if (!this.#sortColumn || !this.#sortDirection) {
+      return providers;
+    }
+
+    const direction = this.#sortDirection === 'asc' ? 1 : -1;
+
+    return [...providers].sort((a, b) => {
+      const valueA = this.#getSortValue(a, this.#sortColumn);
+      const valueB = this.#getSortValue(b, this.#sortColumn);
+
+      if (valueA === null || valueA === undefined) return 1;
+      if (valueB === null || valueB === undefined) return -1;
+
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        return valueA.localeCompare(valueB, 'de') * direction;
+      }
+
+      if (typeof valueA === 'boolean' && typeof valueB === 'boolean') {
+        return (valueA === valueB ? 0 : valueA ? -1 : 1) * direction;
+      }
+
+      if (valueA < valueB) return -1 * direction;
+      if (valueA > valueB) return 1 * direction;
+      return 0;
+    });
+  }
+
+  #getSortValue(provider, columnKey) {
+    switch (columnKey) {
+      case 'name':
+        return provider.name?.toLowerCase() || '';
+      case 'productName':
+        const product = this.#products.find((p) => p.id === provider.productId);
+        return product?.name?.toLowerCase() || provider.productId?.toLowerCase() || '';
+      case 'categoryType':
+        const prod = this.#products.find((p) => p.id === provider.productId);
+        const category = this.#categories.find((c) => c.type === prod?.categoryType);
+        return category?.displayName?.toLowerCase() || prod?.categoryType?.toLowerCase() || '';
+      case 'status':
+        return provider.isActive;
+      default:
+        return '';
+    }
+  }
+
+  #handleSort(column, direction) {
+    this.#sortColumn = column;
+    this.#sortDirection = direction;
+    this.#updateTable();
   }
 
   #createToolbar() {
@@ -289,7 +351,8 @@ export class ProviderManagementPanel {
 
   #updateTable() {
     if (this.#table && typeof this.#table.update === 'function') {
-      this.#table.update(this.#providers);
+      const sortedProviders = this.#applySorting(this.#providers);
+      this.#table.update(sortedProviders, this.#sortColumn, this.#sortDirection);
     } else {
       // Fallback: full UI update if table reference is lost
       console.warn('⚠ Table reference lost, performing full UI update');

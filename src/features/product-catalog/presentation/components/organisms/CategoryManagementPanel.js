@@ -14,11 +14,15 @@ export class CategoryManagementPanel {
   #table;
   #categories;
   #unsubscribe;
+  #sortColumn;
+  #sortDirection;
 
   constructor(props = {}) {
     this.#catalogService = props.catalogService;
     this.#categories = [];
     this.#element = null;
+    this.#sortColumn = null;
+    this.#sortDirection = null;
   }
 
   get element() {
@@ -58,6 +62,9 @@ export class CategoryManagementPanel {
   #render() {
     const toolbar = this.#createToolbar();
 
+    // Apply sorting to data
+    const sortedCategories = this.#applySorting(this.#categories);
+
     this.#table = new CatalogTable({
       columns: [
         { key: 'displayName', label: 'Anzeigename' },
@@ -84,13 +91,67 @@ export class CategoryManagementPanel {
               : createElement('span', { className: 'badge badge-muted' }, ['Inaktiv']),
         },
       ],
-      data: this.#categories,
+      data: sortedCategories,
+      sortColumn: this.#sortColumn,
+      sortDirection: this.#sortDirection,
+      onSort: (column, direction) => this.#handleSort(column, direction),
       onEdit: (category) => this.#handleEditCategory(category),
       onDelete: (category) => this.#handleDeleteCategory(category),
       emptyMessage: 'Keine Kategorien vorhanden. Erstellen Sie die erste Kategorie.',
     });
 
     return createElement('div', { className: 'catalog-panel' }, [toolbar, this.#table.element]);
+  }
+
+  #applySorting(categories) {
+    if (!this.#sortColumn || !this.#sortDirection) {
+      return categories;
+    }
+
+    const direction = this.#sortDirection === 'asc' ? 1 : -1;
+
+    return [...categories].sort((a, b) => {
+      const valueA = this.#getSortValue(a, this.#sortColumn);
+      const valueB = this.#getSortValue(b, this.#sortColumn);
+
+      if (valueA === null || valueA === undefined) return 1;
+      if (valueB === null || valueB === undefined) return -1;
+
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        return valueA.localeCompare(valueB, 'de') * direction;
+      }
+
+      if (typeof valueA === 'boolean' && typeof valueB === 'boolean') {
+        return (valueA === valueB ? 0 : valueA ? -1 : 1) * direction;
+      }
+
+      if (valueA < valueB) return -1 * direction;
+      if (valueA > valueB) return 1 * direction;
+      return 0;
+    });
+  }
+
+  #getSortValue(category, columnKey) {
+    switch (columnKey) {
+      case 'displayName':
+        return category.displayName?.toLowerCase() || '';
+      case 'type':
+        return category.type?.toLowerCase() || '';
+      case 'provisionType':
+        return category.provisionType?.type?.toLowerCase() || '';
+      case 'requiresPropertyAddress':
+        return category.requiresPropertyAddress;
+      case 'status':
+        return category.isActive;
+      default:
+        return '';
+    }
+  }
+
+  #handleSort(column, direction) {
+    this.#sortColumn = column;
+    this.#sortDirection = direction;
+    this.#updateTable();
   }
 
   #createToolbar() {
@@ -108,7 +169,8 @@ export class CategoryManagementPanel {
 
   #updateTable() {
     if (this.#table && typeof this.#table.update === 'function') {
-      this.#table.update(this.#categories);
+      const sortedCategories = this.#applySorting(this.#categories);
+      this.#table.update(sortedCategories, this.#sortColumn, this.#sortDirection);
     } else {
       console.warn('⚠ Table reference lost, recreating panel');
       const newElement = this.#render();
