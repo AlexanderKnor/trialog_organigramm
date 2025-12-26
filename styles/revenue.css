@@ -3240,3 +3240,77 @@
     transform: translateY(0);
   }
 }
+
+/* ========================================
+   VAT (UMSATZSTEUER) STYLES
+   ======================================== */
+
+/* VAT Checkbox in AddRevenueDialog */
+.vat-checkbox-wrapper {
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin: 0.5rem 0;
+}
+
+.vat-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.vat-checkbox-input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.vat-checkbox-text {
+  font-size: 0.9375rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.vat-checkbox-wrapper:hover {
+  background: #f1f5f9;
+}
+
+/* VAT Amount Display in Tables */
+.revenue-amount-with-vat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
+}
+
+.revenue-net {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.revenue-gross {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.revenue-amount-with-vat .amount-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.revenue-amount-with-vat .currency-value {
+  font-variant-numeric: tabular-nums;
+}

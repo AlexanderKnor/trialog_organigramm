@@ -1125,9 +1125,7 @@ createElement('svg', {
       createElement('td', {}, [entry.originalEntry.customerName]),
       createElement('td', {}, [entry.originalEntry.category.displayName]),
       createElement('td', {}, [entry.originalEntry.product.name]),
-      createElement('td', {}, [
-        this.#formatCurrency(entry.originalEntry.provisionAmount),
-      ]),
+      this.#renderCompanyRevenueAmountCell(entry.originalEntry),
       createElement('td', {}, [
         createElement('span', { className: 'provision-badge company-provision' }, [
           this.#formatCurrency(entry.companyProvisionAmount),
@@ -1286,6 +1284,33 @@ createElement('svg', {
     menu.classList.remove('open');
   }
 
+  #renderCompanyRevenueAmountCell(entry) {
+    if (entry.hasVAT) {
+      // Show Netto + Brutto for accounting
+      return createElement('td', { className: 'text-right' }, [
+        createElement('div', { className: 'revenue-amount-with-vat' }, [
+          createElement('div', { className: 'revenue-net' }, [
+            createElement('span', { className: 'amount-label' }, ['Netto: ']),
+            createElement('span', { className: 'currency-value' }, [
+              this.#formatCurrency(entry.netAmount),
+            ]),
+          ]),
+          createElement('div', { className: 'revenue-gross' }, [
+            createElement('span', { className: 'amount-label' }, ['Brutto: ']),
+            createElement('span', { className: 'currency-value' }, [
+              this.#formatCurrency(entry.grossAmount),
+            ]),
+          ]),
+        ]),
+      ]);
+    } else {
+      // Show only amount (no VAT)
+      return createElement('td', { className: 'text-right' }, [
+        this.#formatCurrency(entry.provisionAmount),
+      ]);
+    }
+  }
+
   #formatCurrency(amount) {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -1294,13 +1319,28 @@ createElement('svg', {
   }
 
   #renderHierarchicalRow(entry) {
+    const revenueCell = entry.originalEntry.hasVAT
+      ? createElement('td', { className: 'text-right' }, [
+          createElement('div', { className: 'revenue-amount-with-vat' }, [
+            createElement('div', { className: 'revenue-net' }, [
+              createElement('span', { className: 'amount-label' }, ['Netto: ']),
+              this.#formatCurrency(entry.originalEntry.netAmount),
+            ]),
+            createElement('div', { className: 'revenue-gross' }, [
+              createElement('span', { className: 'amount-label' }, ['Brutto: ']),
+              this.#formatCurrency(entry.originalEntry.grossAmount),
+            ]),
+          ]),
+        ])
+      : createElement('td', { className: 'text-right' }, [
+          this.#formatCurrency(entry.originalEntry.provisionAmount),
+        ]);
+
     return createElement('tr', {}, [
       createElement('td', {}, [entry.owner.name]),
       createElement('td', {}, [entry.originalEntry.customerName]),
       createElement('td', {}, [entry.originalEntry.category.displayName]),
-      createElement('td', { className: 'text-right' }, [
-        `${entry.originalEntry.provisionAmount.toFixed(2)} EUR`,
-      ]),
+      revenueCell,
       createElement('td', { className: 'text-right' }, [
         `${entry.ownerProvisionPercentage.toFixed(1)}%`,
       ]),
@@ -1325,15 +1365,30 @@ createElement('svg', {
     // Format date
     const dateStr = this.#formatDate(entry.entryDate);
 
+    const revenueCell = entry.hasVAT
+      ? createElement('td', { className: 'text-right' }, [
+          createElement('div', { className: 'revenue-amount-with-vat' }, [
+            createElement('div', { className: 'revenue-net' }, [
+              createElement('span', { className: 'amount-label' }, ['Netto: ']),
+              this.#formatCurrency(entry.netAmount),
+            ]),
+            createElement('div', { className: 'revenue-gross' }, [
+              createElement('span', { className: 'amount-label' }, ['Brutto: ']),
+              this.#formatCurrency(entry.grossAmount),
+            ]),
+          ]),
+        ])
+      : createElement('td', { className: 'text-right' }, [
+          this.#formatCurrency(entry.provisionAmount),
+        ]);
+
     return createElement('tr', {}, [
       createElement('td', {}, [dateStr]),
       createElement('td', {}, [ownerName]),
       createElement('td', {}, [entry.customerName]),
       createElement('td', {}, [entry.category.displayName]),
       createElement('td', {}, [entry.product.name]),
-      createElement('td', { className: 'text-right' }, [
-        `${entry.provisionAmount.toFixed(2)} EUR`,
-      ]),
+      revenueCell,
       createElement('td', { className: 'text-right' }, [
         `${tipProviderPercent.toFixed(1)}%`,
       ]),

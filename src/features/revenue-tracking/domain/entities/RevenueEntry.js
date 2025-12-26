@@ -36,6 +36,8 @@ export class RevenueEntry {
   #tipProviderName;
   #tipProviderProvisionPercentage;
   #tipProviderProvisionSnapshot;
+  #hasVAT;
+  #vatRate;
 
   constructor({
     id = null,
@@ -62,6 +64,8 @@ export class RevenueEntry {
     tipProviderName = null,
     tipProviderProvisionPercentage = null,
     tipProviderProvisionSnapshot = null,
+    hasVAT = false,
+    vatRate = 19,
   }) {
     this.#id = id || generateUUID();
     this.#employeeId = employeeId;
@@ -107,6 +111,27 @@ export class RevenueEntry {
     this.#tipProviderName = tipProviderName;
     this.#tipProviderProvisionPercentage = this.#validateProvisionPercentage(tipProviderProvisionPercentage);
     this.#tipProviderProvisionSnapshot = tipProviderProvisionSnapshot;
+
+    // VAT (Umsatzsteuer) - Net/Gross calculation
+    this.#hasVAT = Boolean(hasVAT);
+    this.#vatRate = this.#validateVATRate(vatRate);
+  }
+
+  #validateVATRate(rate) {
+    if (rate === null || rate === undefined) {
+      return 19; // Default German VAT rate
+    }
+
+    const num = parseFloat(rate);
+    if (isNaN(num)) {
+      throw new ValidationError('VAT rate must be a number', 'vatRate');
+    }
+
+    if (num < 0 || num > 100) {
+      throw new ValidationError('VAT rate must be between 0 and 100', 'vatRate');
+    }
+
+    return num;
   }
 
   #validateTipProvider(tipProviderId, employeeId, tipProviderProvision) {
@@ -257,6 +282,32 @@ export class RevenueEntry {
     return Math.max(0, this.#ownerProvisionSnapshot - tipProviderDeduction);
   }
 
+  get hasVAT() {
+    return this.#hasVAT;
+  }
+
+  get vatRate() {
+    return this.#vatRate;
+  }
+
+  get netAmount() {
+    return this.#provisionAmount;
+  }
+
+  get vatAmount() {
+    if (!this.#hasVAT) {
+      return 0;
+    }
+    return this.#provisionAmount * (this.#vatRate / 100);
+  }
+
+  get grossAmount() {
+    if (!this.#hasVAT) {
+      return this.#provisionAmount;
+    }
+    return this.#provisionAmount + this.vatAmount;
+  }
+
   get requiresPropertyAddress() {
     return ProductProvider.requiresFreeTextProvider(this.#category.type);
   }
@@ -360,6 +411,13 @@ export class RevenueEntry {
     if (updates.tipProviderProvisionSnapshot !== undefined) {
       this.#tipProviderProvisionSnapshot = updates.tipProviderProvisionSnapshot;
     }
+    // VAT fields
+    if (updates.hasVAT !== undefined) {
+      this.#hasVAT = Boolean(updates.hasVAT);
+    }
+    if (updates.vatRate !== undefined) {
+      this.#vatRate = this.#validateVATRate(updates.vatRate);
+    }
 
     this.#updatedAt = new Date();
 
@@ -394,6 +452,9 @@ export class RevenueEntry {
       tipProviderName: this.#tipProviderName,
       tipProviderProvisionPercentage: this.#tipProviderProvisionPercentage,
       tipProviderProvisionSnapshot: this.#tipProviderProvisionSnapshot,
+      // VAT (Umsatzsteuer)
+      hasVAT: this.#hasVAT,
+      vatRate: this.#vatRate,
     };
   }
 
@@ -427,6 +488,9 @@ export class RevenueEntry {
       tipProviderName: json.tipProviderName ?? null,
       tipProviderProvisionPercentage: json.tipProviderProvisionPercentage ?? null,
       tipProviderProvisionSnapshot: json.tipProviderProvisionSnapshot ?? null,
+      // VAT (default: false, 19%)
+      hasVAT: json.hasVAT ?? false,
+      vatRate: json.vatRate ?? 19,
     });
   }
 }

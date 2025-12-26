@@ -35,6 +35,7 @@ export class AddRevenueDialog {
   #propertyAddressInput;
   #contractNumberInput;
   #provisionAmountInput;
+  #vatCheckbox;
   #notesInput;
   #tipProviderSelect;
   #tipProviderProvisionInput;
@@ -148,6 +149,11 @@ export class AddRevenueDialog {
     } else {
       this.#tipProviderProvisionInput.setDisabled(true);
     }
+
+    // Set VAT checkbox
+    if (this.#entry.hasVAT !== undefined) {
+      this.#vatCheckbox.checked = this.#entry.hasVAT;
+    }
   }
 
   #render() {
@@ -222,10 +228,18 @@ export class AddRevenueDialog {
 
     // Provision amount
     this.#provisionAmountInput = new Input({
-      label: 'Umsatz (EUR)',
+      label: 'Umsatz Netto (EUR)',
       placeholder: '0.00',
       type: 'number',
       required: true,
+    });
+
+    // VAT Checkbox
+    this.#vatCheckbox = createElement('input', {
+      type: 'checkbox',
+      id: 'revenue-vat-checkbox',
+      className: 'vat-checkbox-input',
+      onchange: (e) => this.#onVATChange(e.target.checked),
     });
 
     // Notes
@@ -319,6 +333,16 @@ export class AddRevenueDialog {
       ]),
     ]);
 
+    // VAT checkbox row
+    const vatCheckboxWrapper = createElement('div', { className: 'vat-checkbox-wrapper' }, [
+      createElement('label', { className: 'vat-checkbox-label', htmlFor: 'revenue-vat-checkbox' }, [
+        this.#vatCheckbox,
+        createElement('span', { className: 'vat-checkbox-text' }, [
+          'Umsatzsteuer (19%) - Bruttowert wird berechnet und angezeigt',
+        ]),
+      ]),
+    ]);
+
     // Tip Provider row (Tippgeber)
     const tipProviderWrapper = createElement('div', { className: 'input-wrapper' }, [
       createElement('label', { className: 'input-label' }, ['Tippgeber (optional)']),
@@ -361,6 +385,7 @@ export class AddRevenueDialog {
         cityRow,
         selectionRow,
         dateAndContractRow,
+        vatCheckboxWrapper,
         tipProviderRow,
         this.#notesInput.element,
       ]),
@@ -569,6 +594,24 @@ export class AddRevenueDialog {
       providerWrapper.classList.remove('hidden');
       propertyAddressWrapper.classList.add('hidden');
     }
+
+    // Set default VAT checkbox based on category (only in create mode)
+    if (!this.#isEditMode) {
+      const shouldHaveVAT = this.#shouldCategoryHaveVATByDefault(categoryType);
+      this.#vatCheckbox.checked = shouldHaveVAT;
+    }
+  }
+
+  #shouldCategoryHaveVATByDefault(categoryType) {
+    // Real estate categories typically have VAT
+    const vatCategories = ['realEstate', 'propertyManagement'];
+    return vatCategories.includes(categoryType);
+  }
+
+  #onVATChange(isChecked) {
+    // Visual feedback could be added here if needed
+    // For now, just store the state (will be read in #handleSave)
+    console.log('VAT checkbox changed:', isChecked);
   }
 
   async #updateProductOptions(categoryType) {
@@ -784,6 +827,9 @@ export class AddRevenueDialog {
       contractNumber,
       provisionAmount,
       notes: this.#notesInput.value.trim(),
+      // VAT (Umsatzsteuer)
+      hasVAT: this.#vatCheckbox.checked,
+      vatRate: 19, // Fixed German VAT rate
       // Tip Provider (Tippgeber)
       tipProviderId,
       tipProviderName,

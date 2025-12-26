@@ -232,7 +232,7 @@ export class RevenueTable {
       this.#renderTextCell(entry.product.name, 120),
       this.#renderTextCell(entry.providerDisplayText, 150),
       this.#renderTextCell(entry.contractNumber, 120),
-      this.#renderCurrencyCell(entry.provisionAmount),
+      this.#renderRevenueAmountCell(entry),
       this.#renderPercentCell(employeeProvision),
       this.#renderProvisionCell(provisionAmount),
       this.#renderTipProviderCell(entry),
@@ -284,6 +284,35 @@ export class RevenueTable {
     return createElement('td', { className: 'revenue-table-td' }, [
       category.displayName,
     ]);
+  }
+
+  #renderRevenueAmountCell(entry) {
+    if (entry.hasVAT) {
+      // Show Netto + Brutto
+      return createElement('td', { className: 'revenue-table-td text-right' }, [
+        createElement('div', { className: 'revenue-amount-with-vat' }, [
+          createElement('div', { className: 'revenue-net' }, [
+            createElement('span', { className: 'amount-label' }, ['Netto: ']),
+            createElement('span', { className: 'currency-value' }, [
+              this.#formatCurrency(entry.netAmount),
+            ]),
+          ]),
+          createElement('div', { className: 'revenue-gross' }, [
+            createElement('span', { className: 'amount-label' }, ['Brutto: ']),
+            createElement('span', { className: 'currency-value' }, [
+              this.#formatCurrency(entry.grossAmount),
+            ]),
+          ]),
+        ]),
+      ]);
+    } else {
+      // Show only Netto (legacy display)
+      return createElement('td', { className: 'revenue-table-td text-right' }, [
+        createElement('span', { className: 'currency-value' }, [
+          this.#formatCurrency(entry.provisionAmount),
+        ]),
+      ]);
+    }
   }
 
   #renderCurrencyCell(amount) {
