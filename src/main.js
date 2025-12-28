@@ -29,6 +29,7 @@ import { FirebaseUserRepository } from './features/user-profile/data/repositorie
 import { ProfileService } from './features/user-profile/domain/services/ProfileService.js';
 import { ProfileScreen } from './features/user-profile/presentation/screens/ProfileScreen.js';
 import { APP_CONFIG } from './core/config/index.js';
+import { Logger } from './core/utils/logger.js';
 
 class Application {
   #hierarchyService;
@@ -51,19 +52,19 @@ class Application {
 
   async initialize() {
     if (this.#isInitialized) {
-      console.warn('Application already initialized');
+      Logger.warn('Application already initialized');
       return;
     }
 
-    console.log(`Initializing ${APP_CONFIG.name} v${APP_CONFIG.version}`);
+    Logger.log(`Initializing ${APP_CONFIG.name} v${APP_CONFIG.version}`);
 
     try {
       // Initialize Firebase first
-      console.log('Initializing Firebase...');
+      Logger.log('Initializing Firebase...');
       await firebaseApp.initialize();
 
       // Initialize AuthService
-      console.log('Initializing Auth Service...');
+      Logger.log('Initializing Auth Service...');
       await authService.initialize();
 
       // Wait for first auth state change before showing UI
@@ -86,7 +87,7 @@ class Application {
       // Fallback: if auth doesn't resolve in 3 seconds, show login screen
       setTimeout(() => {
         if (!authResolved) {
-          console.warn('⚠ Auth state timeout - showing login screen');
+          Logger.warn('⚠ Auth state timeout - showing login screen');
           authResolved = true;
           this.#removeLoadingScreen();
           this.#showLoginScreen();
@@ -94,9 +95,9 @@ class Application {
       }, 3000);
 
       this.#isInitialized = true;
-      console.log('✅ Application initialized - waiting for auth state');
+      Logger.log('✅ Application initialized - waiting for auth state');
     } catch (error) {
-      console.error('❌ Failed to initialize application:', error);
+      Logger.error('❌ Failed to initialize application:', error);
       this.#removeLoadingScreen();
       this.#showLoginScreen();
     }
@@ -110,7 +111,7 @@ class Application {
   }
 
   async #initializeServices() {
-    console.log('Initializing services with Firebase...');
+    Logger.log('Initializing services with Firebase...');
 
     // Setup Hierarchy Service with Firebase
     const firestoreDataSource = new FirestoreDataSource();
@@ -121,13 +122,13 @@ class Application {
     const trackingRepository = new LocalTrackingRepository(localDataSource);
 
     this.#hierarchyService = new HierarchyService(hierarchyRepository, trackingRepository, authService);
-    console.log('✓ Hierarchy Service initialized with Firebase + AuthService');
+    Logger.log('✓ Hierarchy Service initialized with Firebase + AuthService');
 
     // Setup Revenue Service with Firebase
     const revenueFirestoreDataSource = new RevenueFirestoreDataSource();
     const revenueRepository = new FirebaseRevenueRepository(revenueFirestoreDataSource);
     this.#revenueService = new RevenueService(revenueRepository, this.#hierarchyService);
-    console.log('✓ Revenue Service initialized with Firebase');
+    Logger.log('✓ Revenue Service initialized with Firebase');
 
     // Setup routing
     this.#setupRouting();
@@ -142,7 +143,7 @@ class Application {
       return;
     }
 
-    console.log('✓ User authenticated:', user.email, `(${user.role})`);
+    Logger.log('✓ User authenticated:', user.email, `(${user.role})`);
 
     // Hide login screen if showing
     if (this.#loginScreen) {
@@ -155,7 +156,7 @@ class Application {
 
     // Initialize services WITHOUT routing (to prevent premature tree rendering)
     if (!this.#hierarchyService) {
-      console.log('Initializing services with Firebase...');
+      Logger.log('Initializing services with Firebase...');
 
       // Initialize Hierarchy Service
       const firestoreDataSource = new FirestoreDataSource();
@@ -164,29 +165,29 @@ class Application {
       const trackingRepository = new LocalTrackingRepository(localDataSource);
 
       this.#hierarchyService = new HierarchyService(hierarchyRepository, trackingRepository, authService);
-      console.log('✓ Hierarchy Service initialized with Firebase + AuthService');
+      Logger.log('✓ Hierarchy Service initialized with Firebase + AuthService');
 
       // Initialize Catalog Service (needed by RevenueService)
       const catalogFirestoreDataSource = new CatalogFirestoreDataSource();
       const catalogRepository = new FirebaseCatalogRepository(catalogFirestoreDataSource);
       this.#catalogService = new CatalogService(catalogRepository, null); // RevenueService will be set later
-      console.log('✓ Catalog Service initialized with Firebase');
+      Logger.log('✓ Catalog Service initialized with Firebase');
 
       // Initialize Revenue Service (with CatalogService dependency)
       const revenueFirestoreDataSource = new RevenueFirestoreDataSource();
       const revenueRepository = new FirebaseRevenueRepository(revenueFirestoreDataSource);
       this.#revenueService = new RevenueService(revenueRepository, this.#hierarchyService, this.#catalogService);
-      console.log('✓ Revenue Service initialized with Firebase + CatalogService');
+      Logger.log('✓ Revenue Service initialized with Firebase + CatalogService');
 
       // Link CatalogService back to RevenueService (circular dependency resolution)
       this.#catalogService.setRevenueService(this.#revenueService);
-      console.log('✓ Circular dependency resolved: CatalogService ↔ RevenueService');
+      Logger.log('✓ Circular dependency resolved: CatalogService ↔ RevenueService');
 
       // Initialize Profile Service
       const userFirestoreDataSource = new UserFirestoreDataSource();
       const userRepository = new FirebaseUserRepository(userFirestoreDataSource);
       this.#profileService = new ProfileService(userRepository);
-      console.log('✓ Profile Service initialized with Firebase');
+      Logger.log('✓ Profile Service initialized with Firebase');
 
       // Run automatic migration (only on first app start)
       await this.#runCatalogMigration();
@@ -215,24 +216,24 @@ class Application {
 
   async #runCatalogMigration() {
     try {
-      console.log('🔄 Checking catalog migration status...');
+      Logger.log('🔄 Checking catalog migration status...');
 
       const migrationService = new MigrationService(this.#catalogService);
       const result = await migrationService.migrateHardcodedData();
 
       if (result.skipped) {
-        console.log('✓ Catalog migration skipped:', result.reason);
+        Logger.log('✓ Catalog migration skipped:', result.reason);
       } else if (result.success) {
-        console.log(`✅ Catalog migration completed:`, {
+        Logger.log(`✅ Catalog migration completed:`, {
           categories: result.categories,
           products: result.products,
           providers: result.providers,
         });
       } else {
-        console.error('❌ Catalog migration failed:', result.error);
+        Logger.error('❌ Catalog migration failed:', result.error);
       }
     } catch (error) {
-      console.error('Failed to run catalog migration:', error);
+      Logger.error('Failed to run catalog migration:', error);
       // Don't block app initialization if migration fails
     }
   }
@@ -243,41 +244,41 @@ class Application {
       const allTrees = await this.#hierarchyService.getAllTrees();
 
       if (allTrees.length === 0) {
-        console.warn('⚠ No trees found in database');
+        Logger.warn('⚠ No trees found in database');
         return;
       }
 
       const tree = allTrees[0]; // Get the first (and should be only) tree
       const normalizedEmail = email.toLowerCase().trim();
 
-      console.log(`🔍 Searching for node with email: ${email} in tree: ${tree.id}`);
+      Logger.log(`🔍 Searching for node with email: ${email} in tree: ${tree.id}`);
 
       const allNodes = tree.getAllNodes();
-      console.log(`  Searching: ${tree.name} (${allNodes.length} nodes)`);
+      Logger.log(`  Searching: ${tree.name} (${allNodes.length} nodes)`);
 
       for (const node of allNodes) {
         const nodeEmail = node.email?.toLowerCase().trim();
 
         if (nodeEmail) {
-          console.log(`    Node: ${node.name}, Email: ${node.email}`);
+          Logger.log(`    Node: ${node.name}, Email: ${node.email}`);
         }
 
         if (nodeEmail && nodeEmail === normalizedEmail) {
           authService.setLinkedNodeId(node.id);
-          console.log(`✓ Employee linked to node: ${node.name} (${node.id})`);
+          Logger.log(`✓ Employee linked to node: ${node.name} (${node.id})`);
           return;
         }
       }
 
-      console.warn(`⚠ No node found with email: ${email}`);
-      console.warn('💡 Stelle sicher, dass die Email im Mitarbeiter-Profil exakt mit der Login-Email übereinstimmt.');
+      Logger.warn(`⚠ No node found with email: ${email}`);
+      Logger.warn('💡 Stelle sicher, dass die Email im Mitarbeiter-Profil exakt mit der Login-Email übereinstimmt.');
     } catch (error) {
-      console.error('Failed to link employee to node:', error);
+      Logger.error('Failed to link employee to node:', error);
     }
   }
 
   #onUserLoggedOut() {
-    console.log('User logged out');
+    Logger.log('User logged out');
     this.#isAuthenticated = false;
 
     // Clean up current screen
@@ -338,7 +339,7 @@ class Application {
     // SECURITY GUARD: Verify user still exists before showing ANY screen
     const isUserValid = await authService.verifyCurrentUser();
     if (!isUserValid) {
-      console.error('🔒 SECURITY: User verification failed - redirecting to login');
+      Logger.error('🔒 SECURITY: User verification failed - redirecting to login');
       this.#hideTransitionOverlay();
       return; // Auth state change will trigger login screen
     }
@@ -401,7 +402,7 @@ class Application {
   async #showHierarchyScreen() {
     // SECURITY: Verify authentication before showing screen
     if (!authService.isAuthenticated()) {
-      console.error('🔒 SECURITY: Not authenticated - redirecting to login');
+      Logger.error('🔒 SECURITY: Not authenticated - redirecting to login');
       window.location.hash = '';
       return;
     }
@@ -413,7 +414,7 @@ class Application {
   async #showRevenueScreen(employeeId, treeId) {
     // SECURITY: Verify authentication before showing screen
     if (!authService.isAuthenticated()) {
-      console.error('🔒 SECURITY: Not authenticated - redirecting to login');
+      Logger.error('🔒 SECURITY: Not authenticated - redirecting to login');
       window.location.hash = '';
       return;
     }
@@ -422,7 +423,7 @@ class Application {
     if (authService.isEmployee()) {
       const linkedNodeId = authService.getLinkedNodeId();
       if (linkedNodeId !== employeeId) {
-        console.error('🔒 SECURITY: Employee attempting to access other employee revenue - denied');
+        Logger.error('🔒 SECURITY: Employee attempting to access other employee revenue - denied');
         window.location.hash = '';
         return;
       }
@@ -441,7 +442,7 @@ class Application {
   async #showCatalogScreen() {
     // SECURITY: Only admins can access catalog management
     if (!authService.isAdmin()) {
-      console.error('🔒 SECURITY: Access denied - Catalog management requires admin role');
+      Logger.error('🔒 SECURITY: Access denied - Catalog management requires admin role');
       window.location.hash = '';
       return;
     }
@@ -453,7 +454,7 @@ class Application {
   async #showProfileScreen() {
     // SECURITY: Verify authentication
     if (!authService.isAuthenticated()) {
-      console.error('🔒 SECURITY: Not authenticated - redirecting to login');
+      Logger.error('🔒 SECURITY: Not authenticated - redirecting to login');
       window.location.hash = '';
       return;
     }
@@ -487,7 +488,7 @@ const app = new Application();
 
 document.addEventListener('DOMContentLoaded', () => {
   app.initialize().catch((error) => {
-    console.error('Failed to initialize application:', error);
+    Logger.error('Failed to initialize application:', error);
   });
 });
 

@@ -6,6 +6,7 @@
 import { firebaseApp } from '../../../../core/firebase/index.js';
 import { authService } from '../../../../core/auth/index.js';
 import { FIRESTORE_COLLECTIONS } from '../../../../core/config/firebase.config.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class FirestoreDataSource {
   #firestore = null;
@@ -47,10 +48,10 @@ export class FirestoreDataSource {
         updatedAt: serverTimestamp(),
       });
 
-      console.log(`✓ Saved to Firestore: ${key}`);
+      Logger.log(`✓ Saved to Firestore: ${key}`);
       return true;
     } catch (error) {
-      console.error('Firestore save error:', error);
+      Logger.error('Firestore save error:', error);
       throw error;
     }
   }
@@ -64,13 +65,13 @@ export class FirestoreDataSource {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        console.log(`✓ Loaded from Firestore: ${key}`);
+        Logger.log(`✓ Loaded from Firestore: ${key}`);
         return docSnap.data();
       }
 
       return null;
     } catch (error) {
-      console.error('Firestore load error:', error);
+      Logger.error('Firestore load error:', error);
       return null;
     }
   }
@@ -83,10 +84,10 @@ export class FirestoreDataSource {
       const docRef = doc(firestore, FIRESTORE_COLLECTIONS.HIERARCHY_TREES, key.replace('hierarchy_tree_', ''));
       await deleteDoc(docRef);
 
-      console.log(`✓ Removed from Firestore: ${key}`);
+      Logger.log(`✓ Removed from Firestore: ${key}`);
       return true;
     } catch (error) {
-      console.error('Firestore remove error:', error);
+      Logger.error('Firestore remove error:', error);
       throw error;
     }
   }
@@ -101,7 +102,7 @@ export class FirestoreDataSource {
 
       return docSnap.exists();
     } catch (error) {
-      console.error('Firestore exists error:', error);
+      Logger.error('Firestore exists error:', error);
       return false;
     }
   }
@@ -119,10 +120,10 @@ export class FirestoreDataSource {
 
       const keys = querySnapshot.docs.map((doc) => `hierarchy_tree_${doc.id}`);
 
-      console.log(`✓ Found ${keys.length} trees in Firestore`);
+      Logger.log(`✓ Found ${keys.length} trees in Firestore`);
       return keys;
     } catch (error) {
-      console.error('Firestore getAllKeys error:', error);
+      Logger.error('Firestore getAllKeys error:', error);
       return [];
     }
   }
@@ -133,9 +134,9 @@ export class FirestoreDataSource {
       const deletePromises = keys.map((key) => this.remove(key));
       await Promise.all(deletePromises);
 
-      console.log(`✓ Cleared ${keys.length} trees from Firestore`);
+      Logger.log(`✓ Cleared ${keys.length} trees from Firestore`);
     } catch (error) {
-      console.error('Firestore clear error:', error);
+      Logger.error('Firestore clear error:', error);
     }
   }
 

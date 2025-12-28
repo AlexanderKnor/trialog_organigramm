@@ -12,6 +12,7 @@ import {
 } from '../../../domain/value-objects/RevenueCategory.js';
 import { Product } from '../../../domain/value-objects/Product.js';
 import { ProductProvider } from '../../../domain/value-objects/ProductProvider.js';
+import { Logger } from './../../../../../core/utils/logger.js';
 
 export class AddRevenueDialog {
   #element;
@@ -99,7 +100,7 @@ export class AddRevenueDialog {
       this.#isLoading = false;
       this.#transitionToLoadedState();
     } catch (error) {
-      console.error('Failed to initialize form:', error);
+      Logger.error('Failed to initialize form:', error);
       // Still show form even if some data failed to load
       this.#isLoading = false;
       this.#transitionToLoadedState();
@@ -113,20 +114,20 @@ export class AddRevenueDialog {
     const skeletonContainer = this.#element.querySelector('.dialog-skeleton-container');
     const formContainer = this.#element.querySelector('.dialog-form-container');
 
-    console.log('Transitioning to loaded state:', {
+    Logger.log('Transitioning to loaded state:', {
       skeleton: !!skeletonContainer,
       form: !!formContainer,
     });
 
     if (!skeletonContainer || !formContainer) {
-      console.error('Could not find containers - showing form immediately');
+      Logger.error('Could not find containers - showing form immediately');
 
       // Fallback: Find and show form container directly
       const allFormContainers = this.#element.querySelectorAll('.dialog-form-container');
       if (allFormContainers.length > 0) {
         allFormContainers[0].style.display = 'block';
         allFormContainers[0].style.opacity = '1';
-        console.log('Fallback: Showing form container');
+        Logger.log('Fallback: Showing form container');
       }
       return;
     }
@@ -148,7 +149,7 @@ export class AddRevenueDialog {
       // CRITICAL: Trigger animations AFTER display: block
       requestAnimationFrame(() => {
         formContainer.classList.add('animate-in');
-        console.log('Form container shown and animating');
+        Logger.log('Form container shown and animating');
       });
     }, 250);
   }
@@ -347,7 +348,7 @@ export class AddRevenueDialog {
    * Render real form (hidden initially)
    */
   #renderRealForm() {
-    console.log('🎨 Rendering real form...');
+    Logger.log('🎨 Rendering real form...');
 
     // Date field with today's date as default
     const today = new Date().toISOString().split('T')[0];
@@ -365,7 +366,7 @@ export class AddRevenueDialog {
       required: true,
     });
 
-    console.log('✓ Input fields created:', {
+    Logger.log('✓ Input fields created:', {
       dateInput: !!this.#dateInput,
       customerNameInput: !!this.#customerNameInput,
     });
@@ -588,7 +589,7 @@ export class AddRevenueDialog {
       actions,
     ]);
 
-    console.log('✓ Form container created with', formContainer.children.length, 'children');
+    Logger.log('✓ Form container created with', formContainer.children.length, 'children');
 
     return formContainer;
   }
@@ -605,7 +606,7 @@ export class AddRevenueDialog {
       this.#categories = await this.#revenueService.getAvailableCategories();
       this.#populateCategorySelect();
     } catch (error) {
-      console.error('Failed to load categories:', error);
+      Logger.error('Failed to load categories:', error);
       // Fallback to hardcoded
       this.#categories = RevenueCategory.allCategories;
       this.#populateCategorySelect();
@@ -625,7 +626,7 @@ export class AddRevenueDialog {
 
   async #loadEmployeesForTipProvider() {
     if (!this.#hierarchyService) {
-      console.warn('HierarchyService not available - tip provider dropdown will be empty');
+      Logger.warn('HierarchyService not available - tip provider dropdown will be empty');
       this.#allEmployees = [];
       this.#populateTipProviderSelect();
       return;
@@ -636,7 +637,7 @@ export class AddRevenueDialog {
       const allTrees = await this.#hierarchyService.getAllTrees();
 
       if (allTrees.length === 0) {
-        console.warn('No trees found - tip provider dropdown will be empty');
+        Logger.warn('No trees found - tip provider dropdown will be empty');
         this.#allEmployees = [];
         this.#populateTipProviderSelect();
         return;
@@ -670,7 +671,7 @@ export class AddRevenueDialog {
 
       this.#populateTipProviderSelect();
     } catch (error) {
-      console.error('Failed to load employees for tip provider:', error);
+      Logger.error('Failed to load employees for tip provider:', error);
       this.#allEmployees = [];
       this.#populateTipProviderSelect();
     }
@@ -737,7 +738,7 @@ export class AddRevenueDialog {
           return 0;
       }
     } catch (error) {
-      console.error('Failed to get owner provision:', error);
+      Logger.error('Failed to get owner provision:', error);
       return 100; // Fallback
     }
   }
@@ -761,7 +762,7 @@ export class AddRevenueDialog {
       try {
         this.#currentCategoryData = await this.#revenueService.getCategoryByType(categoryType);
       } catch (error) {
-        console.warn('Failed to load category data:', error);
+        Logger.warn('Failed to load category data:', error);
         this.#currentCategoryData = null;
       }
     }
@@ -800,7 +801,7 @@ export class AddRevenueDialog {
   #onVATChange(isChecked) {
     // Visual feedback could be added here if needed
     // For now, just store the state (will be read in #handleSave)
-    console.log('VAT checkbox changed:', isChecked);
+    Logger.log('VAT checkbox changed:', isChecked);
   }
 
   async #updateProductOptions(categoryType) {
@@ -811,7 +812,7 @@ export class AddRevenueDialog {
       try {
         products = await this.#revenueService.getProductsForCategory(categoryType);
       } catch (error) {
-        console.warn('Failed to load products from catalog, using fallback:', error);
+        Logger.warn('Failed to load products from catalog, using fallback:', error);
         products = Product.getProductsForCategory(categoryType);
       }
     } else {
@@ -865,7 +866,7 @@ export class AddRevenueDialog {
       try {
         providers = await this.#revenueService.getProvidersForProduct(productId);
       } catch (error) {
-        console.error('Failed to load providers for product:', error);
+        Logger.error('Failed to load providers for product:', error);
         await this.#updateProviderOptions(this.#formData.category);
         return;
       }
@@ -895,7 +896,7 @@ export class AddRevenueDialog {
       try {
         providers = await this.#revenueService.getProvidersForCategory(categoryType);
       } catch (error) {
-        console.warn('Failed to load providers from catalog, using fallback:', error);
+        Logger.warn('Failed to load providers from catalog, using fallback:', error);
         providers = ProductProvider.getProvidersForCategory(categoryType);
       }
     } else {

@@ -5,6 +5,7 @@
 
 import { createElement, clearElement } from '../../../../core/utils/index.js';
 import { authService } from '../../../../core/auth/index.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 // Authorized admin emails for self-registration
 const AUTHORIZED_ADMIN_EMAILS = [
@@ -122,7 +123,7 @@ export class LoginScreen {
 
       if (result.success) {
         // Success - onLoginSuccess callback will be triggered by auth state change
-        console.log('Login successful');
+        Logger.log('Login successful');
       } else {
         // Show error
         errorDiv.textContent = result.error;
@@ -329,7 +330,7 @@ export class LoginScreen {
       errorDiv.textContent = '⚠️ Unbefugter Zugriff verweigert.\n\nNur autorisierte Administrator-E-Mail-Adressen dürfen sich registrieren.\n\nMitarbeiter-Accounts werden ausschließlich durch Administratoren im Organigramm angelegt.';
       errorDiv.style.display = 'block';
       errorDiv.style.whiteSpace = 'pre-line';
-      console.warn(`🚫 Unauthorized registration attempt: ${email}`);
+      Logger.warn(`🚫 Unauthorized registration attempt: ${email}`);
       return;
     }
 
@@ -342,7 +343,7 @@ export class LoginScreen {
 
       if (result.success) {
         // Success - will be logged in automatically
-        console.log('✓ Admin registration successful:', email);
+        Logger.log('✓ Admin registration successful:', email);
       } else {
         // Show error
         errorDiv.textContent = result.error;

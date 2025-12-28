@@ -7,6 +7,7 @@ import { firebaseApp } from '../../../../core/firebase/index.js';
 import { authService } from '../../../../core/auth/index.js';
 import { FIRESTORE_COLLECTIONS } from '../../../../core/config/firebase.config.js';
 import { StorageError } from '../../../../core/errors/index.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class RevenueFirestoreDataSource {
   #firestore = null;
@@ -44,7 +45,7 @@ export class RevenueFirestoreDataSource {
       const querySnapshot = await getDocs(q);
       const entries = querySnapshot.docs.map((doc) => doc.data());
 
-      console.log(`✓ Loaded ${entries.length} revenue entries for employee ${employeeId}`);
+      Logger.log(`✓ Loaded ${entries.length} revenue entries for employee ${employeeId}`);
       return entries;
     } catch (error) {
       throw new StorageError(`Failed to load revenue entries: ${error.message}`);
@@ -82,7 +83,7 @@ export class RevenueFirestoreDataSource {
 
       const entries = querySnapshot.docs.map((doc) => doc.data());
 
-      console.log(`✓ Loaded ${entries.length} total revenue entries (all users)`);
+      Logger.log(`✓ Loaded ${entries.length} total revenue entries (all users)`);
       return entries;
     } catch (error) {
       throw new StorageError(`Failed to load all revenue entries: ${error.message}`);
@@ -103,7 +104,7 @@ export class RevenueFirestoreDataSource {
         updatedAt: serverTimestamp(),
       });
 
-      console.log(`✓ Revenue entry saved: ${entryData.id}`);
+      Logger.log(`✓ Revenue entry saved: ${entryData.id}`);
       return entryData;
     } catch (error) {
       throw new StorageError(`Failed to save revenue entry: ${error.message}`);
@@ -122,7 +123,7 @@ export class RevenueFirestoreDataSource {
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      console.log(`✓ Revenue entry updated: ${entryData.id}`);
+      Logger.log(`✓ Revenue entry updated: ${entryData.id}`);
       return entryData;
     } catch (error) {
       throw new StorageError(`Failed to update revenue entry: ${error.message}`);
@@ -137,7 +138,7 @@ export class RevenueFirestoreDataSource {
       const docRef = doc(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES, entryId);
       await deleteDoc(docRef);
 
-      console.log(`✓ Revenue entry deleted: ${entryId}`);
+      Logger.log(`✓ Revenue entry deleted: ${entryId}`);
     } catch (error) {
       throw new StorageError(`Failed to delete revenue entry: ${error.message}`);
     }
@@ -227,7 +228,7 @@ export class RevenueFirestoreDataSource {
       const querySnapshot = await getDocs(q);
       const entries = querySnapshot.docs.map((doc) => doc.data());
 
-      console.log(`✓ Loaded ${entries.length} revenue entries where ${tipProviderId} is tip provider`);
+      Logger.log(`✓ Loaded ${entries.length} revenue entries where ${tipProviderId} is tip provider`);
       return entries;
     } catch (error) {
       throw new StorageError(`Failed to load revenue entries by tip provider: ${error.message}`);

@@ -17,6 +17,7 @@ import { Button } from '../../../hierarchy-tracking/presentation/components/atom
 import { Icon } from '../../../hierarchy-tracking/presentation/components/atoms/Icon.js';
 import { SearchBar } from '../../../hierarchy-tracking/presentation/components/molecules/SearchBar.js';
 import { REVENUE_STATUS_TYPES } from '../../domain/value-objects/RevenueStatus.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 const MONTH_NAMES = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -84,7 +85,7 @@ export class RevenueScreen {
     } else {
       // 🔒 SECURITY: If employee and node not found - force logout
       if (authService.isEmployee()) {
-        console.error('🔒 SECURITY: Employee node not found in RevenueScreen - forcing logout');
+        Logger.error('🔒 SECURITY: Employee node not found in RevenueScreen - forcing logout');
         await authService.logout();
         window.location.hash = '';
         return;
@@ -550,7 +551,7 @@ createElement('svg', {
         this.#state.setTipProviderEntries(tipProviderEntries);
       }
     } catch (error) {
-      console.error('Failed to load revenue data:', error);
+      Logger.error('Failed to load revenue data:', error);
       this.#state.setError(error.message);
     } finally {
       this.#state.setLoading(false);
@@ -1181,7 +1182,7 @@ createElement('svg', {
       // Reload data to reflect changes
       await this.#loadData();
     } catch (error) {
-      console.error('Failed to update status:', error);
+      Logger.error('Failed to update status:', error);
     }
   }
 
@@ -1449,7 +1450,7 @@ createElement('svg', {
           this.#state.addEntry(entry);
           dialog.remove();
         } catch (error) {
-          console.error('Failed to add entry:', error);
+          Logger.error('Failed to add entry:', error);
         }
       },
       onCancel: () => dialog.remove(),
@@ -1470,7 +1471,7 @@ createElement('svg', {
           this.#state.updateEntry(updatedEntry);
           dialog.remove();
         } catch (error) {
-          console.error('Failed to update entry:', error);
+          Logger.error('Failed to update entry:', error);
         }
       },
       onCancel: () => dialog.remove(),
@@ -1490,7 +1491,7 @@ createElement('svg', {
       await this.#revenueService.deleteEntry(entry.id);
       this.#state.removeEntry(entry.id);
     } catch (error) {
-      console.error('Failed to delete entry:', error);
+      Logger.error('Failed to delete entry:', error);
     }
   }
 
@@ -1523,13 +1524,13 @@ createElement('svg', {
     try {
       this.#unsubscribeRevenueListener = await this.#revenueService.subscribeToRevenueUpdates(
         async () => {
-          console.log('🔄 Real-time revenue update - reloading data');
+          Logger.log('🔄 Real-time revenue update - reloading data');
           await this.#loadData();
         }
       );
-      console.log('✓ Real-time revenue listener active for RevenueScreen');
+      Logger.log('✓ Real-time revenue listener active for RevenueScreen');
     } catch (error) {
-      console.warn('⚠ Failed to set up revenue listener:', error);
+      Logger.warn('⚠ Failed to set up revenue listener:', error);
     }
   }
 
@@ -1539,7 +1540,7 @@ createElement('svg', {
     }
     if (this.#unsubscribeRevenueListener) {
       this.#unsubscribeRevenueListener();
-      console.log('✓ Real-time revenue listener unsubscribed');
+      Logger.log('✓ Real-time revenue listener unsubscribed');
     }
     clearElement(this.#container);
   }

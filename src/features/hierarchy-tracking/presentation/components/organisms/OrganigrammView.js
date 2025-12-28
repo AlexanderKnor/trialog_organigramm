@@ -7,6 +7,7 @@ import { createElement, clearElement } from '../../../../../core/utils/index.js'
 import { OrgCard } from '../molecules/OrgCard.js';
 import { Icon } from '../atoms/Icon.js';
 import { Button } from '../atoms/Button.js';
+import { Logger } from './../../../../../core/utils/logger.js';
 
 export class OrganigrammView {
   #element;
@@ -57,7 +58,7 @@ export class OrganigrammView {
     clearElement(this.#container);
     this.#cardMap.clear();
 
-    console.log('🎨 Rendering organigramm, tree:', this.#tree?.name);
+    Logger.log('🎨 Rendering organigramm, tree:', this.#tree?.name);
 
     if (!this.#tree || !this.#tree.root) {
       this.#renderEmptyState();
@@ -68,7 +69,7 @@ export class OrganigrammView {
     const isEmployeeView = this.#tree._isEmployeeView || false;
     const employeeRootId = this.#tree._employeeRootNodeId;
 
-    console.log(`  Is Employee View: ${isEmployeeView}, Employee Root: ${employeeRootId}`);
+    Logger.log(`  Is Employee View: ${isEmployeeView}, Employee Root: ${employeeRootId}`);
 
     const orgChart = createElement('div', { className: 'org-chart' });
 
@@ -78,14 +79,14 @@ export class OrganigrammView {
 
       // Debug: Check revenue data
       const revenueData = this.#props.revenueDataMap?.get(employeeRootId);
-      console.log(`  Employee node revenue data:`, JSON.stringify(revenueData));
-      console.log(`  RevenueDataMap keys:`, Array.from(this.#props.revenueDataMap?.keys() || []));
-      console.log(`  Looking for nodeId: ${employeeRootId}`);
+      Logger.log(`  Employee node revenue data:`, JSON.stringify(revenueData));
+      Logger.log(`  RevenueDataMap keys:`, Array.from(this.#props.revenueDataMap?.keys() || []));
+      Logger.log(`  Looking for nodeId: ${employeeRootId}`);
 
       // Render employee's own card with special styling (like a mini-root)
       const employeeRootElement = this.#renderEmployeeOwnCard(employeeNode);
       orgChart.appendChild(employeeRootElement);
-      console.log('✓ Rendered employee view starting from:', employeeNode.name);
+      Logger.log('✓ Rendered employee view starting from:', employeeNode.name);
     } else {
       // Admin view: render full tree with Geschäftsführer
       const root = this.#tree.root;
@@ -210,7 +211,7 @@ export class OrganigrammView {
     const children = this.#tree.getChildren(node.id);
     const hasChildren = children && children.length > 0;
 
-    console.log(`Rendering node: ${node.name}, level: ${level}, children: ${children?.length || 0}`);
+    Logger.log(`Rendering node: ${node.name}, level: ${level}, children: ${children?.length || 0}`);
 
     // Create the node wrapper
     const nodeWrapper = createElement('div', {
@@ -220,7 +221,7 @@ export class OrganigrammView {
 
     // Create card
     const revenueData = this.#props.revenueDataMap.get(node.id) || null;
-    console.log(`    Card for ${node.name}: revenueData =`, JSON.stringify(revenueData));
+    Logger.log(`    Card for ${node.name}: revenueData =`, JSON.stringify(revenueData));
 
     const card = new OrgCard(node, {
       level,
@@ -235,7 +236,7 @@ export class OrganigrammView {
 
     // Render children if any
     if (hasChildren) {
-      console.log(`  → Rendering ${children.length} children for ${node.name}`);
+      Logger.log(`  → Rendering ${children.length} children for ${node.name}`);
       children.sort((a, b) => a.order - b.order);
 
       // Add vertical connector line down from this node
@@ -257,7 +258,7 @@ export class OrganigrammView {
       });
 
       children.forEach((child, index) => {
-        console.log(`     Child ${index}: ${child.name}`);
+        Logger.log(`     Child ${index}: ${child.name}`);
         const childNode = this.#renderChildNode(child, level + 1, index, children.length);
         childrenContainer.appendChild(childNode);
       });
@@ -360,7 +361,7 @@ export class OrganigrammView {
     // Find the root card element in the DOM
     const rootCardWrapper = this.#element.querySelector(`[data-node-id="${this.#tree.root.id}"]`);
     if (!rootCardWrapper) {
-      console.warn('⚠ Root card not found for centering');
+      Logger.warn('⚠ Root card not found for centering');
       return;
     }
 
@@ -369,7 +370,7 @@ export class OrganigrammView {
     const scrollContainer = this.#element;
 
     if (!headerLogo) {
-      console.warn('⚠ Header logo not found, centering on viewport');
+      Logger.warn('⚠ Header logo not found, centering on viewport');
       this.#centerOnViewport(rootCardWrapper, scrollContainer);
       return;
     }
@@ -391,7 +392,7 @@ export class OrganigrammView {
     // Apply scroll position (instant)
     scrollContainer.scrollLeft = Math.max(0, targetScrollLeft);
 
-    console.log('✓ Root card centered under logo:', {
+    Logger.log('✓ Root card centered under logo:', {
       logoCenterInViewport,
       cardCenterInViewport,
       offset,

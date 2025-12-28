@@ -8,6 +8,7 @@ import { HierarchyNode } from '../entities/HierarchyNode.js';
 import { TrackingEvent } from '../entities/TrackingEvent.js';
 import { NODE_TYPES } from '../value-objects/NodeType.js';
 import { APP_CONFIG } from '../../../../core/config/app.config.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class HierarchyService {
   #hierarchyRepository;
@@ -25,7 +26,7 @@ export class HierarchyService {
     const allTrees = await this.getAllTrees();
 
     if (allTrees.length > 0) {
-      console.warn('⚠ Organization tree already exists - returning existing tree');
+      Logger.warn('⚠ Organization tree already exists - returning existing tree');
       return allTrees[0];
     }
 
@@ -35,7 +36,7 @@ export class HierarchyService {
     await this.#hierarchyRepository.save(tree);
     await this.#trackingRepository.save(TrackingEvent.treeCreated(tree.id, name));
 
-    console.log('✓ Created THE organization tree:', tree.id);
+    Logger.log('✓ Created THE organization tree:', tree.id);
     return tree;
   }
 
@@ -84,12 +85,12 @@ export class HierarchyService {
         );
 
         if (result.success) {
-          console.log(`✓ Firebase account created for ${nodeData.name}`);
+          Logger.log(`✓ Firebase account created for ${nodeData.name}`);
         } else {
-          console.warn(`⚠ Failed to create account: ${result.error}`);
+          Logger.warn(`⚠ Failed to create account: ${result.error}`);
         }
       } catch (error) {
-        console.warn(`⚠ Account creation failed for ${nodeData.email}:`, error.message);
+        Logger.warn(`⚠ Account creation failed for ${nodeData.email}:`, error.message);
         // Don't fail the node creation if account creation fails
       }
     }
@@ -152,7 +153,7 @@ export class HierarchyService {
     }
 
     // Fallback: no-op for repositories without real-time support
-    console.warn('Repository does not support real-time subscriptions');
+    Logger.warn('Repository does not support real-time subscriptions');
     return Promise.resolve(() => {});
   }
 

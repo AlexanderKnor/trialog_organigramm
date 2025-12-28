@@ -7,6 +7,7 @@ import { Button } from '../../../../hierarchy-tracking/presentation/components/a
 import { CatalogTable } from '../molecules/CatalogTable.js';
 import { ProductEditor } from '../molecules/ProductEditor.js';
 import { createElement } from '../../../../../core/utils/dom.js';
+import { Logger } from './../../../../../core/utils/logger.js';
 
 export class ProductManagementPanel {
   #catalogService;
@@ -50,7 +51,7 @@ export class ProductManagementPanel {
       }
       // Don't update UI here - will be created in #render() with the data
     } catch (error) {
-      console.error('Failed to load data:', error);
+      Logger.error('Failed to load data:', error);
       throw error; // Re-throw so initialize() knows it failed
     }
   }
@@ -71,7 +72,7 @@ export class ProductManagementPanel {
         this.#updateTable();
       }
     } catch (error) {
-      console.error('Failed to load products:', error);
+      Logger.error('Failed to load products:', error);
       this.#products = [];
       if (this.#table) {
         this.#updateTable();
@@ -82,13 +83,13 @@ export class ProductManagementPanel {
   async #setupRealTimeListener() {
     try {
       this.#unsubscribe = await this.#catalogService.subscribeToCatalogUpdates((data) => {
-        console.log('🔄 Catalog updated (real-time)');
+        Logger.log('🔄 Catalog updated (real-time)');
         this.#categories = data.categories || [];
         this.#products = (data.products || []).filter((p) => p.categoryType === this.#selectedCategoryType);
         this.#updateUI();
       });
     } catch (error) {
-      console.error('Failed to setup real-time listener:', error);
+      Logger.error('Failed to setup real-time listener:', error);
       this.#unsubscribe = null;
     }
   }
@@ -255,7 +256,7 @@ export class ProductManagementPanel {
       this.#table.update(sortedProducts, this.#sortColumn, this.#sortDirection);
     } else {
       // Fallback: full UI update if table reference is lost
-      console.warn('⚠ Table reference lost, performing full UI update');
+      Logger.warn('⚠ Table reference lost, performing full UI update');
       this.#updateUI();
     }
   }
@@ -281,10 +282,10 @@ export class ProductManagementPanel {
 
     try {
       await this.#catalogService.deleteProduct(product.id);
-      console.log('✓ Product deleted successfully');
+      Logger.log('✓ Product deleted successfully');
       await this.#loadProducts();
     } catch (error) {
-      console.error('Failed to delete product:', error);
+      Logger.error('Failed to delete product:', error);
       alert(`Fehler beim Löschen:\n\n${error.message}`);
     }
   }
@@ -302,16 +303,16 @@ export class ProductManagementPanel {
 
           if (product) {
             await this.#catalogService.updateProduct(product.id, data);
-            console.log('✓ Product updated');
+            Logger.log('✓ Product updated');
           } else {
             await this.#catalogService.createProduct(data.categoryType, data);
-            console.log('✓ Product created');
+            Logger.log('✓ Product created');
           }
 
           this.#closeDialog(dialog);
           await this.#loadProducts();
         } catch (error) {
-          console.error('Failed to save product:', error);
+          Logger.error('Failed to save product:', error);
           loadingOverlay?.remove();
           alert(`Fehler beim Speichern:\n\n${error.message}`);
         }
@@ -358,7 +359,7 @@ export class ProductManagementPanel {
   }
 
   #showError(message) {
-    console.error(message);
+    Logger.error(message);
   }
 
   destroy() {

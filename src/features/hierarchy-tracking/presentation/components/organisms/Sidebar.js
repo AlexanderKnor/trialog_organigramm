@@ -11,6 +11,7 @@ import { NodeEditor } from '../molecules/NodeEditor.js';
 import { AddEmployeeWizard } from '../../../../user-profile/presentation/components/AddEmployeeWizard.js';
 import { NODE_TYPES } from '../../../domain/value-objects/NodeType.js';
 import { formatDate } from '../../../../../core/utils/index.js';
+import { Logger } from './../../../../../core/utils/logger.js';
 
 export class Sidebar {
   #element;
@@ -344,21 +345,21 @@ export class Sidebar {
       try {
         if (this.#node.email) {
           userProfile = await this.#profileService.getUserByEmail(this.#node.email);
-          console.log('✓ User profile loaded for edit:', userProfile);
-          console.log('  First Name:', userProfile?.firstName);
-          console.log('  Last Name:', userProfile?.lastName);
-          console.log('  Address:', userProfile?.address);
-          console.log('  Full User Object:', JSON.stringify(userProfile, null, 2));
+          Logger.log('✓ User profile loaded for edit:', userProfile);
+          Logger.log('  First Name:', userProfile?.firstName);
+          Logger.log('  Last Name:', userProfile?.lastName);
+          Logger.log('  Address:', userProfile?.address);
+          Logger.log('  Full User Object:', JSON.stringify(userProfile, null, 2));
         }
       } catch (error) {
-        console.error('Failed to load user profile:', error);
+        Logger.error('Failed to load user profile:', error);
       }
 
       // Clear loading state
       clearElement(this.#contentContainer);
 
       // Show Wizard
-      console.log('Creating wizard with user:', userProfile);
+      Logger.log('Creating wizard with user:', userProfile);
       const wizard = new AddEmployeeWizard({
         existingUser: userProfile,
         existingNode: this.#node,
@@ -393,16 +394,16 @@ export class Sidebar {
             this.#hideLoadingOverlay();
 
             this.setMode('view');
-            console.log('✓ Employee updated, organigramm refreshed!');
+            Logger.log('✓ Employee updated, organigramm refreshed!');
           } catch (error) {
             this.#hideLoadingOverlay();
-            console.error('Failed to update employee:', error);
+            Logger.error('Failed to update employee:', error);
             alert('Fehler: ' + error.message);
           }
         },
         onDelete: async (deleteData) => {
           try {
-            console.log('🗑️ Deleting employee account completely...');
+            Logger.log('🗑️ Deleting employee account completely...');
 
             // Close wizard & sidebar first
             wizard.remove();
@@ -414,18 +415,18 @@ export class Sidebar {
             await this.#deleteEmployeeCompletely(deleteData);
 
             // Wait for real-time update EVENT (event-driven!)
-            console.log('⏳ Waiting for organigramm to update after delete...');
+            Logger.log('⏳ Waiting for organigramm to update after delete...');
             await this.#waitForTreeUpdate();
-            console.log('✓ Tree update received, hiding overlay...');
+            Logger.log('✓ Tree update received, hiding overlay...');
 
             // Small delay for smooth transition
             await new Promise(resolve => setTimeout(resolve, 300));
             this.#hideLoadingOverlay();
 
-            console.log('✓ Employee deleted, organigramm updated!');
+            Logger.log('✓ Employee deleted, organigramm updated!');
           } catch (error) {
             this.#hideLoadingOverlay();
-            console.error('Failed to delete employee:', error);
+            Logger.error('Failed to delete employee:', error);
             alert('Fehler beim Löschen: ' + error.message);
           }
         },
@@ -459,11 +460,11 @@ export class Sidebar {
   async #deleteEmployeeCompletely(deleteData) {
     const { uid, email, nodeId } = deleteData;
 
-    console.log('Step 1: Delete all revenue entries...');
+    Logger.log('Step 1: Delete all revenue entries...');
     // Note: Revenue deletion should be handled by HierarchyScreen
     // via onDelete callback which cascades to all related data
 
-    console.log('Step 2: Delete via Cloud Function...');
+    Logger.log('Step 2: Delete via Cloud Function...');
     // Call Cloud Function to delete Firebase Auth User + Firestore User Document
     const { getFunctions, httpsCallable } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js');
     const { firebaseApp } = await import('../../../../../core/firebase/index.js');
@@ -473,34 +474,34 @@ export class Sidebar {
 
     try {
       await deleteEmployee({ email });
-      console.log('✓ Firebase Auth User + User Document deleted');
+      Logger.log('✓ Firebase Auth User + User Document deleted');
     } catch (error) {
-      console.warn('Cloud function delete failed (may not exist):', error);
+      Logger.warn('Cloud function delete failed (may not exist):', error);
       // Continue with client-side deletion
     }
 
-    console.log('Step 3: Delete HierarchyNode...');
-    console.log('  Calling onDelete with nodeId:', nodeId, 'skipConfirmation: TRUE');
+    Logger.log('Step 3: Delete HierarchyNode...');
+    Logger.log('  Calling onDelete with nodeId:', nodeId, 'skipConfirmation: TRUE');
     // Call HierarchyScreen onDelete to handle node + revenue entries deletion
     // Pass true to skip confirmation (already confirmed in Wizard)
     if (this.#props.onDelete) {
       this.#props.onDelete(nodeId, true);
-      console.log('  onDelete callback executed with skipConfirmation=true');
+      Logger.log('  onDelete callback executed with skipConfirmation=true');
     } else {
-      console.error('  ❌ onDelete callback is null!');
+      Logger.error('  ❌ onDelete callback is null!');
     }
 
-    console.log('✅ Employee account deleted completely');
+    Logger.log('✅ Employee account deleted completely');
   }
 
   #waitForTreeUpdate(timeoutMs = 5000) {
     return new Promise((resolve) => {
-      console.log('⏳ Sidebar waiting for tree update...');
+      Logger.log('⏳ Sidebar waiting for tree update...');
 
       // This is a simplified version - relies on HierarchyScreen's update mechanism
       // Fallback to timeout since Sidebar doesn't have direct access to tree listener
       const timeout = setTimeout(() => {
-        console.log('✓ Timeout fallback - assuming update complete');
+        Logger.log('✓ Timeout fallback - assuming update complete');
         resolve();
       }, timeoutMs);
     });

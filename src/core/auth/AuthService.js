@@ -5,6 +5,7 @@
 
 import { firebaseApp } from '../firebase/FirebaseApp.js';
 import { FIRESTORE_COLLECTIONS } from '../config/firebase.config.js';
+import { Logger } from '../utils/logger.js';
 
 // DEPRECATED: Admin emails - only used as fallback during migration
 // TODO: Remove after all users have been migrated to Custom Claims
@@ -73,7 +74,7 @@ export class AuthService {
       }
     });
 
-    console.log('✓ AuthService initialized');
+    Logger.log('✓ AuthService initialized');
   }
 
   async #handleAuthStateChange(user) {
@@ -82,7 +83,7 @@ export class AuthService {
       // This catches deleted users who still have valid tokens
       const userDocExists = await this.#verifyUserDocument(user.uid);
       if (!userDocExists) {
-        console.warn('⚠️ SECURITY: User document not found - forcing logout');
+        Logger.warn('⚠️ SECURITY: User document not found - forcing logout');
         await this.signOut(this.#auth);
         return;
       }
@@ -101,7 +102,7 @@ export class AuthService {
 
       // SECURITY: Validate role is valid
       if (role !== USER_ROLES.ADMIN && role !== USER_ROLES.EMPLOYEE) {
-        console.error('🔒 SECURITY: Invalid user role detected - forcing logout');
+        Logger.error('🔒 SECURITY: Invalid user role detected - forcing logout');
         await this.signOut(this.#auth);
         return;
       }
@@ -116,9 +117,9 @@ export class AuthService {
       this.#userRole = role;
       this.#linkedNodeId = linkedNodeId;
 
-      console.log(`✓ User authenticated: ${user.email} (${role})`);
+      Logger.log(`✓ User authenticated: ${user.email} (${role})`);
       if (linkedNodeId) {
-        console.log(`✓ Linked to node: ${linkedNodeId}`);
+        Logger.log(`✓ Linked to node: ${linkedNodeId}`);
       }
 
       // Notify listeners
@@ -127,7 +128,7 @@ export class AuthService {
         linkedNodeId,
       });
     } catch (error) {
-      console.error('Error handling auth state change:', error);
+      Logger.error('Error handling auth state change:', error);
     }
   }
 
@@ -138,7 +139,7 @@ export class AuthService {
       const userDoc = await getDoc(userRef);
       return userDoc.exists();
     } catch (error) {
-      console.error('Error verifying user document:', error);
+      Logger.error('Error verifying user document:', error);
       return false; // Fail closed - if we can't verify, assume not exists
     }
   }
@@ -147,7 +148,7 @@ export class AuthService {
     // PRIORITY 1: Check Custom Claims (set by Cloud Functions)
     const token = await user.getIdTokenResult();
     if (token.claims.role) {
-      console.log(`✓ Role from Custom Claims: ${token.claims.role}`);
+      Logger.log(`✓ Role from Custom Claims: ${token.claims.role}`);
       return token.claims.role;
     }
 
@@ -157,11 +158,11 @@ export class AuthService {
       const userRef = doc(this.#firestore, FIRESTORE_COLLECTIONS.USERS, user.uid);
       const userDoc = await getDoc(userRef);
       if (userDoc.exists() && userDoc.data().role) {
-        console.log(`✓ Role from Firestore: ${userDoc.data().role}`);
+        Logger.log(`✓ Role from Firestore: ${userDoc.data().role}`);
         return userDoc.data().role;
       }
     } catch (error) {
-      console.warn('Could not fetch role from Firestore:', error);
+      Logger.warn('Could not fetch role from Firestore:', error);
     }
 
     // PRIORITY 3: Fallback to email check (for migration/new users)
@@ -172,8 +173,8 @@ export class AuthService {
       ? USER_ROLES.ADMIN
       : USER_ROLES.EMPLOYEE;
 
-    console.warn(`⚠️ Using fallback role determination for ${user.email}: ${role}`);
-    console.warn('⚠️ Please run migration to set Custom Claims for all users');
+    Logger.warn(`⚠️ Using fallback role determination for ${user.email}: ${role}`);
+    Logger.warn('⚠️ Please run migration to set Custom Claims for all users');
 
     return role;
   }
@@ -200,7 +201,7 @@ export class AuthService {
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
         });
-        console.log('✓ User document created');
+        Logger.log('✓ User document created');
       } else {
         // Update last login and role (in case it changed)
         await setDoc(
@@ -211,10 +212,10 @@ export class AuthService {
           },
           { merge: true }
         );
-        console.log('✓ User document updated');
+        Logger.log('✓ User document updated');
       }
     } catch (error) {
-      console.error('Failed to update user document:', error);
+      Logger.error('Failed to update user document:', error);
     }
   }
 
@@ -286,7 +287,7 @@ export class AuthService {
         password,
       });
 
-      console.log(`✓ Employee account created via Cloud Function: ${email}`);
+      Logger.log(`✓ Employee account created via Cloud Function: ${email}`);
 
       return {
         success: true,
@@ -294,7 +295,7 @@ export class AuthService {
         message: result.data.message,
       };
     } catch (error) {
-      console.error('Failed to create employee account:', error);
+      Logger.error('Failed to create employee account:', error);
 
       let errorMessage = 'Ein Fehler ist aufgetreten';
       if (error.code === 'functions/invalid-argument') {
@@ -329,14 +330,14 @@ async deleteEmployeeAccount(email) {
 
       const result = await deleteEmployee({ email });
 
-      console.log(`✓ Employee account deleted via Cloud Function: ${email}`);
+      Logger.log(`✓ Employee account deleted via Cloud Function: ${email}`);
 
       return {
         success: true,
         message: result.data.message,
       };
     } catch (error) {
-      console.error('Failed to delete employee account:', error);
+      Logger.error('Failed to delete employee account:', error);
 
       let errorMessage = 'Fehler beim Löschen des Accounts';
       if (error.code === 'functions/permission-denied') {
@@ -406,7 +407,7 @@ async deleteEmployeeAccount(email) {
 
     const exists = await this.#verifyUserDocument(this.#currentUser.uid);
     if (!exists) {
-      console.error('🔒 SECURITY VIOLATION: Current user document deleted - forcing logout');
+      Logger.error('🔒 SECURITY VIOLATION: Current user document deleted - forcing logout');
       await this.logout();
       return false;
     }

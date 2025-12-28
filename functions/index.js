@@ -4,6 +4,7 @@
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { logger } = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -12,6 +13,17 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 initializeApp();
 const auth = getAuth();
 const db = getFirestore();
+
+/**
+ * Logger wrapper for Cloud Functions
+ * Uses Firebase Functions logger for proper Cloud Logging integration
+ */
+const Logger = {
+  log: (...args) => logger.log(...args),
+  info: (...args) => logger.info(...args),
+  warn: (...args) => logger.warn(...args),
+  error: (...args) => logger.error(...args),
+};
 
 // Admin email list - used only for initial setup and migration
 // DEPRECATED: Use Custom Claims instead (see setUserRole function)
@@ -89,7 +101,7 @@ exports.createEmployeeAccount = onCall(async (request) => {
       createdBy: request.auth.uid, // Track who created this account
     });
 
-    console.log(`✓ Employee account created: ${email} (uid: ${userRecord.uid})`);
+    Logger.log(`✓ Employee account created: ${email} (uid: ${userRecord.uid})`);
 
     return {
       success: true,
@@ -98,7 +110,7 @@ exports.createEmployeeAccount = onCall(async (request) => {
       message: `Account erfolgreich erstellt für ${email}`,
     };
   } catch (error) {
-    console.error('Error creating employee account:', error);
+    Logger.error('Error creating employee account:', error);
 
     // Map Firebase Admin errors to user-friendly messages
     let errorMessage = 'Ein Fehler ist aufgetreten';
@@ -143,7 +155,7 @@ exports.deleteEmployeeAccount = onCall(async (request) => {
       userRecord = await auth.getUserByEmail(email);
     } catch (error) {
       if (error.code === 'auth/user-not-found') {
-        console.log(`ℹ️ No Auth account found for ${email} - skipping`);
+        Logger.log(`ℹ️ No Auth account found for ${email} - skipping`);
         return {
           success: true,
           message: 'Kein Auth-Account gefunden (bereits gelöscht oder nie erstellt)',
@@ -162,7 +174,7 @@ exports.deleteEmployeeAccount = onCall(async (request) => {
     // CRITICAL: Revoke all refresh tokens BEFORE deleting
     // This forces the user to be logged out on all devices
     await auth.revokeRefreshTokens(userRecord.uid);
-    console.log(`✓ Refresh tokens revoked for: ${email}`);
+    Logger.log(`✓ Refresh tokens revoked for: ${email}`);
 
     // Delete the user from Firebase Auth
     await auth.deleteUser(userRecord.uid);
@@ -170,7 +182,7 @@ exports.deleteEmployeeAccount = onCall(async (request) => {
     // Delete the user document from Firestore
     await db.collection('users').doc(userRecord.uid).delete();
 
-    console.log(`✓ Employee account deleted: ${email} (uid: ${userRecord.uid})`);
+    Logger.log(`✓ Employee account deleted: ${email} (uid: ${userRecord.uid})`);
 
     return {
       success: true,
@@ -179,7 +191,7 @@ exports.deleteEmployeeAccount = onCall(async (request) => {
       message: `Account erfolgreich gelöscht für ${email}`,
     };
   } catch (error) {
-    console.error('Error deleting employee account:', error);
+    Logger.error('Error deleting employee account:', error);
 
     if (error instanceof HttpsError) {
       throw error;
@@ -230,7 +242,7 @@ exports.setUserRole = onCall(async (request) => {
       roleUpdatedBy: request.auth.uid,
     });
 
-    console.log(`✓ Role updated for ${email}: ${role}`);
+    Logger.log(`✓ Role updated for ${email}: ${role}`);
 
     return {
       success: true,
@@ -240,7 +252,7 @@ exports.setUserRole = onCall(async (request) => {
       message: `Rolle erfolgreich auf "${role}" gesetzt für ${email}`,
     };
   } catch (error) {
-    console.error('Error setting user role:', error);
+    Logger.error('Error setting user role:', error);
 
     if (error.code === 'auth/user-not-found') {
       throw new HttpsError('not-found', 'Benutzer nicht gefunden');
@@ -301,7 +313,7 @@ exports.migrateUsersToCustomClaims = onCall(async (request) => {
           status: 'success',
         });
 
-        console.log(`✓ Migrated: ${user.email} → ${role}`);
+        Logger.log(`✓ Migrated: ${user.email} → ${role}`);
       } catch (error) {
         errorCount++;
         results.push({
@@ -309,11 +321,11 @@ exports.migrateUsersToCustomClaims = onCall(async (request) => {
           status: 'error',
           error: error.message,
         });
-        console.error(`✗ Failed to migrate ${user.email}:`, error);
+        Logger.error(`✗ Failed to migrate ${user.email}:`, error);
       }
     }
 
-    console.log(`Migration complete: ${updatedCount} users updated, ${errorCount} errors`);
+    Logger.log(`Migration complete: ${updatedCount} users updated, ${errorCount} errors`);
 
     return {
       success: true,
@@ -324,7 +336,7 @@ exports.migrateUsersToCustomClaims = onCall(async (request) => {
       message: `Migration abgeschlossen: ${updatedCount} Benutzer aktualisiert, ${errorCount} Fehler`,
     };
   } catch (error) {
-    console.error('Error during migration:', error);
+    Logger.error('Error during migration:', error);
     throw new HttpsError('internal', 'Fehler bei der Migration: ' + error.message);
   }
 });

@@ -4,6 +4,7 @@
  */
 
 import { FIREBASE_CONFIG, AUTH_CONFIG } from '../config/firebase.config.js';
+import { Logger } from './../../core/utils/logger.js';
 
 class FirebaseApp {
   #app = null;
@@ -27,7 +28,7 @@ class FirebaseApp {
 
       // Initialize Firebase
       this.#app = initializeApp(FIREBASE_CONFIG);
-      console.log('✓ Firebase App initialized');
+      Logger.log('✓ Firebase App initialized');
 
       // Initialize Auth
       this.#auth = getAuth(this.#app);
@@ -37,7 +38,7 @@ class FirebaseApp {
         'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'
       );
       await setPersistence(this.#auth, browserLocalPersistence);
-      console.log('✓ Firebase Auth initialized with LOCAL persistence');
+      Logger.log('✓ Firebase Auth initialized with LOCAL persistence');
 
       // Initialize Firestore
       this.#firestore = getFirestore(this.#app);
@@ -52,14 +53,14 @@ class FirebaseApp {
           await enableIndexedDbPersistence(this.#firestore, {
             cacheSizeBytes: AUTH_CONFIG.cacheSizeBytes,
           });
-          console.log('✓ Firestore offline persistence enabled');
+          Logger.log('✓ Firestore offline persistence enabled');
         } catch (err) {
           if (err.code === 'failed-precondition') {
-            console.warn('⚠ Multiple tabs open, persistence enabled in first tab only');
+            Logger.warn('⚠ Multiple tabs open, persistence enabled in first tab only');
           } else if (err.code === 'unimplemented') {
-            console.warn('⚠ Browser does not support offline persistence');
+            Logger.warn('⚠ Browser does not support offline persistence');
           } else {
-            console.error('Failed to enable persistence:', err);
+            Logger.error('Failed to enable persistence:', err);
           }
         }
       }
@@ -67,15 +68,15 @@ class FirebaseApp {
       // Initialize Analytics (optional)
       try {
         this.#analytics = getAnalytics(this.#app);
-        console.log('✓ Firebase Analytics initialized');
+        Logger.log('✓ Firebase Analytics initialized');
       } catch (err) {
-        console.warn('Analytics not initialized:', err.message);
+        Logger.warn('Analytics not initialized:', err.message);
       }
 
       this.#initialized = true;
-      console.log('✅ Firebase fully initialized');
+      Logger.log('✅ Firebase fully initialized');
     } catch (error) {
-      console.error('❌ Firebase initialization failed:', error);
+      Logger.error('❌ Firebase initialization failed:', error);
       throw error;
     }
   }

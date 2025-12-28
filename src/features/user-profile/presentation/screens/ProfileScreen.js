@@ -5,6 +5,7 @@
 
 import { createElement } from '../../../../core/utils/index.js';
 import { Button } from '../../../hierarchy-tracking/presentation/components/atoms/Button.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class ProfileScreen {
   #element;
@@ -36,11 +37,11 @@ export class ProfileScreen {
     try {
       this.#user = await this.#profileService.getUserProfile(this.#userId);
       if (!this.#user) {
-        console.warn('User profile not found, creating minimal profile');
+        Logger.warn('User profile not found, creating minimal profile');
         // User will need to complete profile
       }
     } catch (error) {
-      console.error('Failed to load user profile:', error);
+      Logger.error('Failed to load user profile:', error);
     }
   }
 
@@ -317,7 +318,7 @@ export class ProfileScreen {
   }
 
   #editSection(section) {
-    console.log(`Editing section: ${section}`);
+    Logger.log(`Editing section: ${section}`);
     // TODO: Show edit form dialog for this section
     alert(`Bearbeiten: ${section}\n\nFormular-Implementation folgt in nächster Phase.`);
   }

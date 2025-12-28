@@ -7,6 +7,7 @@ import { Button } from '../../../../hierarchy-tracking/presentation/components/a
 import { CatalogTable } from '../molecules/CatalogTable.js';
 import { ProviderEditor } from '../molecules/ProviderEditor.js';
 import { createElement } from '../../../../../core/utils/dom.js';
+import { Logger } from './../../../../../core/utils/logger.js';
 
 export class ProviderManagementPanel {
   #catalogService;
@@ -56,7 +57,7 @@ export class ProviderManagementPanel {
       }
       // Don't update UI here - will be created in #render() with the data
     } catch (error) {
-      console.error('Failed to load data:', error);
+      Logger.error('Failed to load data:', error);
       throw error; // Re-throw so initialize() knows it failed
     }
   }
@@ -84,7 +85,7 @@ export class ProviderManagementPanel {
         }
       }
     } catch (error) {
-      console.error('Failed to load products:', error);
+      Logger.error('Failed to load products:', error);
       this.#products = [];
       this.#providers = [];
       if (this.#table) {
@@ -109,7 +110,7 @@ export class ProviderManagementPanel {
         this.#updateTable();
       }
     } catch (error) {
-      console.error('Failed to load providers:', error);
+      Logger.error('Failed to load providers:', error);
       this.#providers = [];
       if (this.#table) {
         this.#updateTable();
@@ -120,14 +121,14 @@ export class ProviderManagementPanel {
   async #setupRealTimeListener() {
     try {
       this.#unsubscribe = await this.#catalogService.subscribeToCatalogUpdates((data) => {
-        console.log('🔄 Catalog updated (real-time)');
+        Logger.log('🔄 Catalog updated (real-time)');
         this.#categories = data.categories || [];
         this.#products = (data.products || []).filter((p) => p.categoryType === this.#selectedCategoryType);
         this.#providers = (data.providers || []).filter((p) => p.productId === this.#selectedProductId);
         this.#updateUI();
       });
     } catch (error) {
-      console.error('Failed to setup real-time listener:', error);
+      Logger.error('Failed to setup real-time listener:', error);
       this.#unsubscribe = null;
     }
   }
@@ -355,7 +356,7 @@ export class ProviderManagementPanel {
       this.#table.update(sortedProviders, this.#sortColumn, this.#sortDirection);
     } else {
       // Fallback: full UI update if table reference is lost
-      console.warn('⚠ Table reference lost, performing full UI update');
+      Logger.warn('⚠ Table reference lost, performing full UI update');
       this.#updateUI();
     }
   }
@@ -381,10 +382,10 @@ export class ProviderManagementPanel {
 
     try {
       await this.#catalogService.deleteProvider(provider.id);
-      console.log('✓ Provider deleted successfully');
+      Logger.log('✓ Provider deleted successfully');
       await this.#loadProviders();
     } catch (error) {
-      console.error('Failed to delete provider:', error);
+      Logger.error('Failed to delete provider:', error);
       alert(`Fehler beim Löschen:\n\n${error.message}`);
     }
   }
@@ -408,16 +409,16 @@ export class ProviderManagementPanel {
 
           if (provider) {
             await this.#catalogService.updateProvider(provider.id, data);
-            console.log('✓ Provider updated');
+            Logger.log('✓ Provider updated');
           } else {
             await this.#catalogService.createProvider(data.productId, data);
-            console.log('✓ Provider created');
+            Logger.log('✓ Provider created');
           }
 
           this.#closeDialog(dialog);
           await this.#loadProviders();
         } catch (error) {
-          console.error('Failed to save provider:', error);
+          Logger.error('Failed to save provider:', error);
           loadingOverlay?.remove();
           alert(`Fehler beim Speichern:\n\n${error.message}`);
         }
@@ -466,7 +467,7 @@ export class ProviderManagementPanel {
   }
 
   #showError(message) {
-    console.error(message);
+    Logger.error(message);
   }
 
   destroy() {

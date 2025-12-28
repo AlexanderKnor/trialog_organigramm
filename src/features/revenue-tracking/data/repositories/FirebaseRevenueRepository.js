@@ -5,6 +5,7 @@
 
 import { IRevenueRepository } from '../../domain/repositories/IRevenueRepository.js';
 import { RevenueEntry } from '../../domain/entities/RevenueEntry.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class FirebaseRevenueRepository extends IRevenueRepository {
   #dataSource;
@@ -81,15 +82,15 @@ export class FirebaseRevenueRepository extends IRevenueRepository {
         // Skip the first snapshot (initial data already loaded)
         if (isFirstSnapshot) {
           isFirstSnapshot = false;
-          console.log('✓ Revenue listener initialized (skipping initial snapshot)');
+          Logger.log('✓ Revenue listener initialized (skipping initial snapshot)');
           return;
         }
 
         const entries = snapshot.docs.map(doc => RevenueEntry.fromJSON(doc.data()));
-        console.log(`🔄 Real-time update: ${entries.length} revenue entries (remote change)`);
+        Logger.log(`🔄 Real-time update: ${entries.length} revenue entries (remote change)`);
         callback(entries);
       }, (error) => {
-        console.error('Revenue real-time listener error:', error);
+        Logger.error('Revenue real-time listener error:', error);
       });
     };
 

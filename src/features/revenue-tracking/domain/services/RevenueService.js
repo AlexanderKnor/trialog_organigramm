@@ -7,6 +7,7 @@ import { RevenueEntry } from '../entities/RevenueEntry.js';
 import { HierarchicalRevenueEntry } from '../entities/HierarchicalRevenueEntry.js';
 import { CompanyRevenueEntry } from '../entities/CompanyRevenueEntry.js';
 import { REVENUE_STATUS_TYPES } from '../value-objects/RevenueStatus.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class RevenueService {
   #revenueRepository;
@@ -209,7 +210,7 @@ export class RevenueService {
    * This ensures immutable provision calculations even if hierarchy provisions change later
    */
   async #captureProvisionSnapshots(employeeId, entryData) {
-    console.log('📸 Capturing provision snapshots for employee:', employeeId);
+    Logger.log('📸 Capturing provision snapshots for employee:', employeeId);
 
     try {
       // Get the main organization tree (use first tree if mainTreeId doesn't exist)
@@ -220,13 +221,13 @@ export class RevenueService {
         tree = await this.#hierarchyService.getTree(APP_CONFIG.mainTreeId);
       } catch (error) {
         // Fallback: Get first available tree
-        console.log('   Fallback: Using first available tree');
+        Logger.log('   Fallback: Using first available tree');
         const allTrees = await this.#hierarchyService.getAllTrees();
         tree = allTrees.length > 0 ? allTrees[0] : null;
       }
 
       if (!tree) {
-        console.warn('❌ Could not load tree for provision snapshot - entry will use dynamic calculation');
+        Logger.warn('❌ Could not load tree for provision snapshot - entry will use dynamic calculation');
         return {
           ownerProvisionSnapshot: null,
           managerProvisionSnapshot: null,
@@ -234,12 +235,12 @@ export class RevenueService {
         };
       }
 
-      console.log('   ✓ Tree loaded:', tree.name);
+      Logger.log('   ✓ Tree loaded:', tree.name);
 
       // Get owner (employee) node
       const owner = tree.getNode(employeeId);
       if (!owner) {
-        console.warn(`❌ Employee node ${employeeId} not found in tree - entry will use dynamic calculation`);
+        Logger.warn(`❌ Employee node ${employeeId} not found in tree - entry will use dynamic calculation`);
         return {
           ownerProvisionSnapshot: null,
           managerProvisionSnapshot: null,
@@ -247,23 +248,23 @@ export class RevenueService {
         };
       }
 
-      console.log('   ✓ Owner node:', owner.name);
+      Logger.log('   ✓ Owner node:', owner.name);
 
       // Get manager (parent) node - may be null for root-level employees
       const manager = owner.parentId ? tree.getNode(owner.parentId) : null;
-      console.log('   Manager:', manager ? manager.name : 'none');
+      Logger.log('   Manager:', manager ? manager.name : 'none');
 
       // Determine provision type (from entryData or infer from category)
       const provisionType = entryData.provisionType || this.#inferProvisionType(entryData.category);
-      console.log('   Provision type:', provisionType);
+      Logger.log('   Provision type:', provisionType);
 
       // Get provision rates at this point in time
       const ownerProvision = this.#getProvisionRateByType(owner, provisionType);
       const managerProvision = manager ? this.#getProvisionRateByType(manager, provisionType) : null;
 
-      console.log('   📊 Snapshot values:');
-      console.log('      Owner provision:', ownerProvision + '%');
-      console.log('      Manager provision:', managerProvision ? managerProvision + '%' : 'null');
+      Logger.log('   📊 Snapshot values:');
+      Logger.log('      Owner provision:', ownerProvision + '%');
+      Logger.log('      Manager provision:', managerProvision ? managerProvision + '%' : 'null');
 
       // Create hierarchy snapshot for audit trail
       const hierarchySnapshot = {
@@ -280,10 +281,10 @@ export class RevenueService {
         hierarchySnapshot,
       };
 
-      console.log('✅ Provision snapshots captured successfully');
+      Logger.log('✅ Provision snapshots captured successfully');
       return snapshots;
     } catch (error) {
-      console.error('❌ Failed to capture provision snapshots:', error);
+      Logger.error('❌ Failed to capture provision snapshots:', error);
       // Return null values - entry will fall back to dynamic calculation
       return {
         ownerProvisionSnapshot: null,
@@ -580,7 +581,7 @@ export class RevenueService {
       try {
         return await this.#catalogService.getAllCategories(false);
       } catch (error) {
-        console.warn('Failed to load categories from catalog, using fallback:', error);
+        Logger.warn('Failed to load categories from catalog, using fallback:', error);
       }
     }
 
@@ -598,7 +599,7 @@ export class RevenueService {
       try {
         return await this.#catalogService.getProductsByCategory(categoryType, false);
       } catch (error) {
-        console.warn('Failed to load products from catalog, using fallback:', error);
+        Logger.warn('Failed to load products from catalog, using fallback:', error);
       }
     }
 
@@ -638,7 +639,7 @@ export class RevenueService {
       try {
         return await this.#catalogService.getCategoryByType(categoryType);
       } catch (error) {
-        console.warn('Failed to load category from catalog, using fallback:', error);
+        Logger.warn('Failed to load category from catalog, using fallback:', error);
       }
     }
 
@@ -655,7 +656,7 @@ export class RevenueService {
     if (typeof this.#revenueRepository.subscribeToRevenue === 'function') {
       return this.#revenueRepository.subscribeToRevenue(callback);
     }
-    console.warn('Repository does not support real-time revenue subscriptions');
+    Logger.warn('Repository does not support real-time revenue subscriptions');
     return Promise.resolve(() => {});
   }
 }

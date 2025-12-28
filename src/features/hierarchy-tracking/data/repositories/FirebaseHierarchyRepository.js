@@ -6,6 +6,7 @@
 import { IHierarchyRepository } from '../../domain/repositories/IHierarchyRepository.js';
 import { HierarchyTree } from '../../domain/entities/HierarchyTree.js';
 import { NotFoundError } from '../../../../core/errors/index.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 const TREE_PREFIX = 'hierarchy_tree_';
 
@@ -52,7 +53,7 @@ export class FirebaseHierarchyRepository extends IHierarchyRepository {
         const tree = await this.findById(treeId);
         trees.push(tree);
       } catch (error) {
-        console.warn(`Failed to load tree from key ${key}:`, error);
+        Logger.warn(`Failed to load tree from key ${key}:`, error);
       }
     }
 
@@ -93,21 +94,21 @@ export class FirebaseHierarchyRepository extends IHierarchyRepository {
         // Skip the first snapshot (initial data already loaded)
         if (isFirstSnapshot) {
           isFirstSnapshot = false;
-          console.log('✓ Tree listener initialized (skipping initial snapshot)');
+          Logger.log('✓ Tree listener initialized (skipping initial snapshot)');
           return;
         }
 
         if (snapshot.exists()) {
           const treeJson = snapshot.data();
           const tree = HierarchyTree.fromJSON(treeJson);
-          console.log(`🔄 Real-time update: Tree ${tree.name} changed (remote)`);
+          Logger.log(`🔄 Real-time update: Tree ${tree.name} changed (remote)`);
           callback(tree);
         } else {
-          console.warn(`⚠ Tree ${treeId} was deleted`);
+          Logger.warn(`⚠ Tree ${treeId} was deleted`);
           callback(null);
         }
       }, (error) => {
-        console.error('Real-time listener error:', error);
+        Logger.error('Real-time listener error:', error);
       });
     };
 

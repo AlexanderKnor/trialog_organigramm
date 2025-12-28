@@ -4,6 +4,7 @@
  */
 
 import { APP_CONFIG } from '../../../../core/config/index.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class LocalStorageDataSource {
   #prefix;
@@ -22,7 +23,7 @@ export class LocalStorageDataSource {
       localStorage.setItem(this.#getKey(key), serialized);
       return true;
     } catch (error) {
-      console.error('LocalStorage save error:', error);
+      Logger.error('LocalStorage save error:', error);
       return false;
     }
   }
@@ -35,7 +36,7 @@ export class LocalStorageDataSource {
       }
       return JSON.parse(serialized);
     } catch (error) {
-      console.error('LocalStorage load error:', error);
+      Logger.error('LocalStorage load error:', error);
       return null;
     }
   }
@@ -45,7 +46,7 @@ export class LocalStorageDataSource {
       localStorage.removeItem(this.#getKey(key));
       return true;
     } catch (error) {
-      console.error('LocalStorage remove error:', error);
+      Logger.error('LocalStorage remove error:', error);
       return false;
     }
   }

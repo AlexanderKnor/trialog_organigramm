@@ -13,6 +13,7 @@ import { NodeEditor } from '../components/molecules/NodeEditor.js';
 import { HierarchyNode } from '../../domain/entities/HierarchyNode.js';
 import { NODE_TYPES } from '../../domain/value-objects/NodeType.js';
 import { AddEmployeeWizard } from '../../../user-profile/presentation/components/AddEmployeeWizard.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class HierarchyScreen {
   #element;
@@ -251,13 +252,13 @@ export class HierarchyScreen {
       await this.#hierarchyService.updateNode(this.#currentTreeId, nodeId, data);
       await this.#refreshTree();
     } catch (error) {
-      console.error('Failed to save node:', error);
+      Logger.error('Failed to save node:', error);
       this.#state.setError(error.message);
     }
   }
 
 async #handleNodeDelete(nodeId, skipConfirmation = false) {
-    console.log('🗑️ #handleNodeDelete called - skipConfirmation:', skipConfirmation);
+    Logger.log('🗑️ #handleNodeDelete called - skipConfirmation:', skipConfirmation);
 
     const tree = this.#state.currentTree;
     if (!tree || !tree.hasNode(nodeId)) return;
@@ -275,36 +276,36 @@ async #handleNodeDelete(nodeId, skipConfirmation = false) {
 
       // If employee had email, delete ALL associated data
       if (hasEmail) {
-        console.log(`🗑️ Deleting all data for employee: ${node.email}`);
+        Logger.log(`🗑️ Deleting all data for employee: ${node.email}`);
 
         // 1. Delete revenue entries
         if (this.#revenueService) {
           try {
             await this.#deleteEmployeeRevenueEntries(nodeId);
-            console.log('✓ Revenue entries deleted');
+            Logger.log('✓ Revenue entries deleted');
           } catch (error) {
-            console.warn('⚠ Failed to delete revenue entries:', error);
+            Logger.warn('⚠ Failed to delete revenue entries:', error);
           }
         }
 
         // 2. Delete tracking events for this node
         try {
           await this.#deleteEmployeeTrackingEvents(nodeId);
-          console.log('✓ Tracking events deleted');
+          Logger.log('✓ Tracking events deleted');
         } catch (error) {
-          console.warn('⚠ Failed to delete tracking events:', error);
+          Logger.warn('⚠ Failed to delete tracking events:', error);
         }
 
         // 3. Delete Firebase Auth account via Cloud Function
         try {
           const result = await authService.deleteEmployeeAccount(node.email);
           if (result.success) {
-            console.log(`✓ Firebase Auth account deleted: ${node.email}`);
+            Logger.log(`✓ Firebase Auth account deleted: ${node.email}`);
           } else {
-            console.warn(`⚠ Auth deletion warning: ${result.message || result.error}`);
+            Logger.warn(`⚠ Auth deletion warning: ${result.message || result.error}`);
           }
         } catch (error) {
-          console.warn('⚠ Failed to delete Auth account:', error);
+          Logger.warn('⚠ Failed to delete Auth account:', error);
           // Continue even if Auth deletion fails
         }
       }
@@ -312,9 +313,9 @@ async #handleNodeDelete(nodeId, skipConfirmation = false) {
       this.#state.deselectNode();
 
       // Real-time listener will handle UI update
-      console.log('✓ Employee deleted successfully');
+      Logger.log('✓ Employee deleted successfully');
     } catch (error) {
-      console.error('Failed to delete node:', error);
+      Logger.error('Failed to delete node:', error);
       this.#state.setError(error.message);
       alert('Fehler beim Löschen: ' + error.message);
     }
@@ -328,9 +329,9 @@ async #deleteEmployeeRevenueEntries(employeeId) {
         await this.#revenueService.deleteEntry(entry.id);
       }
 
-      console.log(`✓ Deleted ${entries.length} revenue entries for employee ${employeeId}`);
+      Logger.log(`✓ Deleted ${entries.length} revenue entries for employee ${employeeId}`);
     } catch (error) {
-      console.error('Failed to delete revenue entries:', error);
+      Logger.error('Failed to delete revenue entries:', error);
       throw error;
     }
   }
@@ -361,9 +362,9 @@ async #deleteEmployeeRevenueEntries(employeeId) {
 
       await Promise.all(deletePromises);
 
-      console.log(`✓ Deleted ${deletePromises.length} tracking events for node ${nodeId}`);
+      Logger.log(`✓ Deleted ${deletePromises.length} tracking events for node ${nodeId}`);
     } catch (error) {
-      console.error('Failed to delete tracking events:', error);
+      Logger.error('Failed to delete tracking events:', error);
       throw error;
     }
   }
@@ -375,7 +376,7 @@ async #deleteEmployeeRevenueEntries(employeeId) {
       await this.#hierarchyService.moveNode(this.#currentTreeId, nodeId, targetId);
       await this.#refreshTree();
     } catch (error) {
-      console.error('Failed to move node:', error);
+      Logger.error('Failed to move node:', error);
       this.#state.setError(error.message);
     }
   }
@@ -423,9 +424,9 @@ async #deleteEmployeeRevenueEntries(employeeId) {
           await this.#createEmployeeWithProfile(formData, parentId);
 
           // Wait for real-time update EVENT (event-driven, not timeout!)
-          console.log('⏳ Waiting for organigramm to update...');
+          Logger.log('⏳ Waiting for organigramm to update...');
           await this.#waitForNextTreeUpdate();
-          console.log('✓ Tree update received, hiding overlay...');
+          Logger.log('✓ Tree update received, hiding overlay...');
 
           // Small delay for smooth transition
           await new Promise(resolve => setTimeout(resolve, 300));
@@ -433,10 +434,10 @@ async #deleteEmployeeRevenueEntries(employeeId) {
           // Hide overlay smoothly
           this.#hideLoadingOverlay();
 
-          console.log('✓ Employee created, organigramm updated!');
+          Logger.log('✓ Employee created, organigramm updated!');
         } catch (error) {
           this.#hideLoadingOverlay();
-          console.error('Failed to create employee:', error);
+          Logger.error('Failed to create employee:', error);
           alert('Fehler beim Anlegen: ' + error.message);
         }
       },
@@ -481,14 +482,14 @@ async #deleteEmployeeRevenueEntries(employeeId) {
 
   #waitForNextTreeUpdate(timeoutMs = 5000) {
     return new Promise((resolve, reject) => {
-      console.log('⏳ Waiting for next tree update event...');
+      Logger.log('⏳ Waiting for next tree update event...');
 
       // Add to pending resolvers
       this.#pendingUpdateResolvers.push(resolve);
 
       // Safety timeout (fallback if update never comes)
       const timeout = setTimeout(() => {
-        console.warn('⚠️ Tree update timeout - forcing resolve after', timeoutMs, 'ms');
+        Logger.warn('⚠️ Tree update timeout - forcing resolve after', timeoutMs, 'ms');
         const index = this.#pendingUpdateResolvers.indexOf(resolve);
         if (index > -1) {
           this.#pendingUpdateResolvers.splice(index, 1);
@@ -541,15 +542,15 @@ async #deleteEmployeeRevenueEntries(employeeId) {
   }
 
   async #createEmployeeWithProfile(formData, parentId) {
-    console.log('🚀 Creating employee with complete profile...');
+    Logger.log('🚀 Creating employee with complete profile...');
 
     // Step 0: VALIDATE ALL DATA FIRST (before creating anything!)
     try {
-      console.log('🔍 Pre-validation: Checking all data before creation...');
+      Logger.log('🔍 Pre-validation: Checking all data before creation...');
       await this.#validateEmployeeData(formData);
-      console.log('✓ All data valid, proceeding with creation');
+      Logger.log('✓ All data valid, proceeding with creation');
     } catch (validationError) {
-      console.error('❌ Validation failed:', validationError.message);
+      Logger.error('❌ Validation failed:', validationError.message);
       throw new Error(`Validierung fehlgeschlagen: ${validationError.message}`);
     }
 
@@ -568,8 +569,8 @@ async #deleteEmployeeRevenueEntries(employeeId) {
       });
 
       const employeeUid = result.data.uid;
-      console.log('✓ Firebase Auth user created via Cloud Function:', employeeUid);
-      console.log('✓ Admin stays logged in! ✅');
+      Logger.log('✓ Firebase Auth user created via Cloud Function:', employeeUid);
+      Logger.log('✓ Admin stays logged in! ✅');
 
     // Step 2: Import User Profile entities
     const { User } = await import('../../../user-profile/domain/entities/User.js');
@@ -631,8 +632,8 @@ async #deleteEmployeeRevenueEntries(employeeId) {
     }));
 
     // Step 4: Save User Profile to Firestore
-    console.log('💾 Saving complete user profile...');
-    console.log('  Profile data:', {
+    Logger.log('💾 Saving complete user profile...');
+    Logger.log('  Profile data:', {
       firstName: formData.firstName,
       lastName: formData.lastName,
       address: formData.street,
@@ -641,11 +642,11 @@ async #deleteEmployeeRevenueEntries(employeeId) {
     });
 
     await this.#profileService.save(userEntity);
-    console.log('✓ User profile saved to Firestore');
+    Logger.log('✓ User profile saved to Firestore');
 
     // Verify save
     const savedUser = await this.#profileService.getUserProfile(employeeUid);
-    console.log('✓ Verification - Saved user:', {
+    Logger.log('✓ Verification - Saved user:', {
       firstName: savedUser?.firstName,
       lastName: savedUser?.lastName,
       hasAddress: !!savedUser?.address,
@@ -663,17 +664,17 @@ async #deleteEmployeeRevenueEntries(employeeId) {
     };
 
     const node = await this.#hierarchyService.addNode(this.#currentTreeId, nodeData, parentId);
-    console.log('✓ HierarchyNode created');
+    Logger.log('✓ HierarchyNode created');
 
     // Step 6: Link User to Node
     await this.#profileService.linkToHierarchyNode(userEntity.uid, node.id);
-    console.log('✓ User linked to HierarchyNode');
+    Logger.log('✓ User linked to HierarchyNode');
 
-      console.log('✅ Employee created successfully with complete profile!');
-      console.log('✓ Admin remains logged in!');
+      Logger.log('✅ Employee created successfully with complete profile!');
+      Logger.log('✓ Admin remains logged in!');
 
     } catch (error) {
-      console.error('❌ Failed to create employee:', error);
+      Logger.error('❌ Failed to create employee:', error);
 
       // Check if it's a Firebase Auth error
       if (error.code === 'auth/email-already-in-use') {
@@ -760,9 +761,9 @@ async #deleteEmployeeRevenueEntries(employeeId) {
           setTimeout(() => dialog.remove(), 250);
 
           // Real-time listener will automatically handle the update (no manual refresh needed!)
-          console.log('✓ Node added - waiting for real-time update');
+          Logger.log('✓ Node added - waiting for real-time update');
         } catch (error) {
-          console.error('Failed to add node:', error);
+          Logger.error('Failed to add node:', error);
 
           // Remove loading overlay
           const loadingOverlay = dialog.querySelector('.dialog-loading-overlay');
@@ -812,7 +813,7 @@ async #deleteEmployeeRevenueEntries(employeeId) {
 
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error);
+      Logger.error('Export failed:', error);
     }
   }
 
@@ -831,7 +832,7 @@ async #deleteEmployeeRevenueEntries(employeeId) {
         this.#currentTreeId = tree.id;
         await this.#refreshTree();
       } catch (error) {
-        console.error('Import failed:', error);
+        Logger.error('Import failed:', error);
         this.#state.setError('Import fehlgeschlagen: ' + error.message);
       }
     };
@@ -858,14 +859,14 @@ async #refreshTree(forceResubscribe = false) {
             this.#currentTreeId,
             (updatedTree) => {
               if (updatedTree) {
-                console.log('🔄 Real-time tree update received');
+                Logger.log('🔄 Real-time tree update received');
                 this.#handleTreeUpdate(updatedTree);
               }
             }
           );
-          console.log('✓ Real-time listener active for tree:', this.#currentTreeId);
+          Logger.log('✓ Real-time listener active for tree:', this.#currentTreeId);
         } catch (error) {
-          console.warn('⚠ Failed to set up real-time listener:', error);
+          Logger.warn('⚠ Failed to set up real-time listener:', error);
           // Continue without real-time sync
         }
       }
@@ -875,44 +876,44 @@ async #refreshTree(forceResubscribe = false) {
         try {
           this.#unsubscribeRevenueListener = await this.#revenueService.subscribeToRevenueUpdates(
             async () => {
-              console.log('🔄 Real-time revenue update received');
+              Logger.log('🔄 Real-time revenue update received');
               await this.#reloadRevenueData();
             }
           );
-          console.log('✓ Real-time revenue listener active');
+          Logger.log('✓ Real-time revenue listener active');
         } catch (error) {
-          console.warn('⚠ Failed to set up revenue listener:', error);
+          Logger.warn('⚠ Failed to set up revenue listener:', error);
         }
       }
 
       // For employees: filter tree to show only their subtree
       if (authService.isEmployee()) {
         const linkedNodeId = authService.getLinkedNodeId();
-        console.log(`🔍 Employee filter check: linkedNodeId = ${linkedNodeId}`);
+        Logger.log(`🔍 Employee filter check: linkedNodeId = ${linkedNodeId}`);
 
         if (linkedNodeId) {
-          console.log(`  Tree has ${tree.getAllNodes().length} nodes`);
-          console.log(`  Tree has node ${linkedNodeId}? ${tree.hasNode(linkedNodeId)}`);
+          Logger.log(`  Tree has ${tree.getAllNodes().length} nodes`);
+          Logger.log(`  Tree has node ${linkedNodeId}? ${tree.hasNode(linkedNodeId)}`);
 
           if (tree.hasNode(linkedNodeId)) {
             // Create a filtered view showing only the employee's subtree
             tree = this.#createEmployeeSubtree(tree, linkedNodeId);
-            console.log(`✓ Filtered tree for employee (starting from: ${linkedNodeId})`);
+            Logger.log(`✓ Filtered tree for employee (starting from: ${linkedNodeId})`);
           } else {
             // 🔒 CRITICAL SECURITY: Employee's node was deleted - force logout
-            console.error('🔒 SECURITY: Employee node deleted from tree - forcing logout');
+            Logger.error('🔒 SECURITY: Employee node deleted from tree - forcing logout');
             await authService.logout();
             return; // Stop execution, auth state change will trigger login screen
           }
         } else {
           // 🔒 CRITICAL SECURITY: Employee has no linked node - force logout
-          console.error('🔒 SECURITY: Employee has no linked node - forcing logout');
+          Logger.error('🔒 SECURITY: Employee has no linked node - forcing logout');
           await authService.logout();
           return; // Stop execution, auth state change will trigger login screen
         }
       } else if (!authService.isAdmin()) {
         // 🔒 CRITICAL SECURITY: User is neither admin nor employee - force logout
-        console.error('🔒 SECURITY: Invalid user role - forcing logout');
+        Logger.error('🔒 SECURITY: Invalid user role - forcing logout');
         await authService.logout();
         return;
       }
@@ -936,7 +937,7 @@ async #refreshTree(forceResubscribe = false) {
       this.#sidebar.setTreeId(this.#currentTreeId);
       this.#sidebar.setTree(tree);
     } catch (error) {
-      console.error('Failed to refresh tree:', error);
+      Logger.error('Failed to refresh tree:', error);
     }
   }
 
@@ -952,7 +953,7 @@ async #checkEmailExists(email) {
       );
 
       if (existingNode) {
-        console.warn(`⚠ Email already exists in node: ${existingNode.name}`);
+        Logger.warn(`⚠ Email already exists in node: ${existingNode.name}`);
         return true;
       }
     }
@@ -968,14 +969,14 @@ async #checkEmailExists(email) {
     fullTree._employeeRootNodeId = employeeNodeId;
     fullTree._isEmployeeView = true;
 
-    console.log(`✓ Employee subtree created (root: ${employeeNodeId})`);
+    Logger.log(`✓ Employee subtree created (root: ${employeeNodeId})`);
     return fullTree;
   }
 
 async #handleTreeUpdate(updatedTree) {
     // Resolve pending update promises (event-driven transitions!)
     if (this.#pendingUpdateResolvers && this.#pendingUpdateResolvers.length > 0) {
-      console.log(`✓ Resolving ${this.#pendingUpdateResolvers.length} pending update promises`);
+      Logger.log(`✓ Resolving ${this.#pendingUpdateResolvers.length} pending update promises`);
       this.#pendingUpdateResolvers.forEach(resolve => resolve());
       this.#pendingUpdateResolvers = [];
     }
@@ -987,7 +988,7 @@ async #handleTreeUpdate(updatedTree) {
 
     // Prevent concurrent updates
     if (this.#isUpdating) {
-      console.log('⏭ Skipping update (already updating)');
+      Logger.log('⏭ Skipping update (already updating)');
       return;
     }
 
@@ -1002,7 +1003,7 @@ async #handleTreeUpdate(updatedTree) {
 
           if (!linkedNodeId) {
             // 🔒 CRITICAL SECURITY: Employee has no linked node - force logout
-            console.error('🔒 SECURITY: Employee has no linked node (real-time update) - forcing logout');
+            Logger.error('🔒 SECURITY: Employee has no linked node (real-time update) - forcing logout');
             await authService.logout();
             this.#isUpdating = false;
             return;
@@ -1010,7 +1011,7 @@ async #handleTreeUpdate(updatedTree) {
 
           if (!updatedTree.hasNode(linkedNodeId)) {
             // 🔒 CRITICAL SECURITY: Employee's node was deleted - force logout
-            console.error('🔒 SECURITY: Employee node deleted (real-time update) - forcing logout');
+            Logger.error('🔒 SECURITY: Employee node deleted (real-time update) - forcing logout');
             await authService.logout();
             this.#isUpdating = false;
             return;
@@ -1019,7 +1020,7 @@ async #handleTreeUpdate(updatedTree) {
           updatedTree = this.#createEmployeeSubtree(updatedTree, linkedNodeId);
         } else if (!authService.isAdmin()) {
           // 🔒 CRITICAL SECURITY: Invalid role - force logout
-          console.error('🔒 SECURITY: Invalid user role (real-time update) - forcing logout');
+          Logger.error('🔒 SECURITY: Invalid user role (real-time update) - forcing logout');
           await authService.logout();
           this.#isUpdating = false;
           return;
@@ -1037,9 +1038,9 @@ async #handleTreeUpdate(updatedTree) {
         this.#orgView.setTree(updatedTree);
         this.#sidebar.setTree(updatedTree);
 
-        console.log('✓ UI updated with real-time tree changes');
+        Logger.log('✓ UI updated with real-time tree changes');
       } catch (error) {
-        console.error('Failed to handle tree update:', error);
+        Logger.error('Failed to handle tree update:', error);
       } finally {
         this.#isUpdating = false;
       }
@@ -1061,9 +1062,9 @@ async #handleTreeUpdate(updatedTree) {
       // Update organigramm with new revenue data
       this.#orgView.setRevenueDataMap(revenueDataMap);
 
-      console.log('✓ Revenue data updated');
+      Logger.log('✓ Revenue data updated');
     } catch (error) {
-      console.error('Failed to reload revenue data:', error);
+      Logger.error('Failed to reload revenue data:', error);
     }
   }
 
@@ -1094,25 +1095,25 @@ async #handleTreeUpdate(updatedTree) {
       if (allTrees.length > 0) {
         // Load the existing tree (should only be one)
         this.#currentTreeId = allTrees[0].id;
-        console.log(`✓ Loading THE organization tree: ${this.#currentTreeId}`);
+        Logger.log(`✓ Loading THE organization tree: ${this.#currentTreeId}`);
 
         if (allTrees.length > 1) {
-          console.warn(`⚠ ${allTrees.length} trees found - should only be 1!`);
+          Logger.warn(`⚠ ${allTrees.length} trees found - should only be 1!`);
         }
 
         await this.#refreshTree();
       } else {
         // Create THE organization tree
-        console.log('✓ No tree exists - creating THE organization tree');
+        Logger.log('✓ No tree exists - creating THE organization tree');
         await this.#initializeTrialogStructure();
       }
     } catch (error) {
-      console.error('Failed to load tree:', error);
+      Logger.error('Failed to load tree:', error);
       // Fallback: try to initialize
       try {
         await this.#initializeTrialogStructure();
       } catch (initError) {
-        console.error('Failed to initialize tree:', initError);
+        Logger.error('Failed to initialize tree:', initError);
       }
     }
   }
@@ -1160,7 +1161,7 @@ async #handleTreeUpdate(updatedTree) {
 
       await this.#refreshTree();
     } catch (error) {
-      console.error('Failed to initialize Trialog structure:', error);
+      Logger.error('Failed to initialize Trialog structure:', error);
     }
   }
 
@@ -1170,15 +1171,15 @@ async #handleTreeUpdate(updatedTree) {
     }
     if (this.#unsubscribeTreeListener) {
       this.#unsubscribeTreeListener();
-      console.log('✓ Real-time tree listener unsubscribed');
+      Logger.log('✓ Real-time tree listener unsubscribed');
     }
     if (this.#unsubscribeRevenueListener) {
       this.#unsubscribeRevenueListener();
-      console.log('✓ Real-time revenue listener unsubscribed');
+      Logger.log('✓ Real-time revenue listener unsubscribed');
     }
     if (this.#keyboardHandler) {
       document.removeEventListener('keydown', this.#keyboardHandler);
-      console.log('✓ Zoom keyboard shortcuts removed');
+      Logger.log('✓ Zoom keyboard shortcuts removed');
     }
     clearElement(this.#container);
   }

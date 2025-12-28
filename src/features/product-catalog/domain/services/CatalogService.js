@@ -7,6 +7,7 @@ import { CategoryDefinition } from '../entities/CategoryDefinition.js';
 import { ProductDefinition } from '../entities/ProductDefinition.js';
 import { ProviderDefinition } from '../entities/ProviderDefinition.js';
 import { ValidationError, NotFoundError } from '../../../../core/errors/index.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class CatalogService {
   #catalogRepository;
@@ -50,7 +51,7 @@ export class CatalogService {
     }
 
     await this.#catalogRepository.saveCategory(category);
-    console.log(`✓ Category created: ${category.displayName} (${category.type})`);
+    Logger.log(`✓ Category created: ${category.displayName} (${category.type})`);
 
     return category;
   }
@@ -79,7 +80,7 @@ export class CatalogService {
     }
 
     await this.#catalogRepository.saveCategory(category);
-    console.log(`✓ Category updated: ${category.displayName}`);
+    Logger.log(`✓ Category updated: ${category.displayName}`);
 
     return category;
   }
@@ -99,7 +100,7 @@ export class CatalogService {
     // CASCADE DELETE: Delete all products in this category
     // (Products will cascade-delete their providers automatically)
     const products = await this.#catalogRepository.findProductsByCategory(categoryType, true);
-    console.log(`🔄 Cascading delete: Deleting ${products.length} product(s) in category '${categoryType}'`);
+    Logger.log(`🔄 Cascading delete: Deleting ${products.length} product(s) in category '${categoryType}'`);
 
     let totalProvidersDeleted = 0;
     for (const product of products) {
@@ -110,7 +111,7 @@ export class CatalogService {
 
     // Delete the category itself
     await this.#catalogRepository.deleteCategory(categoryType);
-    console.log(`✅ Category deleted with cascade: ${categoryType} (${products.length} products, ${totalProvidersDeleted} providers)`);
+    Logger.log(`✅ Category deleted with cascade: ${categoryType} (${products.length} products, ${totalProvidersDeleted} providers)`);
   }
 
   async deactivateCategory(categoryType) {
@@ -122,7 +123,7 @@ export class CatalogService {
 
     category.deactivate();
     await this.#catalogRepository.saveCategory(category);
-    console.log(`✓ Category deactivated: ${category.displayName}`);
+    Logger.log(`✓ Category deactivated: ${category.displayName}`);
 
     return category;
   }
@@ -136,7 +137,7 @@ export class CatalogService {
 
     category.activate();
     await this.#catalogRepository.saveCategory(category);
-    console.log(`✓ Category activated: ${category.displayName}`);
+    Logger.log(`✓ Category activated: ${category.displayName}`);
 
     return category;
   }
@@ -183,7 +184,7 @@ export class CatalogService {
     }
 
     await this.#catalogRepository.saveProduct(product);
-    console.log(`✓ Product created: ${product.name} in category ${categoryType}`);
+    Logger.log(`✓ Product created: ${product.name} in category ${categoryType}`);
 
     return product;
   }
@@ -221,7 +222,7 @@ export class CatalogService {
     }
 
     await this.#catalogRepository.saveProduct(product);
-    console.log(`✓ Product updated: ${product.name} (category: ${product.categoryType})`);
+    Logger.log(`✓ Product updated: ${product.name} (category: ${product.categoryType})`);
 
     return product;
   }
@@ -246,13 +247,13 @@ export class CatalogService {
 
     // CASCADE DELETE: Delete all providers for this product
     const providers = await this.#catalogRepository.findProvidersByProduct(productId, true);
-    console.log(`🔄 Cascading delete: Deleting ${providers.length} provider(s) for product '${product.name}'`);
+    Logger.log(`🔄 Cascading delete: Deleting ${providers.length} provider(s) for product '${product.name}'`);
     for (const provider of providers) {
       await this.deleteProvider(provider.id);
     }
 
     await this.#catalogRepository.deleteProduct(productId);
-    console.log(`✅ Product deleted with cascade: ${product.name} (${providers.length} providers)`);
+    Logger.log(`✅ Product deleted with cascade: ${product.name} (${providers.length} providers)`);
   }
 
   async deactivateProduct(productId) {
@@ -264,7 +265,7 @@ export class CatalogService {
 
     product.deactivate();
     await this.#catalogRepository.saveProduct(product);
-    console.log(`✓ Product deactivated: ${product.name}`);
+    Logger.log(`✓ Product deactivated: ${product.name}`);
 
     return product;
   }
@@ -278,7 +279,7 @@ export class CatalogService {
 
     product.activate();
     await this.#catalogRepository.saveProduct(product);
-    console.log(`✓ Product activated: ${product.name}`);
+    Logger.log(`✓ Product activated: ${product.name}`);
 
     return product;
   }
@@ -321,7 +322,7 @@ export class CatalogService {
     }
 
     await this.#catalogRepository.saveProvider(provider);
-    console.log(`✓ Provider created: ${provider.name} for product ${product.name}`);
+    Logger.log(`✓ Provider created: ${provider.name} for product ${product.name}`);
 
     return provider;
   }
@@ -362,7 +363,7 @@ export class CatalogService {
 
     // Get product for logging
     const product = await this.#catalogRepository.findProductById(provider.productId);
-    console.log(`✓ Provider updated: ${provider.name} (product: ${product?.name || provider.productId})`);
+    Logger.log(`✓ Provider updated: ${provider.name} (product: ${product?.name || provider.productId})`);
 
     return provider;
   }
@@ -390,7 +391,7 @@ export class CatalogService {
     }
 
     await this.#catalogRepository.deleteProvider(providerId);
-    console.log(`✓ Provider deleted: ${provider.name}`);
+    Logger.log(`✓ Provider deleted: ${provider.name}`);
   }
 
   async deactivateProvider(providerId) {
@@ -402,7 +403,7 @@ export class CatalogService {
 
     provider.deactivate();
     await this.#catalogRepository.saveProvider(provider);
-    console.log(`✓ Provider deactivated: ${provider.name}`);
+    Logger.log(`✓ Provider deactivated: ${provider.name}`);
 
     return provider;
   }
@@ -416,7 +417,7 @@ export class CatalogService {
 
     provider.activate();
     await this.#catalogRepository.saveProvider(provider);
-    console.log(`✓ Provider activated: ${provider.name}`);
+    Logger.log(`✓ Provider activated: ${provider.name}`);
 
     return provider;
   }
@@ -452,7 +453,7 @@ export class CatalogService {
         revenueCount: allEntries.length,
       };
     } catch (error) {
-      console.warn('Failed to check category usage:', error);
+      Logger.warn('Failed to check category usage:', error);
       return { inUse: false, revenueCount: 0 };
     }
   }
@@ -473,7 +474,7 @@ export class CatalogService {
         revenueCount: allEntries.length,
       };
     } catch (error) {
-      console.warn('Failed to check product usage:', error);
+      Logger.warn('Failed to check product usage:', error);
       return { inUse: false, revenueCount: 0 };
     }
   }
@@ -494,7 +495,7 @@ export class CatalogService {
         revenueCount: allEntries.length,
       };
     } catch (error) {
-      console.warn('Failed to check provider usage:', error);
+      Logger.warn('Failed to check provider usage:', error);
       return { inUse: false, revenueCount: 0 };
     }
   }

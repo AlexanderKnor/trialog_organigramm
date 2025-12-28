@@ -4,6 +4,7 @@
  */
 
 import { ValidationError } from '../../../../core/errors/index.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class TaxInfo {
   #taxNumber;
@@ -27,7 +28,7 @@ export class TaxInfo {
 
     // Business Rule: Small businesses are typically not VAT liable
     if (this.#isSmallBusiness && this.#isVatLiable) {
-      console.warn('Warning: Small business (Kleinunternehmer) is typically not VAT liable');
+      Logger.warn('Warning: Small business (Kleinunternehmer) is typically not VAT liable');
     }
   }
 

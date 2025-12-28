@@ -10,6 +10,7 @@ import { PROVISION_TYPES } from '../value-objects/ProvisionType.js';
 import { CategoryDefinition } from '../entities/CategoryDefinition.js';
 import { ProductDefinition } from '../entities/ProductDefinition.js';
 import { ProviderDefinition } from '../entities/ProviderDefinition.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class MigrationService {
   #catalogService;
@@ -19,7 +20,7 @@ export class MigrationService {
   }
 
   async migrateHardcodedData() {
-    console.log('🔄 Starting catalog migration...');
+    Logger.log('🔄 Starting catalog migration...');
 
     try {
       // 1. Check if catalog already populated
@@ -28,29 +29,29 @@ export class MigrationService {
         existingCategories = await this.#catalogService.getAllCategories();
       } catch (error) {
         // If permission error or collection doesn't exist, treat as empty
-        console.log('📦 Catalog collection empty or not accessible, proceeding with migration...');
+        Logger.log('📦 Catalog collection empty or not accessible, proceeding with migration...');
       }
 
       if (existingCategories.length > 0) {
-        console.log('✓ Catalog already migrated, skipping...');
+        Logger.log('✓ Catalog already migrated, skipping...');
         return { skipped: true, reason: 'Catalog not empty' };
       }
 
-      console.log('📦 Migrating hardcoded catalog data to Firestore...');
+      Logger.log('📦 Migrating hardcoded catalog data to Firestore...');
 
       // 2. Migrate categories
       const categoryMap = await this.#migrateCategories();
-      console.log(`✓ Migrated ${categoryMap.size} categories`);
+      Logger.log(`✓ Migrated ${categoryMap.size} categories`);
 
       // 3. Migrate products
       const productCount = await this.#migrateProducts();
-      console.log(`✓ Migrated ${productCount} products`);
+      Logger.log(`✓ Migrated ${productCount} products`);
 
       // 4. Migrate providers
       const providerCount = await this.#migrateProviders();
-      console.log(`✓ Migrated ${providerCount} providers`);
+      Logger.log(`✓ Migrated ${providerCount} providers`);
 
-      console.log('✅ Catalog migration completed successfully');
+      Logger.log('✅ Catalog migration completed successfully');
       return {
         success: true,
         categories: categoryMap.size,
@@ -58,7 +59,7 @@ export class MigrationService {
         providers: providerCount,
       };
     } catch (error) {
-      console.error('❌ Catalog migration failed:', error);
+      Logger.error('❌ Catalog migration failed:', error);
       return { success: false, error: error.message };
     }
   }
@@ -101,9 +102,9 @@ export class MigrationService {
         });
 
         categoryMap.set(categoryType, category);
-        console.log(`  ✓ Category: ${category.displayName} (${category.type})`);
+        Logger.log(`  ✓ Category: ${category.displayName} (${category.type})`);
       } catch (error) {
-        console.error(`  ✗ Failed to migrate category ${categoryType}:`, error.message);
+        Logger.error(`  ✗ Failed to migrate category ${categoryType}:`, error.message);
       }
     }
 
@@ -124,9 +125,9 @@ export class MigrationService {
         });
 
         productCount++;
-        console.log(`  ✓ Product: ${product.name} (${product.category})`);
+        Logger.log(`  ✓ Product: ${product.name} (${product.category})`);
       } catch (error) {
-        console.error(`  ✗ Failed to migrate product ${product.name}:`, error.message);
+        Logger.error(`  ✗ Failed to migrate product ${product.name}:`, error.message);
       }
     }
 
@@ -146,7 +147,7 @@ export class MigrationService {
         const products = await this.#catalogService.getProductsByCategory(provider.category, false);
 
         if (products.length === 0) {
-          console.warn(`  ⚠ No products found for category ${provider.category}, skipping provider ${provider.name}`);
+          Logger.warn(`  ⚠ No products found for category ${provider.category}, skipping provider ${provider.name}`);
           continue;
         }
 
@@ -159,9 +160,9 @@ export class MigrationService {
           providerCount++;
         }
 
-        console.log(`  ✓ Provider: ${provider.name} duplicated to ${products.length} product(s) in ${provider.category}`);
+        Logger.log(`  ✓ Provider: ${provider.name} duplicated to ${products.length} product(s) in ${provider.category}`);
       } catch (error) {
-        console.error(`  ✗ Failed to migrate provider ${provider.name}:`, error.message);
+        Logger.error(`  ✗ Failed to migrate provider ${provider.name}:`, error.message);
       }
     }
 
@@ -173,7 +174,7 @@ export class MigrationService {
    * WARNING: This deletes all catalog data!
    */
   async rollbackMigration() {
-    console.log('⚠️  Rolling back migration - deleting all catalog data...');
+    Logger.log('⚠️  Rolling back migration - deleting all catalog data...');
 
     try {
       // Delete all categories (cascade deletes products/providers via validation)
@@ -192,16 +193,16 @@ export class MigrationService {
 
           // Now delete the category
           await this.#catalogService.deleteCategory(category.type);
-          console.log(`  ✓ Deleted category: ${category.displayName}`);
+          Logger.log(`  ✓ Deleted category: ${category.displayName}`);
         } catch (error) {
-          console.error(`  ✗ Failed to delete category ${category.type}:`, error.message);
+          Logger.error(`  ✗ Failed to delete category ${category.type}:`, error.message);
         }
       }
 
-      console.log('✓ Migration rollback completed');
+      Logger.log('✓ Migration rollback completed');
       return { success: true };
     } catch (error) {
-      console.error('❌ Rollback failed:', error);
+      Logger.error('❌ Rollback failed:', error);
       return { success: false, error: error.message };
     }
   }

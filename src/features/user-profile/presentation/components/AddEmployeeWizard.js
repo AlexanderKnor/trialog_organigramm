@@ -6,6 +6,7 @@
 import { createElement } from '../../../../core/utils/index.js';
 import { Input } from '../../../hierarchy-tracking/presentation/components/atoms/Input.js';
 import { Button } from '../../../hierarchy-tracking/presentation/components/atoms/Button.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 const TOTAL_STEPS = 6;
 
@@ -675,11 +676,11 @@ export class AddEmployeeWizard {
   #renderNavigation() {
     const buttons = [];
 
-    console.log('Navigation render - Edit Mode:', this.#isEditMode, 'Step:', this.#currentStep);
+    Logger.log('Navigation render - Edit Mode:', this.#isEditMode, 'Step:', this.#currentStep);
 
     // Delete button (always visible in edit mode)
     if (this.#isEditMode) {
-      console.log('✓ Showing delete button');
+      Logger.log('✓ Showing delete button');
       const deleteBtn = new Button({
         label: 'Account löschen',
         variant: 'secondary',
@@ -707,7 +708,7 @@ export class AddEmployeeWizard {
 
       buttons.push(deleteBtn);
     } else {
-      console.log('Delete button hidden - not in edit mode');
+      Logger.log('Delete button hidden - not in edit mode');
     }
 
     // Cancel button (always visible)
@@ -753,11 +754,11 @@ export class AddEmployeeWizard {
   }
 
   #handleDelete() {
-    console.log('🗑️ Delete button clicked!');
+    Logger.log('🗑️ Delete button clicked!');
 
     // Prevent multiple delete operations
     if (this.#isDeleting) {
-      console.log('⚠️ Delete already in progress, ignoring click');
+      Logger.log('⚠️ Delete already in progress, ignoring click');
       return;
     }
 
@@ -773,9 +774,9 @@ export class AddEmployeeWizard {
       'Diese Aktion kann NICHT rückgängig gemacht werden!'
     );
 
-    console.log('First confirmation:', confirmed);
+    Logger.log('First confirmation:', confirmed);
     if (!confirmed) {
-      console.log('Delete cancelled by user (first confirm)');
+      Logger.log('Delete cancelled by user (first confirm)');
       this.#isDeleting = false;
       return;
     }
@@ -787,15 +788,15 @@ export class AddEmployeeWizard {
       'Fortfahren?'
     );
 
-    console.log('Second confirmation:', doubleConfirmed);
+    Logger.log('Second confirmation:', doubleConfirmed);
     if (!doubleConfirmed) {
-      console.log('Delete cancelled by user (second confirm)');
+      Logger.log('Delete cancelled by user (second confirm)');
       this.#isDeleting = false;
       return;
     }
 
     // Call onDelete handler (will be handled by Sidebar/HierarchyScreen)
-    console.log('Calling onDelete with data:', {
+    Logger.log('Calling onDelete with data:', {
       uid: this.#existingUser?.uid,
       email: this.#formData.email,
       nodeId: this.#props.existingNode?.id,
@@ -808,7 +809,7 @@ export class AddEmployeeWizard {
         nodeId: this.#props.existingNode?.id,
       });
     } else {
-      console.error('❌ onDelete callback not provided!');
+      Logger.error('❌ onDelete callback not provided!');
     }
 
     this.remove();

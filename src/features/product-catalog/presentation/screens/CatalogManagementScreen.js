@@ -9,6 +9,7 @@ import { ProductManagementPanel } from '../components/organisms/ProductManagemen
 import { ProviderManagementPanel } from '../components/organisms/ProviderManagementPanel.js';
 import { Button } from '../../../hierarchy-tracking/presentation/components/atoms/Button.js';
 import { createElement } from '../../../../core/utils/dom.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class CatalogManagementScreen {
   #containerSelector;
@@ -46,7 +47,7 @@ export class CatalogManagementScreen {
     await this.#wait(50);
     panelContainer.style.opacity = '1';
 
-    console.log('✓ CatalogManagementScreen mounted');
+    Logger.log('✓ CatalogManagementScreen mounted');
   }
 
   unmount() {
@@ -60,7 +61,7 @@ export class CatalogManagementScreen {
       this.#element = null;
     }
 
-    console.log('✓ CatalogManagementScreen unmounted');
+    Logger.log('✓ CatalogManagementScreen unmounted');
   }
 
   #renderShell() {

@@ -6,6 +6,7 @@
 import { Input } from '../../../../hierarchy-tracking/presentation/components/atoms/Input.js';
 import { Button } from '../../../../hierarchy-tracking/presentation/components/atoms/Button.js';
 import { createElement } from '../../../../../core/utils/dom.js';
+import { Logger } from './../../../../../core/utils/logger.js';
 
 export class ProviderEditor {
   #provider;
@@ -153,7 +154,7 @@ export class ProviderEditor {
         this.#productSelectElement.selectedIndex = 0;
       }
     } catch (error) {
-      console.error('Failed to load products:', error);
+      Logger.error('Failed to load products:', error);
     }
   }
 

@@ -6,6 +6,7 @@
 import { firebaseApp } from '../../../../core/firebase/index.js';
 import { FIRESTORE_COLLECTIONS } from '../../../../core/config/firebase.config.js';
 import { StorageError } from '../../../../core/errors/index.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class UserFirestoreDataSource {
   #firestore = null;
@@ -71,7 +72,7 @@ export class UserFirestoreDataSource {
       );
 
       const users = querySnapshot.docs.map((doc) => doc.data());
-      console.log(`✓ Loaded ${users.length} user profiles`);
+      Logger.log(`✓ Loaded ${users.length} user profiles`);
       return users;
     } catch (error) {
       throw new StorageError(`Failed to load all users: ${error.message}`);
@@ -90,7 +91,7 @@ export class UserFirestoreDataSource {
         updatedAt: serverTimestamp(),
       });
 
-      console.log(`✓ User profile saved: ${userData.email}`);
+      Logger.log(`✓ User profile saved: ${userData.email}`);
       return userData;
     } catch (error) {
       throw new StorageError(`Failed to save user profile: ${error.message}`);
@@ -109,7 +110,7 @@ export class UserFirestoreDataSource {
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      console.log(`✓ User profile updated: ${userData.email}`);
+      Logger.log(`✓ User profile updated: ${userData.email}`);
       return userData;
     } catch (error) {
       throw new StorageError(`Failed to update user profile: ${error.message}`);
@@ -124,7 +125,7 @@ export class UserFirestoreDataSource {
       const docRef = doc(firestore, FIRESTORE_COLLECTIONS.USERS, uid);
       await deleteDoc(docRef);
 
-      console.log(`✓ User profile deleted: ${uid}`);
+      Logger.log(`✓ User profile deleted: ${uid}`);
     } catch (error) {
       throw new StorageError(`Failed to delete user profile: ${error.message}`);
     }

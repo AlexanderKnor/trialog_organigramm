@@ -7,6 +7,7 @@ import { Button } from '../../../../hierarchy-tracking/presentation/components/a
 import { CatalogTable } from '../molecules/CatalogTable.js';
 import { CategoryEditor } from '../molecules/CategoryEditor.js';
 import { createElement } from '../../../../../core/utils/dom.js';
+import { Logger } from './../../../../../core/utils/logger.js';
 
 export class CategoryManagementPanel {
   #catalogService;
@@ -41,7 +42,7 @@ export class CategoryManagementPanel {
       this.#categories = await this.#catalogService.getAllCategories(true);
       // Don't update table here - it will be created in #render() with the data
     } catch (error) {
-      console.error('Failed to load categories:', error);
+      Logger.error('Failed to load categories:', error);
       throw error; // Re-throw so initialize() knows it failed
     }
   }
@@ -49,12 +50,12 @@ export class CategoryManagementPanel {
   async #setupRealTimeListener() {
     try {
       this.#unsubscribe = await this.#catalogService.subscribeToCatalogUpdates((data) => {
-        console.log('🔄 Catalog updated (real-time)');
+        Logger.log('🔄 Catalog updated (real-time)');
         this.#categories = data.categories || [];
         this.#updateTable();
       });
     } catch (error) {
-      console.error('Failed to setup real-time listener:', error);
+      Logger.error('Failed to setup real-time listener:', error);
       this.#unsubscribe = null;
     }
   }
@@ -172,7 +173,7 @@ export class CategoryManagementPanel {
       const sortedCategories = this.#applySorting(this.#categories);
       this.#table.update(sortedCategories, this.#sortColumn, this.#sortDirection);
     } else {
-      console.warn('⚠ Table reference lost, recreating panel');
+      Logger.warn('⚠ Table reference lost, recreating panel');
       const newElement = this.#render();
       this.#element.replaceWith(newElement);
       this.#element = newElement;
@@ -213,10 +214,10 @@ export class CategoryManagementPanel {
 
     try {
       await this.#catalogService.deleteCategory(category.type);
-      console.log('✓ Category deleted successfully with cascade');
+      Logger.log('✓ Category deleted successfully with cascade');
       await this.#loadCategories();
     } catch (error) {
-      console.error('Failed to delete category:', error);
+      Logger.error('Failed to delete category:', error);
       alert(`Fehler beim Löschen:\n\n${error.message}`);
     }
   }
@@ -235,16 +236,16 @@ export class CategoryManagementPanel {
 
           if (category) {
             await this.#catalogService.updateCategory(category.type, data);
-            console.log('✓ Category updated');
+            Logger.log('✓ Category updated');
           } else {
             await this.#catalogService.createCategory(data);
-            console.log('✓ Category created');
+            Logger.log('✓ Category created');
           }
 
           this.#closeDialog(dialog);
           await this.#loadCategories();
         } catch (error) {
-          console.error('Failed to save category:', error);
+          Logger.error('Failed to save category:', error);
           loadingOverlay?.remove();
           alert(`Fehler beim Speichern:\n\n${error.message}`);
         }
@@ -296,7 +297,7 @@ export class CategoryManagementPanel {
   }
 
   #showError(message) {
-    console.error(message);
+    Logger.error(message);
     // TODO: Show toast notification
   }
 

@@ -7,6 +7,7 @@ import { firebaseApp } from '../../../../core/firebase/index.js';
 import { authService } from '../../../../core/auth/index.js';
 import { FIRESTORE_COLLECTIONS } from '../../../../core/config/firebase.config.js';
 import { StorageError } from '../../../../core/errors/index.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 export class CatalogFirestoreDataSource {
   #firestore = null;
@@ -212,7 +213,7 @@ export class CatalogFirestoreDataSource {
       }
 
       await Promise.all(batches);
-      console.log(`✓ Batch saved ${dataArray.length} documents`);
+      Logger.log(`✓ Batch saved ${dataArray.length} documents`);
 
       return dataArray;
     } catch (error) {
@@ -238,15 +239,15 @@ export class CatalogFirestoreDataSource {
         (snapshot) => {
           if (isFirstSnapshot) {
             isFirstSnapshot = false;
-            console.log('✓ Catalog real-time listener initialized');
+            Logger.log('✓ Catalog real-time listener initialized');
             return;
           }
 
-          console.log(`🔄 Catalog updated (${snapshot.size} documents)`);
+          Logger.log(`🔄 Catalog updated (${snapshot.size} documents)`);
           callback(snapshot);
         },
         (error) => {
-          console.error('Catalog real-time listener error:', error);
+          Logger.error('Catalog real-time listener error:', error);
         }
       );
     } catch (error) {

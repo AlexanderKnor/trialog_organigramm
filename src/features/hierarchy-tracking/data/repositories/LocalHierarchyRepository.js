@@ -6,6 +6,7 @@
 import { IHierarchyRepository } from '../../domain/repositories/IHierarchyRepository.js';
 import { HierarchyTree } from '../../domain/entities/HierarchyTree.js';
 import { NotFoundError } from '../../../../core/errors/index.js';
+import { Logger } from './../../../../core/utils/logger.js';
 
 const TREES_INDEX_KEY = 'hierarchy_trees_index';
 const TREE_PREFIX = 'hierarchy_tree_';
@@ -66,7 +67,7 @@ export class LocalHierarchyRepository extends IHierarchyRepository {
         const tree = await this.findById(treeId);
         trees.push(tree);
       } catch (error) {
-        console.warn(`Failed to load tree ${treeId}:`, error);
+        Logger.warn(`Failed to load tree ${treeId}:`, error);
       }
     }
 
