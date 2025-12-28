@@ -1,0 +1,527 @@
+/**
+ * Dialog Improvements - Custom Scrollbar & Skeleton Loading
+ * Optimized UI for AddRevenueDialog
+ */
+
+/* ========================================
+   CUSTOM SCROLLBAR FOR DIALOG
+   ======================================== */
+
+/* Dialog content - container for header + body */
+.dialog-content.dialog-wide {
+  /* NO scrolling on container - only on body */
+  overflow: visible !important;
+  max-height: calc(100vh - 96px) !important;
+
+  /* Display flex for header + scrollable body layout */
+  display: flex !important;
+  flex-direction: column !important;
+
+  /* Solid white background */
+  background: #ffffff !important;
+}
+
+/* Scrollable body area */
+.dialog-body-scroll {
+  /* Enable scrolling HERE */
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0; /* Allow flex child to shrink */
+
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+
+  /* Padding for content */
+  padding: 0 var(--spacing-7) var(--spacing-7) var(--spacing-7);
+}
+
+/* Custom scrollbar styling for body (Webkit browsers) */
+.dialog-body-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dialog-body-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 8px 0; /* Padding from top/bottom */
+}
+
+.dialog-body-scroll::-webkit-scrollbar-thumb {
+  background: rgba(16, 39, 76, 0.15);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s ease;
+}
+
+.dialog-body-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 39, 76, 0.25);
+  background-clip: padding-box;
+}
+
+.dialog-body-scroll::-webkit-scrollbar-thumb:active {
+  background: rgba(16, 39, 76, 0.35);
+  background-clip: padding-box;
+}
+
+/* Firefox scrollbar for body */
+.dialog-body-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 39, 76, 0.15) transparent;
+}
+
+/* ========================================
+   SKELETON LOADING STATES
+   ======================================== */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(16, 39, 76, 0.04) 0%,
+    rgba(16, 39, 76, 0.08) 50%,
+    rgba(16, 39, 76, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: var(--radius-xl);
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Skeleton shimmer effect */
+.skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    transparent 100%
+  );
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Skeleton variants */
+.skeleton-text {
+  height: 16px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-text-sm {
+  height: 12px;
+  width: 60%;
+}
+
+.skeleton-text-lg {
+  height: 20px;
+  width: 80%;
+}
+
+.skeleton-input {
+  height: 48px;
+  width: 100%;
+  border-radius: var(--radius-xl);
+}
+
+.skeleton-select {
+  height: 48px;
+  width: 100%;
+  border-radius: var(--radius-xl);
+}
+
+.skeleton-button {
+  height: 44px;
+  width: 120px;
+  border-radius: var(--radius-xl);
+}
+
+/* Skeleton form row */
+.skeleton-form-row {
+  display: flex;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-5);
+}
+
+.skeleton-form-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+/* ========================================
+   DIALOG LOADING STATE
+   ======================================== */
+
+/* Ensure skeleton and form containers don't block scrolling */
+.dialog-skeleton-container,
+.dialog-form-container {
+  flex-shrink: 0; /* Don't compress */
+  width: 100%;
+}
+
+.dialog-loading {
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.dialog-loading .dialog-title {
+  opacity: 1; /* Keep title visible */
+}
+
+/* Loading overlay for smooth transition */
+.dialog-form-loading {
+  opacity: 0;
+  animation: dialogFormFadeIn 0.4s ease-out 0.2s forwards;
+}
+
+@keyframes dialogFormFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth form field appearance - SIMPLIFIED (NO ANIMATIONS FOR NOW) */
+.dialog-form-container .input-wrapper,
+.dialog-form-container .dialog-form-row,
+.dialog-form-container .vat-checkbox-wrapper,
+.dialog-form-container .dialog-actions {
+  /* ALWAYS visible - no animations to debug issue */
+  opacity: 1 !important;
+  animation: none !important;
+
+  /* GPU acceleration to prevent repaints */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* ========================================
+   DIALOG ACTIONS - OPTIMIZED
+   ======================================== */
+
+.dialog-form-container .dialog-actions {
+  /* Simpler fade in - NO transform */
+  opacity: 0;
+  animation: dialogActionsFadeIn 0.25s ease-out 0.3s forwards;
+
+  /* Stabilize layout */
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: var(--spacing-3) !important;
+  padding-top: var(--spacing-5) !important;
+  margin-top: var(--spacing-5) !important;
+  border-top: 1px solid rgba(16, 39, 76, 0.06) !important;
+
+  /* GPU acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+@keyframes dialogActionsFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Instant load for edit mode */
+.dialog-form.instant-load + .dialog-actions,
+.dialog-form-container.instant-load .dialog-actions {
+  animation: none !important;
+  opacity: 1 !important;
+}
+
+/* ========================================
+   INPUT FIELDS - STABILIZATION
+   ======================================== */
+
+/* Prevent input fields from causing layout shifts */
+.dialog-form .input-wrapper {
+  /* Stabilize layout */
+  margin-bottom: var(--spacing-4) !important;
+
+  /* GPU acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.dialog-form .input-field,
+.dialog-form select.input-field {
+  /* Prevent layout shift on focus */
+  box-sizing: border-box !important;
+
+  /* Stabilize dimensions */
+  min-height: 48px;
+
+  /* GPU acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+
+  /* Smooth transitions only for colors, not layout */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+}
+
+/* Form rows - prevent shifting */
+.dialog-form-row {
+  display: flex !important;
+  gap: var(--spacing-4) !important;
+  margin-bottom: 0 !important;
+
+  /* GPU acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* ========================================
+   FIXED DIALOG HEADER - ELEGANT & COMPACT
+   ======================================== */
+
+/* Fixed header container - NOT scrollable */
+.dialog-header-fixed {
+  /* Solid white background */
+  background-color: #ffffff;
+
+  /* Compact padding - less empty space */
+  padding: var(--spacing-5) var(--spacing-6) 0 var(--spacing-6);
+
+  /* Prevent shrinking */
+  flex-shrink: 0;
+
+  /* Smooth shadow transition */
+  transition: box-shadow 0.2s ease;
+
+  /* Add subtle accent line at top */
+  position: relative;
+}
+
+/* Elegant accent line at top of modal */
+.dialog-header-fixed::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--spacing-6);
+  right: var(--spacing-6);
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--color-primary) 0%,
+    var(--color-secondary) 100%
+  );
+  border-radius: 0 0 2px 2px;
+  opacity: 0.8;
+}
+
+/* Header title styling */
+.dialog-header-fixed .dialog-title {
+  /* Compact margins */
+  margin: 0;
+  padding: 0 0 var(--spacing-4) 0;
+
+  /* Enhanced typography */
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-primary);
+
+  /* Subtle gradient text */
+  background: linear-gradient(135deg, var(--color-primary) 0%, #2a5298 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+  /* Add subtle bottom border */
+  border-bottom: 1px solid rgba(16, 39, 76, 0.06);
+  transition: border-bottom-color 0.2s ease;
+}
+
+/* Shadow appears when body is scrolled */
+.dialog-header-fixed.scrolled {
+  box-shadow: 0 2px 8px rgba(16, 39, 76, 0.08);
+}
+
+.dialog-header-fixed.scrolled .dialog-title {
+  border-bottom-color: rgba(16, 39, 76, 0.12);
+}
+
+/* ========================================
+   DIALOG CONTENT IMPROVEMENTS
+   ======================================== */
+
+/* Smoother rounded corners with better shadow */
+.dialog-wide {
+  border-radius: 20px;
+  box-shadow:
+    0 10px 25px rgba(16, 39, 76, 0.08),
+    0 20px 40px rgba(16, 39, 76, 0.06),
+    0 0 0 1px rgba(16, 39, 76, 0.04);
+  overflow: hidden;
+  background-color: #ffffff;
+
+  /* Prevent layout shifts during scroll */
+  will-change: auto;
+  transform: translateZ(0); /* Force GPU acceleration */
+}
+
+/* Better backdrop */
+.dialog-overlay {
+  backdrop-filter: blur(12px);
+  background-color: rgba(16, 39, 76, 0.4);
+}
+
+/* ========================================
+   FIX: VAT CHECKBOX STABILIZATION
+   ======================================== */
+
+/* Prevent VAT checkbox from wobbling during scroll */
+.dialog-form .vat-checkbox-wrapper {
+  /* Stabilize layout */
+  padding: 1rem !important;
+  background: #f8fafc !important;
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  margin: 0 !important;
+
+  /* Prevent layout shift */
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+
+  /* Disable any animations that could cause wobble */
+  animation: none !important;
+  transform: none !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.dialog-form .vat-checkbox-label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
+
+  /* Prevent text wrapping issues */
+  flex-wrap: nowrap;
+}
+
+.dialog-form .vat-checkbox-input {
+  width: 20px !important;
+  height: 20px !important;
+  flex-shrink: 0 !important; /* Don't allow checkbox to shrink */
+  cursor: pointer;
+  accent-color: var(--color-primary);
+  margin: 0;
+}
+
+.dialog-form .vat-checkbox-text {
+  font-size: 0.875rem !important;
+  color: #334155 !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  flex: 1;
+}
+
+.dialog-form .vat-checkbox-wrapper:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Smooth dialog appearance */
+.dialog-content {
+  animation: dialogContentAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes dialogContentAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+   ======================================== */
+
+@media (max-width: 768px) {
+  .dialog-wide {
+    max-width: 95vw;
+    margin: var(--spacing-4);
+  }
+
+  .dialog-content::-webkit-scrollbar {
+    width: 6px;
+  }
+}
+
+/* ========================================
+   LOADING SPINNER FOR DIALOG
+   ======================================== */
+
+.dialog-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  min-height: 200px;
+}
+
+.dialog-spinner-icon {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(16, 39, 76, 0.1);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dialog-spinner-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}

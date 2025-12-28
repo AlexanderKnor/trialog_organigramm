@@ -21,6 +21,7 @@ export class AddRevenueDialog {
   #isEditMode;
   #revenueService;
   #hierarchyService;
+  #isLoading; // Loading state for smooth transitions
 
   // Form inputs
   #dateInput;
@@ -50,6 +51,7 @@ export class AddRevenueDialog {
     this.#isEditMode = !!this.#entry;
     this.#revenueService = props.revenueService || null;
     this.#hierarchyService = props.hierarchyService || null;
+    this.#isLoading = true; // Start in loading state
 
     this.#props = {
       onSave: props.onSave || null,
@@ -71,28 +73,84 @@ export class AddRevenueDialog {
     this.#allEmployees = [];
 
     this.#element = this.#render();
-
-    // Load categories and initialize form
-    this.#initializeForm();
+    // Note: #initializeForm() will be called after show() to prevent empty modal flash
   }
 
   async #initializeForm() {
-    // Load categories from catalog
-    await this.#loadCategories();
+    try {
+      // Load categories from catalog
+      await this.#loadCategories();
 
-    // Load employees for tip provider dropdown
-    await this.#loadEmployeesForTipProvider();
+      // Load employees for tip provider dropdown
+      await this.#loadEmployeesForTipProvider();
 
-    // Populate form if editing
-    if (this.#isEditMode) {
-      await this.#populateForm();
-    } else {
-      // Initialize with first category
-      if (this.#categories.length > 0) {
-        const firstCategoryType = this.#categories[0].type || this.#categories[0];
-        await this.#onCategoryChange(firstCategoryType);
+      // Populate form if editing
+      if (this.#isEditMode) {
+        await this.#populateForm();
+      } else {
+        // Initialize with first category
+        if (this.#categories.length > 0) {
+          const firstCategoryType = this.#categories[0].type || this.#categories[0];
+          await this.#onCategoryChange(firstCategoryType);
+        }
       }
+
+      // Data loaded - transition from skeleton to real form
+      this.#isLoading = false;
+      this.#transitionToLoadedState();
+    } catch (error) {
+      console.error('Failed to initialize form:', error);
+      // Still show form even if some data failed to load
+      this.#isLoading = false;
+      this.#transitionToLoadedState();
     }
+  }
+
+  /**
+   * Smooth transition from skeleton to loaded form
+   */
+  #transitionToLoadedState() {
+    const skeletonContainer = this.#element.querySelector('.dialog-skeleton-container');
+    const formContainer = this.#element.querySelector('.dialog-form-container');
+
+    console.log('Transitioning to loaded state:', {
+      skeleton: !!skeletonContainer,
+      form: !!formContainer,
+    });
+
+    if (!skeletonContainer || !formContainer) {
+      console.error('Could not find containers - showing form immediately');
+
+      // Fallback: Find and show form container directly
+      const allFormContainers = this.#element.querySelectorAll('.dialog-form-container');
+      if (allFormContainers.length > 0) {
+        allFormContainers[0].style.display = 'block';
+        allFormContainers[0].style.opacity = '1';
+        console.log('Fallback: Showing form container');
+      }
+      return;
+    }
+
+    // Fade out skeleton
+    skeletonContainer.style.opacity = '0';
+    skeletonContainer.style.transition = 'opacity 0.25s ease';
+
+    setTimeout(() => {
+      skeletonContainer.style.display = 'none';
+      formContainer.style.display = 'block';
+      formContainer.style.opacity = '1';
+
+      // Add instant-load class if edit mode to skip stagger animations
+      if (this.#isEditMode) {
+        formContainer.classList.add('instant-load');
+      }
+
+      // CRITICAL: Trigger animations AFTER display: block
+      requestAnimationFrame(() => {
+        formContainer.classList.add('animate-in');
+        console.log('Form container shown and animating');
+      });
+    }, 250);
   }
 
   async #populateForm() {
@@ -159,6 +217,136 @@ export class AddRevenueDialog {
   #render() {
     const overlay = createElement('div', { className: 'dialog-overlay' });
 
+    const dialogTitle = this.#isEditMode ? 'Umsatz bearbeiten' : 'Neuer Umsatz';
+
+    // Create skeleton and real form content
+    const skeletonContent = this.#renderSkeleton();
+    const realFormContent = this.#renderRealForm();
+
+    // Scrollable body container (contains skeleton and form)
+    const dialogBody = createElement('div', { className: 'dialog-body-scroll' }, [
+      skeletonContent,
+      realFormContent,
+    ]);
+
+    // Dialog structure: Fixed header + Scrollable body
+    const dialogContent = createElement('div', { className: 'dialog-content dialog-wide' }, [
+      createElement('div', { className: 'dialog-header-fixed' }, [
+        createElement('h2', { className: 'dialog-title' }, [dialogTitle]),
+      ]),
+      dialogBody,
+    ]);
+
+    // Add scroll listener for header shadow effect
+    dialogBody.addEventListener('scroll', () => {
+      const header = dialogContent.querySelector('.dialog-header-fixed');
+      if (dialogBody.scrollTop > 10) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    });
+
+    overlay.appendChild(dialogContent);
+
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        this.#handleCancel();
+      }
+    });
+
+    return overlay;
+  }
+
+  /**
+   * Render skeleton loading state
+   */
+  #renderSkeleton() {
+    const skeletonForm = createElement('div', { className: 'dialog-form' }, [
+      // Customer name skeleton
+      createElement('div', { className: 'skeleton-form-col' }, [
+        createElement('div', { className: 'skeleton skeleton-text-sm' }),
+        createElement('div', { className: 'skeleton skeleton-input' }),
+      ]),
+
+      // Address row skeleton
+      createElement('div', { className: 'skeleton-form-row' }, [
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-input' }),
+        ]),
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-input' }),
+        ]),
+      ]),
+
+      // City row skeleton
+      createElement('div', { className: 'skeleton-form-row' }, [
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-input' }),
+        ]),
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-input' }),
+        ]),
+      ]),
+
+      // Selection row skeleton
+      createElement('div', { className: 'skeleton-form-row' }, [
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-select' }),
+        ]),
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-select' }),
+        ]),
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-select' }),
+        ]),
+      ]),
+
+      // Contract & amount row skeleton
+      createElement('div', { className: 'skeleton-form-row' }, [
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-input' }),
+        ]),
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-input' }),
+        ]),
+        createElement('div', { className: 'skeleton-form-col' }, [
+          createElement('div', { className: 'skeleton skeleton-text-sm' }),
+          createElement('div', { className: 'skeleton skeleton-input' }),
+        ]),
+      ]),
+    ]);
+
+    const skeletonActions = createElement('div', { className: 'dialog-actions' }, [
+      createElement('div', { className: 'skeleton skeleton-button' }),
+      createElement('div', { className: 'skeleton skeleton-button' }),
+    ]);
+
+    const skeletonContainer = createElement('div', {
+      className: 'dialog-skeleton-container',
+      style: 'opacity: 1; transition: opacity 0.3s ease;'
+    }, [
+      skeletonForm,
+      skeletonActions,
+    ]);
+
+    return skeletonContainer;
+  }
+
+  /**
+   * Render real form (hidden initially)
+   */
+  #renderRealForm() {
     // Date field with today's date as default
     const today = new Date().toISOString().split('T')[0];
     this.#dateInput = new Input({
@@ -376,9 +564,10 @@ export class AddRevenueDialog {
       saveBtn.element,
     ]);
 
-    const dialogTitle = this.#isEditMode ? 'Umsatz bearbeiten' : 'Neuer Umsatz';
-    const content = createElement('div', { className: 'dialog-content dialog-wide' }, [
-      createElement('h2', { className: 'dialog-title' }, [dialogTitle]),
+    const formContainer = createElement('div', {
+      className: 'dialog-form-container',
+      style: 'display: none; opacity: 0; transition: opacity 0.4s ease;'
+    }, [
       createElement('div', { className: 'dialog-form' }, [
         this.#customerNameInput.element,
         addressRow,
@@ -392,16 +581,7 @@ export class AddRevenueDialog {
       actions,
     ]);
 
-    overlay.appendChild(content);
-
-    // Close on overlay click
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        this.#handleCancel();
-      }
-    });
-
-    return overlay;
+    return formContainer;
   }
 
   async #loadCategories() {
@@ -853,9 +1033,19 @@ export class AddRevenueDialog {
     return this.#element;
   }
 
-  show() {
+  async show() {
+    // Append to DOM first (shows skeleton)
     document.body.appendChild(this.#element);
-    this.#customerNameInput.focus();
+
+    // Then load data and transition to real form
+    await this.#initializeForm();
+
+    // Focus first field after data is loaded
+    setTimeout(() => {
+      if (this.#customerNameInput && this.#customerNameInput.focus) {
+        this.#customerNameInput.focus();
+      }
+    }, 400); // Wait for fade-in animation
   }
 
   remove() {
