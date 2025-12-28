@@ -375,12 +375,34 @@ export class RevenueService {
     // Process all employees + Geschäftsführer
     const allPersons = [...allEmployees, ...geschaeftsfuehrerIds.map(id => ({ id, ...geschaeftsfuehrerData[id] }))];
 
-    for (const employee of allPersons) {
-      // Load entries where employee is OWNER
-      const entries = await this.#revenueRepository.findByEmployeeId(employee.id);
+    // OPTIMIZATION: Load ALL entries with ONE query instead of N queries
+    // This reduces Firestore reads from 100+ to 1 for 50 employees
+    const allEntries = await this.#revenueRepository.findAll();
 
-      // Load entries where employee is TIP PROVIDER
-      const tipProviderEntries = await this.#revenueRepository.findByTipProviderId(employee.id);
+    // Group entries by employeeId and tipProviderId for O(1) lookup
+    const entriesByEmployee = new Map();
+    const entriesByTipProvider = new Map();
+
+    for (const entry of allEntries) {
+      // Group by employeeId (owner)
+      if (!entriesByEmployee.has(entry.employeeId)) {
+        entriesByEmployee.set(entry.employeeId, []);
+      }
+      entriesByEmployee.get(entry.employeeId).push(entry);
+
+      // Group by tipProviderId
+      if (entry.tipProviderId) {
+        if (!entriesByTipProvider.has(entry.tipProviderId)) {
+          entriesByTipProvider.set(entry.tipProviderId, []);
+        }
+        entriesByTipProvider.get(entry.tipProviderId).push(entry);
+      }
+    }
+
+    for (const employee of allPersons) {
+      // Get entries from pre-loaded and grouped data (O(1) lookup)
+      const entries = entriesByEmployee.get(employee.id) || [];
+      const tipProviderEntries = entriesByTipProvider.get(employee.id) || [];
 
       // Filter by month/year if specified
       const filteredEntries = this.#filterEntriesByMonth(entries, month, year);
