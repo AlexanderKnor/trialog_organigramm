@@ -29,9 +29,11 @@ service cloud.firestore {
          request.auth.uid in resourceData.get('sharedWith', []));
     }
 
+    // OPTIMIZED: Use Custom Claims instead of Firestore read
+    // This eliminates extra Firestore reads for every admin check
     function isAdmin() {
       return isValidUser() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        request.auth.token.role == 'admin';
     }
 
     // ========================================

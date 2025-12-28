@@ -13,7 +13,8 @@ initializeApp();
 const auth = getAuth();
 const db = getFirestore();
 
-// Admin email list (must match client-side list)
+// Admin email list - used only for initial setup and migration
+// DEPRECATED: Use Custom Claims instead (see setUserRole function)
 const ADMIN_EMAILS = [
   'alexander-knor@outlook.de',
   'info@trialog-makler.de',
@@ -21,6 +22,23 @@ const ADMIN_EMAILS = [
   'liebetrau@trialog-makler.de',
   'lippa@trialog-makler.de',
 ];
+
+/**
+ * Helper: Check if user is admin via Custom Claims
+ * This replaces hardcoded email checks
+ */
+function isUserAdmin(authToken) {
+  return authToken.role === 'admin';
+}
+
+/**
+ * Helper: Check if email is in admin list (for initial setup only)
+ */
+function isAdminEmail(email) {
+  return ADMIN_EMAILS.some((adminEmail) =>
+    email.toLowerCase().includes(adminEmail.toLowerCase())
+  );
+}
 
 /**
  * Create Employee Account
@@ -32,13 +50,8 @@ exports.createEmployeeAccount = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Must be authenticated to create accounts');
   }
 
-  // Verify the caller is an admin
-  const callerEmail = request.auth.token.email;
-  const isAdmin = ADMIN_EMAILS.some((adminEmail) =>
-    callerEmail.toLowerCase().includes(adminEmail.toLowerCase())
-  );
-
-  if (!isAdmin) {
+  // Verify the caller is an admin via Custom Claims
+  if (!isUserAdmin(request.auth.token)) {
     throw new HttpsError('permission-denied', 'Only admins can create employee accounts');
   }
 
@@ -60,6 +73,11 @@ exports.createEmployeeAccount = onCall(async (request) => {
       password: password,
       displayName: displayName || email.split('@')[0],
       emailVerified: false,
+    });
+
+    // Set Custom Claims for role (employee by default)
+    await auth.setCustomUserClaims(userRecord.uid, {
+      role: 'employee',
     });
 
     // Create user document in Firestore with employee role
@@ -107,13 +125,8 @@ exports.deleteEmployeeAccount = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Must be authenticated');
   }
 
-  // Verify the caller is an admin
-  const callerEmail = request.auth.token.email;
-  const isAdmin = ADMIN_EMAILS.some((adminEmail) =>
-    callerEmail.toLowerCase().includes(adminEmail.toLowerCase())
-  );
-
-  if (!isAdmin) {
+  // Verify the caller is an admin via Custom Claims
+  if (!isUserAdmin(request.auth.token)) {
     throw new HttpsError('permission-denied', 'Only admins can delete accounts');
   }
 
@@ -173,5 +186,145 @@ exports.deleteEmployeeAccount = onCall(async (request) => {
     }
 
     throw new HttpsError('internal', 'Fehler beim Löschen des Accounts: ' + error.message);
+  }
+});
+
+/**
+ * Set User Role (Admin Only)
+ * Manually set a user's role using Custom Claims
+ */
+exports.setUserRole = onCall(async (request) => {
+  // Verify the caller is authenticated
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be authenticated');
+  }
+
+  // Verify the caller is an admin
+  if (!isUserAdmin(request.auth.token)) {
+    throw new HttpsError('permission-denied', 'Only admins can set user roles');
+  }
+
+  const { email, role } = request.data;
+
+  if (!email || !role) {
+    throw new HttpsError('invalid-argument', 'Email and role are required');
+  }
+
+  if (role !== 'admin' && role !== 'employee') {
+    throw new HttpsError('invalid-argument', 'Role must be "admin" or "employee"');
+  }
+
+  try {
+    // Get user by email
+    const userRecord = await auth.getUserByEmail(email);
+
+    // Set Custom Claims
+    await auth.setCustomUserClaims(userRecord.uid, {
+      role: role,
+    });
+
+    // Update Firestore document
+    await db.collection('users').doc(userRecord.uid).update({
+      role: role,
+      roleUpdatedAt: FieldValue.serverTimestamp(),
+      roleUpdatedBy: request.auth.uid,
+    });
+
+    console.log(`✓ Role updated for ${email}: ${role}`);
+
+    return {
+      success: true,
+      uid: userRecord.uid,
+      email: email,
+      role: role,
+      message: `Rolle erfolgreich auf "${role}" gesetzt für ${email}`,
+    };
+  } catch (error) {
+    console.error('Error setting user role:', error);
+
+    if (error.code === 'auth/user-not-found') {
+      throw new HttpsError('not-found', 'Benutzer nicht gefunden');
+    }
+
+    throw new HttpsError('internal', 'Fehler beim Setzen der Rolle: ' + error.message);
+  }
+});
+
+/**
+ * Migrate All Users to Custom Claims
+ * One-time migration to set Custom Claims for all existing users
+ */
+exports.migrateUsersToCustomClaims = onCall(async (request) => {
+  // Verify the caller is authenticated
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be authenticated');
+  }
+
+  // Verify the caller is an admin
+  if (!isUserAdmin(request.auth.token)) {
+    throw new HttpsError('permission-denied', 'Only admins can run migration');
+  }
+
+  try {
+    let updatedCount = 0;
+    let errorCount = 0;
+    const results = [];
+
+    // List all users
+    const listUsersResult = await auth.listUsers();
+
+    for (const user of listUsersResult.users) {
+      try {
+        // Determine role based on email
+        const role = isAdminEmail(user.email) ? 'admin' : 'employee';
+
+        // Set Custom Claims
+        await auth.setCustomUserClaims(user.uid, {
+          role: role,
+        });
+
+        // Update or create Firestore document
+        await db.collection('users').doc(user.uid).set(
+          {
+            email: user.email,
+            displayName: user.displayName || user.email.split('@')[0],
+            role: role,
+            migratedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        updatedCount++;
+        results.push({
+          email: user.email,
+          role: role,
+          status: 'success',
+        });
+
+        console.log(`✓ Migrated: ${user.email} → ${role}`);
+      } catch (error) {
+        errorCount++;
+        results.push({
+          email: user.email,
+          status: 'error',
+          error: error.message,
+        });
+        console.error(`✗ Failed to migrate ${user.email}:`, error);
+      }
+    }
+
+    console.log(`Migration complete: ${updatedCount} users updated, ${errorCount} errors`);
+
+    return {
+      success: true,
+      totalUsers: listUsersResult.users.length,
+      updatedCount: updatedCount,
+      errorCount: errorCount,
+      results: results,
+      message: `Migration abgeschlossen: ${updatedCount} Benutzer aktualisiert, ${errorCount} Fehler`,
+    };
+  } catch (error) {
+    console.error('Error during migration:', error);
+    throw new HttpsError('internal', 'Fehler bei der Migration: ' + error.message);
   }
 });

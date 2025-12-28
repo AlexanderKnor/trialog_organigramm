@@ -6,7 +6,9 @@
 import { firebaseApp } from '../firebase/FirebaseApp.js';
 import { FIRESTORE_COLLECTIONS } from '../config/firebase.config.js';
 
-// Admin emails - these users have full access
+// DEPRECATED: Admin emails - only used as fallback during migration
+// TODO: Remove after all users have been migrated to Custom Claims
+// Use Cloud Function `migrateUsersToCustomClaims` to migrate
 const ADMIN_EMAILS = [
   'alexander-knor@outlook.de',
   'info@trialog-makler.de',
@@ -85,8 +87,8 @@ export class AuthService {
         return;
       }
 
-      // Determine user role
-      const role = this.#determineUserRole(user.email);
+      // Determine user role from Custom Claims (priority) or fallback
+      const role = await this.#determineUserRole(user);
 
       // Update or create user document
       await this.#updateUserDocument(user, role);
@@ -141,13 +143,39 @@ export class AuthService {
     }
   }
 
-  #determineUserRole(email) {
-    const normalizedEmail = email.toLowerCase();
-    return ADMIN_EMAILS.some((adminEmail) =>
+  async #determineUserRole(user) {
+    // PRIORITY 1: Check Custom Claims (set by Cloud Functions)
+    const token = await user.getIdTokenResult();
+    if (token.claims.role) {
+      console.log(`✓ Role from Custom Claims: ${token.claims.role}`);
+      return token.claims.role;
+    }
+
+    // PRIORITY 2: Check Firestore document (for existing users)
+    try {
+      const { doc, getDoc } = this.firestoreHelpers;
+      const userRef = doc(this.#firestore, FIRESTORE_COLLECTIONS.USERS, user.uid);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists() && userDoc.data().role) {
+        console.log(`✓ Role from Firestore: ${userDoc.data().role}`);
+        return userDoc.data().role;
+      }
+    } catch (error) {
+      console.warn('Could not fetch role from Firestore:', error);
+    }
+
+    // PRIORITY 3: Fallback to email check (for migration/new users)
+    const normalizedEmail = user.email.toLowerCase();
+    const role = ADMIN_EMAILS.some((adminEmail) =>
       normalizedEmail.includes(adminEmail.toLowerCase())
     )
       ? USER_ROLES.ADMIN
       : USER_ROLES.EMPLOYEE;
+
+    console.warn(`⚠️ Using fallback role determination for ${user.email}: ${role}`);
+    console.warn('⚠️ Please run migration to set Custom Claims for all users');
+
+    return role;
   }
 
   async #findLinkedNode(userEmail) {
