@@ -347,6 +347,8 @@ export class AddRevenueDialog {
    * Render real form (hidden initially)
    */
   #renderRealForm() {
+    console.log('🎨 Rendering real form...');
+
     // Date field with today's date as default
     const today = new Date().toISOString().split('T')[0];
     this.#dateInput = new Input({
@@ -361,6 +363,11 @@ export class AddRevenueDialog {
       label: 'Kundenname',
       placeholder: 'Max Mustermann',
       required: true,
+    });
+
+    console.log('✓ Input fields created:', {
+      dateInput: !!this.#dateInput,
+      customerNameInput: !!this.#customerNameInput,
     });
 
     // Address fields
@@ -580,6 +587,8 @@ export class AddRevenueDialog {
       ]),
       actions,
     ]);
+
+    console.log('✓ Form container created with', formContainer.children.length, 'children');
 
     return formContainer;
   }
