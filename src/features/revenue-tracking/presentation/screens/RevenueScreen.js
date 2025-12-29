@@ -1126,11 +1126,9 @@ createElement('svg', {
       createElement('td', {}, [entry.originalEntry.customerName]),
       createElement('td', {}, [entry.originalEntry.category.displayName]),
       createElement('td', {}, [entry.originalEntry.product.name]),
-      this.#renderCompanyRevenueAmountCell(entry.originalEntry),
-      createElement('td', {}, [
-        createElement('span', { className: 'provision-badge company-provision' }, [
-          this.#formatCurrency(entry.companyProvisionAmount),
-        ]),
+      this.#renderCompanyRevenueAmountCell(entry.originalEntry, 'text-left'),
+      createElement('td', { className: 'text-left' }, [
+        this.#formatCurrency(entry.companyProvisionAmount),
       ]),
       createElement('td', { className: 'td-status' }, [statusDropdown]),
     ]);
@@ -1285,10 +1283,10 @@ createElement('svg', {
     menu.classList.remove('open');
   }
 
-  #renderCompanyRevenueAmountCell(entry) {
+  #renderCompanyRevenueAmountCell(entry, alignment = 'text-right') {
     if (entry.hasVAT) {
       // Show Netto + Brutto for accounting
-      return createElement('td', { className: 'text-right' }, [
+      return createElement('td', { className: alignment }, [
         createElement('div', { className: 'revenue-amount-with-vat' }, [
           createElement('div', { className: 'revenue-net' }, [
             createElement('span', { className: 'amount-label' }, ['Netto: ']),
@@ -1306,7 +1304,7 @@ createElement('svg', {
       ]);
     } else {
       // Show only amount (no VAT)
-      return createElement('td', { className: 'text-right' }, [
+      return createElement('td', { className: alignment }, [
         this.#formatCurrency(entry.provisionAmount),
       ]);
     }
