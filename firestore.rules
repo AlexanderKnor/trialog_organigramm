@@ -29,11 +29,21 @@ service cloud.firestore {
          request.auth.uid in resourceData.get('sharedWith', []));
     }
 
+    // Check if email is in admin list (fallback for migration)
+    function isAdminEmail() {
+      let email = request.auth.token.email.lower();
+      return email.matches('.*alexander-knor@outlook\\.de.*') ||
+             email.matches('.*info@trialog-makler\\.de.*') ||
+             email.matches('.*buchhaltung@trialog-makler\\.de.*') ||
+             email.matches('.*liebetrau@trialog-makler\\.de.*') ||
+             email.matches('.*lippa@trialog-makler\\.de.*');
+    }
+
     // OPTIMIZED: Use Custom Claims instead of Firestore read
-    // This eliminates extra Firestore reads for every admin check
+    // Falls back to email check if Custom Claims not yet set (during migration)
     function isAdmin() {
-      return isValidUser() &&
-        request.auth.token.role == 'admin';
+      return (isValidUser() && request.auth.token.role == 'admin') ||
+             (isAuthenticated() && isAdminEmail());
     }
 
     // ========================================
@@ -45,8 +55,9 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
 
       // User creation: Allow user to create their OWN document (first login)
+      // OR allow admins to create user documents (for employee creation)
       // Special case: No userDocumentExists check to avoid chicken-egg problem
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
 
       // Users can update their own profile, admins can update all
       allow update: if isOwner(userId) || isAdmin();

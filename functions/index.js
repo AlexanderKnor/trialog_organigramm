@@ -56,14 +56,17 @@ function isAdminEmail(email) {
  * Create Employee Account
  * Callable function to create employee accounts without disrupting admin session
  */
-exports.createEmployeeAccount = onCall(async (request) => {
+exports.createEmployeeAccount = onCall({
+  cors: true, // Enable CORS for all origins (Firebase Hosting + localhost)
+}, async (request) => {
   // Verify the caller is authenticated
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Must be authenticated to create accounts');
   }
 
-  // Verify the caller is an admin via Custom Claims
-  if (!isUserAdmin(request.auth.token)) {
+  // Verify the caller is an admin via Custom Claims OR email fallback
+  // Email fallback allows migration before Custom Claims are set
+  if (!isUserAdmin(request.auth.token) && !isAdminEmail(request.auth.token.email)) {
     throw new HttpsError('permission-denied', 'Only admins can create employee accounts');
   }
 
@@ -131,14 +134,17 @@ exports.createEmployeeAccount = onCall(async (request) => {
  * Delete Employee Account
  * Callable function to delete employee accounts (admin only)
  */
-exports.deleteEmployeeAccount = onCall(async (request) => {
+exports.deleteEmployeeAccount = onCall({
+  cors: true, // Enable CORS for all origins (Firebase Hosting + localhost)
+}, async (request) => {
   // Verify the caller is authenticated
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Must be authenticated');
   }
 
-  // Verify the caller is an admin via Custom Claims
-  if (!isUserAdmin(request.auth.token)) {
+  // Verify the caller is an admin via Custom Claims OR email fallback
+  // Email fallback allows migration before Custom Claims are set
+  if (!isUserAdmin(request.auth.token) && !isAdminEmail(request.auth.token.email)) {
     throw new HttpsError('permission-denied', 'Only admins can delete accounts');
   }
 
@@ -205,14 +211,17 @@ exports.deleteEmployeeAccount = onCall(async (request) => {
  * Set User Role (Admin Only)
  * Manually set a user's role using Custom Claims
  */
-exports.setUserRole = onCall(async (request) => {
+exports.setUserRole = onCall({
+  cors: true, // Enable CORS for all origins (Firebase Hosting + localhost)
+}, async (request) => {
   // Verify the caller is authenticated
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Must be authenticated');
   }
 
-  // Verify the caller is an admin
-  if (!isUserAdmin(request.auth.token)) {
+  // Verify the caller is an admin via Custom Claims OR email fallback
+  // Email fallback allows migration before Custom Claims are set
+  if (!isUserAdmin(request.auth.token) && !isAdminEmail(request.auth.token.email)) {
     throw new HttpsError('permission-denied', 'Only admins can set user roles');
   }
 
@@ -266,14 +275,17 @@ exports.setUserRole = onCall(async (request) => {
  * Migrate All Users to Custom Claims
  * One-time migration to set Custom Claims for all existing users
  */
-exports.migrateUsersToCustomClaims = onCall(async (request) => {
+exports.migrateUsersToCustomClaims = onCall({
+  cors: true, // Enable CORS for all origins (Firebase Hosting + localhost)
+}, async (request) => {
   // Verify the caller is authenticated
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Must be authenticated');
   }
 
-  // Verify the caller is an admin
-  if (!isUserAdmin(request.auth.token)) {
+  // Verify the caller is an admin via Custom Claims OR email fallback
+  // Email fallback is ESSENTIAL here - migration sets Custom Claims for the first time!
+  if (!isUserAdmin(request.auth.token) && !isAdminEmail(request.auth.token.email)) {
     throw new HttpsError('permission-denied', 'Only admins can run migration');
   }
 
