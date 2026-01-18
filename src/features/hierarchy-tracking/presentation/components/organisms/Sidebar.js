@@ -345,11 +345,6 @@ export class Sidebar {
       try {
         if (this.#node.email) {
           userProfile = await this.#profileService.getUserByEmail(this.#node.email);
-          Logger.log('✓ User profile loaded for edit:', userProfile);
-          Logger.log('  First Name:', userProfile?.firstName);
-          Logger.log('  Last Name:', userProfile?.lastName);
-          Logger.log('  Address:', userProfile?.address);
-          Logger.log('  Full User Object:', JSON.stringify(userProfile, null, 2));
         }
       } catch (error) {
         Logger.error('Failed to load user profile:', error);

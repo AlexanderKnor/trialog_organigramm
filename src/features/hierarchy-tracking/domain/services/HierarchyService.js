@@ -71,9 +71,31 @@ export class HierarchyService {
       insuranceProvision: nodeData.insuranceProvision || 0,
     });
 
+    // Add node to local tree
     tree.addNode(node, parentId);
-    await this.#hierarchyRepository.save(tree);
-    await this.#trackingRepository.save(TrackingEvent.nodeCreated(treeId, node.id, node.name));
+
+    // Try to save - rollback on failure
+    try {
+      await this.#hierarchyRepository.save(tree);
+      Logger.log(`✓ Node saved to backend: ${node.name}`);
+    } catch (saveError) {
+      // ROLLBACK: Remove node from local tree
+      Logger.error(`❌ Failed to save node to backend, rolling back: ${saveError.message}`);
+      try {
+        tree.removeNode(node.id);
+      } catch (rollbackError) {
+        Logger.warn('Rollback also failed:', rollbackError.message);
+      }
+      throw new Error(`Speichern fehlgeschlagen: ${saveError.message}`);
+    }
+
+    // Only track after successful save
+    try {
+      await this.#trackingRepository.save(TrackingEvent.nodeCreated(treeId, node.id, node.name));
+    } catch (trackingError) {
+      Logger.warn('Tracking event save failed:', trackingError.message);
+      // Don't fail the operation for tracking errors
+    }
 
     // Create Firebase account for employee if email and password are provided
     if (this.#authService && nodeData.email && nodeData.email.trim() !== '' && nodeData.password) {
@@ -99,41 +121,148 @@ export class HierarchyService {
   }
 
   async updateNode(treeId, nodeId, updates) {
+    // Load fresh tree from backend
     const tree = await this.#hierarchyRepository.findById(treeId);
-    const node = tree.updateNode(nodeId, updates);
 
-    await this.#hierarchyRepository.save(tree);
-    await this.#trackingRepository.save(TrackingEvent.nodeUpdated(treeId, nodeId, updates));
+    // Check if node exists in backend
+    if (!tree.hasNode(nodeId)) {
+      throw new Error('Mitarbeiter existiert nicht im Backend. Bitte Seite neu laden.');
+    }
+
+    // Store original values for rollback
+    const node = tree.getNode(nodeId);
+    const originalValues = {
+      name: node.name,
+      description: node.description,
+      type: node.type,
+      email: node.email,
+      phone: node.phone,
+      bankProvision: node.bankProvision,
+      realEstateProvision: node.realEstateProvision,
+      insuranceProvision: node.insuranceProvision,
+    };
+
+    // Apply updates
+    tree.updateNode(nodeId, updates);
+
+    // Try to save - rollback on failure
+    try {
+      await this.#hierarchyRepository.save(tree);
+      Logger.log(`✓ Node updated in backend: ${node.name}`);
+    } catch (saveError) {
+      // ROLLBACK: Restore original values
+      Logger.error(`❌ Failed to save node update, rolling back: ${saveError.message}`);
+      tree.updateNode(nodeId, originalValues);
+      throw new Error(`Speichern fehlgeschlagen: ${saveError.message}`);
+    }
+
+    // Track update (don't fail on tracking errors)
+    try {
+      await this.#trackingRepository.save(TrackingEvent.nodeUpdated(treeId, nodeId, updates));
+    } catch (trackingError) {
+      Logger.warn('Tracking event save failed:', trackingError.message);
+    }
 
     return node;
   }
 
   async removeNode(treeId, nodeId) {
+    // First, load fresh tree from backend to ensure we have the latest state
     const tree = await this.#hierarchyRepository.findById(treeId);
+
+    // Check if node actually exists in the backend tree
+    if (!tree.hasNode(nodeId)) {
+      Logger.warn(`⚠ Node ${nodeId} not found in backend tree - may be local-only orphan`);
+      throw new Error('Mitarbeiter existiert nicht im Backend. Bitte Seite neu laden.');
+    }
+
     const node = tree.getNode(nodeId);
     const nodeName = node.name;
 
+    // Remove node from tree
     tree.removeNode(nodeId);
-    await this.#hierarchyRepository.save(tree);
-    await this.#trackingRepository.save(TrackingEvent.nodeDeleted(treeId, nodeId, nodeName));
+
+    // Save to backend
+    try {
+      await this.#hierarchyRepository.save(tree);
+      Logger.log(`✓ Node removed from backend: ${nodeName}`);
+    } catch (saveError) {
+      Logger.error(`❌ Failed to save after removing node: ${saveError.message}`);
+      throw new Error(`Löschen fehlgeschlagen: ${saveError.message}`);
+    }
+
+    // Track deletion (don't fail on tracking errors)
+    try {
+      await this.#trackingRepository.save(TrackingEvent.nodeDeleted(treeId, nodeId, nodeName));
+    } catch (trackingError) {
+      Logger.warn('Tracking event save failed:', trackingError.message);
+    }
   }
 
   async moveNode(treeId, nodeId, newParentId) {
+    // Load fresh tree from backend
     const tree = await this.#hierarchyRepository.findById(treeId);
+
+    // Check if node exists
+    if (!tree.hasNode(nodeId)) {
+      throw new Error('Mitarbeiter existiert nicht im Backend. Bitte Seite neu laden.');
+    }
+
     const node = tree.getNode(nodeId);
     const fromParentId = node.parentId;
 
+    // Move node
     tree.moveNode(nodeId, newParentId);
-    await this.#hierarchyRepository.save(tree);
-    await this.#trackingRepository.save(
-      TrackingEvent.nodeMoved(treeId, nodeId, fromParentId, newParentId),
-    );
+
+    // Try to save - rollback on failure
+    try {
+      await this.#hierarchyRepository.save(tree);
+      Logger.log(`✓ Node moved in backend: ${node.name}`);
+    } catch (saveError) {
+      // ROLLBACK: Move back to original parent
+      Logger.error(`❌ Failed to save node move, rolling back: ${saveError.message}`);
+      if (fromParentId) {
+        tree.moveNode(nodeId, fromParentId);
+      }
+      throw new Error(`Verschieben fehlgeschlagen: ${saveError.message}`);
+    }
+
+    // Track move (don't fail on tracking errors)
+    try {
+      await this.#trackingRepository.save(
+        TrackingEvent.nodeMoved(treeId, nodeId, fromParentId, newParentId),
+      );
+    } catch (trackingError) {
+      Logger.warn('Tracking event save failed:', trackingError.message);
+    }
   }
 
   async reorderChildren(treeId, parentId, childIds) {
+    // Load fresh tree from backend
     const tree = await this.#hierarchyRepository.findById(treeId);
+
+    // Check if parent exists
+    if (!tree.hasNode(parentId)) {
+      throw new Error('Übergeordneter Knoten existiert nicht im Backend. Bitte Seite neu laden.');
+    }
+
+    // Store original order for rollback
+    const parent = tree.getNode(parentId);
+    const originalChildIds = [...parent.childIds];
+
+    // Reorder
     tree.reorderChildren(parentId, childIds);
-    await this.#hierarchyRepository.save(tree);
+
+    // Try to save - rollback on failure
+    try {
+      await this.#hierarchyRepository.save(tree);
+      Logger.log(`✓ Children reordered in backend`);
+    } catch (saveError) {
+      // ROLLBACK: Restore original order
+      Logger.error(`❌ Failed to save reorder, rolling back: ${saveError.message}`);
+      tree.reorderChildren(parentId, originalChildIds);
+      throw new Error(`Sortierung fehlgeschlagen: ${saveError.message}`);
+    }
   }
 
   async getTreeHistory(treeId, limit = 50) {

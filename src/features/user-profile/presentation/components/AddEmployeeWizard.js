@@ -44,15 +44,30 @@ export class AddEmployeeWizard {
       const user = this.#existingUser;
       const node = this.#props.existingNode;
 
+      // Extract firstName and lastName from node name if user profile is incomplete
+      // This handles migrated users who don't have full profile data
+      let firstName = user.firstName || '';
+      let lastName = user.lastName || '';
+
+      if ((!firstName || !lastName) && node?.name) {
+        const nameParts = node.name.trim().split(' ');
+        if (nameParts.length >= 2) {
+          firstName = firstName || nameParts[0];
+          lastName = lastName || nameParts.slice(1).join(' ');
+        } else if (nameParts.length === 1) {
+          firstName = firstName || nameParts[0];
+        }
+      }
+
       this.#formData = {
-        // Step 1: Personal
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
+        // Step 1: Personal - Use node data as fallback for incomplete profiles
+        firstName,
+        lastName,
         birthDate: user.birthDate && user.birthDate !== 'Invalid Date'
           ? (typeof user.birthDate === 'string' ? user.birthDate.split('T')[0] : new Date(user.birthDate).toISOString().split('T')[0])
           : '',
-        email: user.email || '',
-        phone: user.phone || '',
+        email: user.email || node?.email || '',
+        phone: user.phone || node?.phone || '',
         password: '', // Never pre-fill password
         passwordConfirm: '',
 

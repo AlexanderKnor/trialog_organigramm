@@ -250,12 +250,38 @@ export class AuthService {
         password
       );
 
-      // User document will be created by auth state change handler
+      const user = userCredential.user;
+
+      // Determine role for new user (check if admin email)
+      const normalizedEmail = email.toLowerCase();
+      const role = ADMIN_EMAILS.some((adminEmail) =>
+        normalizedEmail.includes(adminEmail.toLowerCase())
+      )
+        ? USER_ROLES.ADMIN
+        : USER_ROLES.EMPLOYEE;
+
+      // Create user document IMMEDIATELY after registration
+      // This is critical because #handleAuthStateChange will check for document existence
+      const { doc, setDoc, serverTimestamp } = this.firestoreHelpers;
+      const userRef = doc(this.#firestore, FIRESTORE_COLLECTIONS.USERS, user.uid);
+
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: displayName || user.email.split('@')[0],
+        role,
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+      });
+
+      Logger.log(`✓ User document created during registration: ${email} (${role})`);
+
       return {
         success: true,
         user: {
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
+          uid: user.uid,
+          email: user.email,
+          role,
         },
       };
     } catch (error) {

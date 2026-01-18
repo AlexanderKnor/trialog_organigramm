@@ -261,17 +261,16 @@ async #handleNodeDelete(nodeId, skipConfirmation = false) {
     Logger.log('🗑️ #handleNodeDelete called - skipConfirmation:', skipConfirmation);
 
     const tree = this.#state.currentTree;
-    if (!tree || !tree.hasNode(nodeId)) return;
+    if (!tree || !tree.hasNode(nodeId)) {
+      Logger.warn('⚠ Node not found in local tree');
+      return;
+    }
 
     const node = tree.getNode(nodeId);
     const hasEmail = node.email && node.email.trim() !== '';
 
-    // REMOVED: Third confirmation dialog
-    // Wizard already shows 2 confirmations, this is redundant
-    // Skip confirmation completely when called from Wizard
-
     try {
-      // Delete node from tree
+      // Delete node from tree (service now checks backend existence)
       await this.#hierarchyService.removeNode(this.#currentTreeId, nodeId);
 
       // If employee had email, delete ALL associated data
@@ -317,7 +316,14 @@ async #handleNodeDelete(nodeId, skipConfirmation = false) {
     } catch (error) {
       Logger.error('Failed to delete node:', error);
       this.#state.setError(error.message);
-      alert('Fehler beim Löschen: ' + error.message);
+
+      // Show error with reload option
+      const shouldReload = window.confirm(
+        `Fehler beim Löschen: ${error.message}\n\nMöchten Sie die Seite neu laden, um den aktuellen Stand vom Server zu holen?`
+      );
+      if (shouldReload) {
+        window.location.reload();
+      }
     }
   }
 
@@ -438,7 +444,14 @@ async #deleteEmployeeRevenueEntries(employeeId) {
         } catch (error) {
           this.#hideLoadingOverlay();
           Logger.error('Failed to create employee:', error);
-          alert('Fehler beim Anlegen: ' + error.message);
+
+          // Show error with reload option
+          const shouldReload = window.confirm(
+            `Fehler beim Anlegen: ${error.message}\n\nMöchten Sie die Seite neu laden, um den aktuellen Stand vom Server zu holen?`
+          );
+          if (shouldReload) {
+            window.location.reload();
+          }
         }
       },
       onCancel: () => wizard.remove(),

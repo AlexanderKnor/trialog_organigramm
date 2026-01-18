@@ -31,7 +31,12 @@ export class UserFirestoreDataSource {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        return docSnap.data();
+        const userData = docSnap.data();
+        // Ensure uid is included in the data (for migrated users)
+        if (!userData.uid) {
+          userData.uid = uid;
+        }
+        return userData;
       }
 
       return null;
@@ -56,7 +61,15 @@ export class UserFirestoreDataSource {
         return null;
       }
 
-      return querySnapshot.docs[0].data();
+      const docSnapshot = querySnapshot.docs[0];
+      const userData = docSnapshot.data();
+
+      // Include document ID as uid if not present (for migrated users)
+      if (!userData.uid) {
+        userData.uid = docSnapshot.id;
+      }
+
+      return userData;
     } catch (error) {
       throw new StorageError(`Failed to find user by email: ${error.message}`);
     }
@@ -91,7 +104,6 @@ export class UserFirestoreDataSource {
         updatedAt: serverTimestamp(),
       });
 
-      Logger.log(`✓ User profile saved: ${userData.email}`);
       return userData;
     } catch (error) {
       throw new StorageError(`Failed to save user profile: ${error.message}`);

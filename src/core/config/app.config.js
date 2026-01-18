@@ -4,7 +4,7 @@
 
 export const APP_CONFIG = {
   name: 'Trialog Strukturplan',
-  version: '1.0.0',
+  version: '1.0.1',
   company: 'Trialog Maklergruppe GmbH',
 
   // Single Tree Policy - Fixed ID for the one and only organization tree

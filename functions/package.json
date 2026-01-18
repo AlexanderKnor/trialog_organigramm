@@ -1,6 +1,6 @@
 {
   "name": "trialog-organigramm-functions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cloud Functions for Trialog Organigramm",
   "main": "index.js",
   "scripts": {
