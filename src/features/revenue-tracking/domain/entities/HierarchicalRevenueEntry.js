@@ -137,18 +137,16 @@ export class HierarchicalRevenueEntry {
       }
     }
 
-    // Calculate provision amounts with tip provider consideration
-    // Tip provider reduces owner's provision, but doesn't affect manager's calculation
-    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
-    const ownerEffectiveProvision = Math.max(0, ownerProvision - tipProviderPercentage);
-
-    const provisionDifference = managerProvision - ownerProvision; // Based on ORIGINAL owner provision
+    // Calculate provision amounts
+    // Tip provider provision is deducted from COMPANY, not from owner
+    // Owner keeps their full provision percentage
+    const provisionDifference = managerProvision - ownerProvision;
     const managerAmount =
       provisionDifference > 0
         ? entry.provisionAmount * (provisionDifference / 100)
         : 0;
 
-    const ownerAmount = entry.provisionAmount * (ownerEffectiveProvision / 100);
+    const ownerAmount = entry.provisionAmount * (ownerProvision / 100);
 
     return new HierarchicalRevenueEntry({
       originalEntry: entry,

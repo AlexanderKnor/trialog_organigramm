@@ -508,9 +508,9 @@ export class RevenueService {
       }
     }
 
-    // Deduct tip provider provision if present (owner shares with tip provider)
-    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
-    return Math.max(0, baseProvision - tipProviderPercentage);
+    // Tip provider provision is now deducted from COMPANY, not from owner
+    // Owner keeps their full provision percentage
+    return baseProvision;
   }
 
   /**

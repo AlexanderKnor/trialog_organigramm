@@ -1711,6 +1711,19 @@
   background: #94a3b8;
 }
 
+/* Tip Provider Styling - Subtle, muted appearance */
+.cascade-participant-tipProvider .cascade-participant-icon {
+  color: #78716c;
+}
+
+.cascade-participant-tipProvider .cascade-progress-fill {
+  background: #a8a29e;
+}
+
+.cascade-participant-tipProvider .cascade-participant-percent {
+  color: #78716c;
+}
+
 /* SVG Icons */
 .cascade-svg-icon {
   width: 20px;

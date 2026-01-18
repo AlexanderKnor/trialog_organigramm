@@ -43,9 +43,28 @@ export class ProvisionCascade {
       level: 0,
     });
 
+    // Add tip provider directly above owner (if present)
+    const originalEntry = this.#entry.originalEntry;
+    let level = 1;
+
+    if (originalEntry.hasTipProvider) {
+      const tipProviderProvision = originalEntry.tipProviderProvisionPercentage || 0;
+      const tipProviderAmount = originalEntry.tipProviderProvisionAmount || 0;
+
+      cascadeItems.push({
+        name: originalEntry.tipProviderName || 'Tippgeber',
+        role: 'Tippgeber',
+        provision: tipProviderProvision,
+        amount: tipProviderAmount,
+        isOwner: false,
+        isCompany: false,
+        isTipProvider: true,
+        level: level++,
+      });
+    }
+
     // Add intermediate managers (skip first = company, skip last = entry owner)
     let previousProvision = ownerProvision;
-    let level = 1;
 
     for (let i = hierarchyPath.length - 2; i > 0; i--) {
       const manager = hierarchyPath[i];
@@ -69,7 +88,7 @@ export class ProvisionCascade {
       }
     }
 
-    // Add company (gets remainder)
+    // Add company (gets remainder after tip provider deduction)
     const company = hierarchyPath[0];
     const companyProvision = this.#entry.companyProvisionPercentage;
     const companyAmount = this.#entry.companyProvisionAmount;
@@ -84,7 +103,7 @@ export class ProvisionCascade {
       level: level,
     });
 
-    // Calculate totals
+    // Calculate totals (includes tip provider)
     const totalDistributed = cascadeItems.reduce((sum, item) => sum + item.amount, 0);
 
     // Create main container
@@ -145,7 +164,8 @@ export class ProvisionCascade {
       'cascade-participant',
       item.isCompany ? 'cascade-participant-company' : '',
       item.isOwner ? 'cascade-participant-owner' : '',
-      !item.isCompany && !item.isOwner ? 'cascade-participant-manager' : '',
+      item.isTipProvider ? 'cascade-participant-tipProvider' : '',
+      !item.isCompany && !item.isOwner && !item.isTipProvider ? 'cascade-participant-manager' : '',
       isFirst ? 'cascade-participant-first' : '',
       isLast ? 'cascade-participant-last' : '',
     ].filter(Boolean).join(' ');
@@ -163,7 +183,9 @@ export class ProvisionCascade {
       ? this.#createBuildingIcon()
       : item.isOwner
         ? this.#createUserIcon()
-        : this.#createTieIcon();
+        : item.isTipProvider
+          ? this.#createHandshakeIcon()
+          : this.#createTieIcon();
 
     // Progress bar width (visual representation)
     const maxProvision = 100;
@@ -303,6 +325,24 @@ export class ProvisionCascade {
 
     const path = document.createElementNS(svgNS, 'path');
     path.setAttribute('d', 'M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+
+    svg.appendChild(path);
+    return svg;
+  }
+
+  #createHandshakeIcon() {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('class', 'cascade-svg-icon');
+
+    const path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('d', 'M7 11L11 7L9.5 5.5L5 10L3 8V14H9L7 11ZM17 13L13 17L14.5 18.5L19 14L21 16V10H15L17 13ZM12 12L9 15L11 17L14 14L12 12Z');
     path.setAttribute('stroke', 'currentColor');
     path.setAttribute('stroke-width', '2');
     path.setAttribute('stroke-linecap', 'round');
