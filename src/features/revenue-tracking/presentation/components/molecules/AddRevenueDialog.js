@@ -41,6 +41,7 @@ export class AddRevenueDialog {
   #notesInput;
   #tipProviderSelect;
   #tipProviderProvisionInput;
+  #trackingModeRadios; // Track revenue vs provision
 
   // Dynamic catalog data
   #categories;
@@ -68,6 +69,7 @@ export class AddRevenueDialog {
       provider: null,
       tipProvider: null,
       tipProviderProvision: null,
+      trackingMode: 'revenue', // 'revenue' or 'provision'
     };
 
     this.#categories = [];
@@ -424,7 +426,10 @@ export class AddRevenueDialog {
       required: true,
     });
 
-    // Provision amount
+    // Tracking mode toggle (Revenue vs Provision)
+    this.#trackingModeRadios = this.#createTrackingModeToggle();
+
+    // Provision amount (label changes based on tracking mode)
     this.#provisionAmountInput = new Input({
       label: 'Umsatz Netto (EUR)',
       placeholder: '0.00',
@@ -519,6 +524,14 @@ export class AddRevenueDialog {
       ]),
     ]);
 
+    // Tracking mode wrapper (only visible in create mode)
+    const trackingModeWrapper = createElement('div', {
+      className: `tracking-mode-wrapper ${this.#isEditMode ? 'hidden' : ''}`,
+    }, [
+      createElement('label', { className: 'input-label' }, ['Was möchten Sie erfassen?']),
+      this.#trackingModeRadios,
+    ]);
+
     const dateAndContractRow = createElement('div', { className: 'dialog-form-row' }, [
       createElement('div', { className: 'dialog-form-col-1' }, [
         this.#dateInput.element,
@@ -583,6 +596,7 @@ export class AddRevenueDialog {
         addressRow,
         cityRow,
         selectionRow,
+        trackingModeWrapper,
         dateAndContractRow,
         vatCheckboxWrapper,
         tipProviderRow,
@@ -806,6 +820,75 @@ export class AddRevenueDialog {
     Logger.log('VAT checkbox changed:', isChecked);
   }
 
+  #createTrackingModeToggle() {
+    const revenueRadio = createElement('input', {
+      type: 'radio',
+      name: 'tracking-mode',
+      id: 'tracking-mode-revenue',
+      value: 'revenue',
+      checked: true,
+    });
+
+    const provisionRadio = createElement('input', {
+      type: 'radio',
+      name: 'tracking-mode',
+      id: 'tracking-mode-provision',
+      value: 'provision',
+    });
+
+    // Add event listeners after creation for better compatibility
+    revenueRadio.addEventListener('change', () => this.#onTrackingModeChange('revenue'));
+    provisionRadio.addEventListener('change', () => this.#onTrackingModeChange('provision'));
+
+    const toggle = createElement('div', { className: 'tracking-mode-toggle' }, [
+      createElement('label', {
+        className: 'tracking-mode-option tracking-mode-option-active',
+        htmlFor: 'tracking-mode-revenue',
+      }, [
+        revenueRadio,
+        createElement('span', { className: 'tracking-mode-label' }, ['Umsatz erfassen']),
+      ]),
+      createElement('label', {
+        className: 'tracking-mode-option',
+        htmlFor: 'tracking-mode-provision',
+      }, [
+        provisionRadio,
+        createElement('span', { className: 'tracking-mode-label' }, ['Provision erfassen']),
+      ]),
+    ]);
+
+    return toggle;
+  }
+
+  #onTrackingModeChange(mode) {
+    this.#formData.trackingMode = mode;
+
+    // Update active state on toggle options
+    const options = this.#trackingModeRadios.querySelectorAll('.tracking-mode-option');
+    options.forEach(opt => {
+      const radio = opt.querySelector('input[type="radio"]');
+      if (radio.value === mode) {
+        opt.classList.add('tracking-mode-option-active');
+      } else {
+        opt.classList.remove('tracking-mode-option-active');
+      }
+    });
+
+    // Update input label
+    const labelElement = this.#provisionAmountInput.element.querySelector('.input-label');
+    if (labelElement) {
+      if (mode === 'provision') {
+        labelElement.textContent = 'Eigene Provision (EUR)';
+        this.#provisionAmountInput.element.querySelector('input').placeholder = 'Ihre Provision';
+      } else {
+        labelElement.textContent = 'Umsatz Netto (EUR)';
+        this.#provisionAmountInput.element.querySelector('input').placeholder = '0.00';
+      }
+    }
+
+    Logger.log('Tracking mode changed:', mode);
+  }
+
   #updateVATCheckboxState(product) {
     const isVatExempt = product?.isVatExempt || false;
     const vatWrapper = this.#element.querySelector('.vat-checkbox-wrapper');
@@ -954,7 +1037,8 @@ export class AddRevenueDialog {
   async #handleSave() {
     const customerName = this.#customerNameInput.value.trim();
     const contractNumber = this.#contractNumberInput.value.trim();
-    const provisionAmount = parseFloat(this.#provisionAmountInput.value) || 0;
+    const enteredAmount = parseFloat(this.#provisionAmountInput.value) || 0;
+    const trackingMode = this.#formData.trackingMode;
 
     // Validation
     if (!customerName) {
@@ -967,12 +1051,53 @@ export class AddRevenueDialog {
       return;
     }
 
-    if (provisionAmount <= 0) {
-      this.#provisionAmountInput.setError('Umsatz muss groesser als 0 sein');
+    if (enteredAmount <= 0) {
+      const errorMsg = trackingMode === 'provision'
+        ? 'Provision muss grösser als 0 sein'
+        : 'Umsatz muss grösser als 0 sein';
+      this.#provisionAmountInput.setError(errorMsg);
       return;
     }
 
     const categoryType = this.#categorySelect.value;
+
+    // Get tip provider data early (needed for back-calculation)
+    const tipProviderId = this.#tipProviderSelect.value || null;
+
+    // Read tip provider provision
+    const tipProviderProvision = tipProviderId
+      ? parseFloat(this.#tipProviderProvisionInput.value) || 0
+      : 0;
+
+    // Calculate revenue amount (back-calculate if tracking provision)
+    let provisionAmount = enteredAmount;
+
+    if (trackingMode === 'provision') {
+      // Back-calculate revenue from entered provision
+      const ownerBaseProvision = await this.#getOwnerProvision(categoryType);
+
+      // Validate owner has provision for this category
+      if (ownerBaseProvision <= 0) {
+        this.#provisionAmountInput.setError(
+          'Sie haben keine Provision für diese Kategorie. Bitte wählen Sie eine andere Kategorie.'
+        );
+        return;
+      }
+
+      // Calculate effective provision (base - tip provider)
+      const ownerEffectiveProvision = ownerBaseProvision - tipProviderProvision;
+
+      if (ownerEffectiveProvision <= 0) {
+        this.#provisionAmountInput.setError(
+          `Ihre effektive Provision (${ownerBaseProvision}% - ${tipProviderProvision}% Tippgeber) ist 0% oder negativ. ` +
+          'Bitte reduzieren Sie die Tippgeber-Provision.'
+        );
+        return;
+      }
+
+      // Back-calculate: revenue = provision / (effectiveProvision% / 100)
+      provisionAmount = enteredAmount / (ownerEffectiveProvision / 100);
+    }
 
     // Extract product ID and name from selected option
     const productValue = this.#productSelect.value;
@@ -984,14 +1109,12 @@ export class AddRevenueDialog {
     const propertyAddress = this.#propertyAddressInput.value.trim();
     const entryDate = this.#dateInput.value || new Date().toISOString().split('T')[0];
 
-    // Get tip provider data
-    const tipProviderId = this.#tipProviderSelect.value || null;
-    const tipProviderProvision = tipProviderId
-      ? parseFloat(this.#tipProviderProvisionInput.value) || 0
-      : null;
+    // Tip provider data already retrieved earlier for back-calculation
+    // Convert to null if not selected (for storage)
+    const tipProviderProvisionForStorage = tipProviderId ? tipProviderProvision : null;
 
     // Validation: Tip provider provision must be set if tip provider is selected
-    if (tipProviderId && (tipProviderProvision === null || tipProviderProvision <= 0)) {
+    if (tipProviderId && (tipProviderProvisionForStorage === null || tipProviderProvisionForStorage <= 0)) {
       this.#tipProviderProvisionInput.setError('Tippgeber-Provision ist erforderlich');
       return;
     }
@@ -1057,7 +1180,7 @@ export class AddRevenueDialog {
       // Tip Provider (Tippgeber)
       tipProviderId,
       tipProviderName,
-      tipProviderProvisionPercentage: tipProviderProvision,
+      tipProviderProvisionPercentage: tipProviderProvisionForStorage,
     };
 
     // Include entry ID if editing

@@ -3334,6 +3334,58 @@
 }
 
 /* ========================================
+   TRACKING MODE TOGGLE (UMSATZ VS PROVISION)
+   ======================================== */
+
+.tracking-mode-wrapper {
+  margin: 0.5rem 0 1rem 0;
+}
+
+.tracking-mode-toggle {
+  display: flex;
+  gap: 0;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.tracking-mode-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.tracking-mode-option input[type="radio"] {
+  display: none;
+}
+
+.tracking-mode-option:hover:not(.tracking-mode-option-active) {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.tracking-mode-option-active {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark, #1e40af) 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.tracking-mode-label {
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+/* ========================================
    VAT (UMSATZSTEUER) STYLES
    ======================================== */
 
