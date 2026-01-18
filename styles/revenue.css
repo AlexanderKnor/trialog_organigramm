@@ -1462,237 +1462,303 @@
 
 /* ========================================
    PROVISION CASCADE VISUALIZATION
+   Elegant Vertical Flow Design (Full Width)
    ======================================== */
 
 .provision-cascade {
-  max-width: 380px;
+  width: 100%;
 }
 
-.cascade-flow {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+.provision-cascade-elegant {
+  padding: 0;
 }
 
-.cascade-base {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-2) var(--spacing-3);
-  background: linear-gradient(135deg, var(--color-primary) 0%, #1a3a6e 100%);
-  color: var(--color-white);
+/* Main Cascade Container */
+.cascade-elegant {
+  width: 100%;
+  background: #fafbfc;
+  border-radius: 12px;
+  border: 1px solid #e8ecf1;
+  overflow: hidden;
 }
 
-.cascade-base-bottom {
-  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
-  margin-top: 0;
-}
-
-.cascade-base-label {
-  font-size: 10px;
-  font-weight: var(--font-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.8;
-}
-
-.cascade-base-amount {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  font-variant-numeric: tabular-nums;
-}
-
-.cascade-item {
-  position: relative;
-}
-
-.cascade-connector {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--spacing-1) 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(42, 82, 152, 0.02) 50%, transparent 100%);
-  position: relative;
-}
-
-.connector-line {
-  width: 2px;
-  height: 8px;
-  background: linear-gradient(0deg, var(--color-primary) 0%, rgba(42, 82, 152, 0.15) 100%);
-  border-radius: 1px;
-}
-
-.connector-arrow-wrapper {
+/* Header Bar - Minimal & Elegant */
+.cascade-header-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: linear-gradient(135deg, rgba(42, 82, 152, 0.08) 0%, rgba(42, 82, 152, 0.04) 100%);
-  border: 1px solid rgba(42, 82, 152, 0.15);
-  border-radius: 50%;
-  box-shadow:
-    0 2px 4px rgba(42, 82, 152, 0.08),
-    inset 0 1px 2px rgba(255, 255, 255, 0.8);
-  transition: all 0.2s ease;
+  justify-content: flex-start;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-4);
+  background: transparent;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
 }
 
-.cascade-item:hover .connector-arrow-wrapper {
-  background: linear-gradient(135deg, rgba(42, 82, 152, 0.12) 0%, rgba(42, 82, 152, 0.06) 100%);
-  border-color: rgba(42, 82, 152, 0.25);
-  transform: translateY(-1px);
-  box-shadow:
-    0 3px 6px rgba(42, 82, 152, 0.12),
-    inset 0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-.connector-arrow-svg {
-  width: 12px;
-  height: 12px;
-  color: var(--color-primary);
-  opacity: 0.7;
-  transition: all 0.2s ease;
-}
-
-.cascade-item:hover .connector-arrow-svg {
-  opacity: 1;
-}
-
-/* Legacy text arrow (fallback) */
-.connector-arrow {
-  font-size: 10px;
-  color: var(--color-primary);
-  opacity: 0.6;
-  font-weight: bold;
-}
-
-.cascade-item-content {
+.cascade-header-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-2) var(--spacing-3);
-  background: var(--color-white);
-  border: 1px solid var(--color-border-light);
-  border-radius: 0;
-  margin: 0;
-  transition: all 0.2s ease;
-}
-
-.cascade-item:hover .cascade-item-content {
-  border-color: var(--color-primary-light);
-  box-shadow: 0 2px 8px rgba(42, 82, 152, 0.08);
-}
-
-.cascade-item-owner .cascade-item-content {
-  background: linear-gradient(135deg, rgba(42, 82, 152, 0.04) 0%, rgba(42, 82, 152, 0.08) 100%);
-  border-color: rgba(42, 82, 152, 0.15);
-}
-
-.cascade-item-company .cascade-item-content {
-  background: linear-gradient(135deg, rgba(22, 163, 74, 0.04) 0%, rgba(22, 163, 74, 0.08) 100%);
-  border-color: rgba(22, 163, 74, 0.2);
-}
-
-.cascade-item-first .cascade-item-content {
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  margin: 0;
-}
-
-.cascade-item-last .cascade-item-content {
-  margin: 0;
-  border-bottom: none;
-}
-
-.cascade-item-left {
-  display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--spacing-2);
 }
 
-.cascade-item-icon {
-  font-size: 14px;
-  width: 26px;
-  height: 26px;
+.cascade-header-divider {
+  width: 1px;
+  height: 24px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(203, 213, 225, 0.8) 50%,
+    transparent 100%
+  );
+}
+
+.cascade-header-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cascade-header-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cascade-header-item-success .cascade-header-value {
+  color: #16a34a;
+}
+
+/* Vertical Flow Container */
+.cascade-flow-vertical {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-3) var(--spacing-4);
+  gap: 0;
+}
+
+/* Vertical Connector */
+.cascade-connector-vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.cascade-connector-line {
+  display: none;
+}
+
+.cascade-connector-arrow {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
+  color: var(--color-primary);
 }
 
-.cascade-item-info {
+.cascade-arrow-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Participant Cards - Clean & Elegant */
+.cascade-participant {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  align-items: center;
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  background: white;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  transition: all 0.2s ease;
+  gap: var(--spacing-4);
 }
 
-.cascade-item-name {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
+.cascade-participant:hover {
+  background: rgba(248, 250, 252, 0.8);
+  border-color: rgba(203, 213, 225, 0.9);
 }
 
-.cascade-item-role {
-  font-size: 9px;
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.cascade-item-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.cascade-item-percent {
-  font-size: 10px;
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.cascade-item-amount {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.cascade-item-company .cascade-item-amount {
-  color: #15803d;
-}
-
-.cascade-summary {
-  display: flex;
-  justify-content: flex-end;
-  padding: var(--spacing-2) var(--spacing-3);
-  margin-top: var(--spacing-1);
-  border-top: 1px dashed var(--color-border);
-}
-
-.cascade-summary-item {
+/* Main Section (Icon + Info) */
+.cascade-participant-main {
   display: flex;
   align-items: center;
   gap: var(--spacing-3);
+  min-width: 180px;
+  flex-shrink: 0;
 }
 
-.cascade-summary .summary-label {
+.cascade-participant-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: 8px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.cascade-participant-icon .cascade-svg-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.cascade-participant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cascade-participant-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cascade-participant-role {
   font-size: 10px;
-  font-weight: var(--font-weight-medium);
+  font-weight: 600;
   color: var(--color-text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
-.cascade-summary .summary-value {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+/* Progress Section */
+.cascade-participant-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.cascade-progress-track {
+  flex: 1;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cascade-progress-fill {
+  height: 100%;
+  background: #cbd5e1;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.cascade-participant-percent {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 45px;
+  text-align: right;
+}
+
+/* Amount Section */
+.cascade-participant-amount-wrapper {
+  min-width: 120px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.cascade-participant-amount {
+  font-size: 16px;
+  font-weight: 700;
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
 }
+
+/* Participant Variants */
+.cascade-participant-owner .cascade-participant-icon {
+  color: var(--color-primary);
+}
+
+.cascade-participant-owner .cascade-progress-fill {
+  background: var(--color-primary);
+}
+
+.cascade-participant-owner .cascade-participant-percent {
+  color: var(--color-primary);
+}
+
+.cascade-participant-company .cascade-participant-icon {
+  color: #16a34a;
+}
+
+.cascade-participant-company .cascade-progress-fill {
+  background: #22c55e;
+}
+
+.cascade-participant-company .cascade-participant-percent,
+.cascade-participant-company .cascade-participant-amount {
+  color: #16a34a;
+}
+
+.cascade-participant-manager .cascade-participant-icon {
+  color: #64748b;
+}
+
+.cascade-participant-manager .cascade-progress-fill {
+  background: #94a3b8;
+}
+
+/* SVG Icons */
+.cascade-svg-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Animation for cascade appearance */
+.cascade-container .provision-cascade-elegant {
+  animation: cascadeSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes cascadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger animation for participant cards */
+.cascade-participant {
+  animation: participantFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: calc(var(--participant-index, 0) * 0.1s);
+  opacity: 0;
+}
+
+@keyframes participantFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.cascade-flow-vertical > .cascade-participant:nth-child(1) { --participant-index: 0; }
+.cascade-flow-vertical > .cascade-participant:nth-child(2) { --participant-index: 1; }
+.cascade-flow-vertical > .cascade-participant:nth-child(3) { --participant-index: 2; }
+.cascade-flow-vertical > .cascade-participant:nth-child(4) { --participant-index: 3; }
+.cascade-flow-vertical > .cascade-participant:nth-child(5) { --participant-index: 4; }
+.cascade-flow-vertical > .cascade-participant:nth-child(6) { --participant-index: 5; }
+.cascade-flow-vertical > .cascade-participant:nth-child(7) { --participant-index: 6; }
 
 /* ========================================
    STATUS BADGES & SELECT
@@ -1972,11 +2038,24 @@
 
 /* Cascade row for rejected entries */
 .cascade-row.cascade-rejected {
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .cascade-row.cascade-rejected .cascade-container {
-  filter: grayscale(30%);
+  filter: grayscale(50%);
+}
+
+.cascade-row.cascade-rejected .cascade-header-item-success .cascade-header-value {
+  color: #94a3b8;
+}
+
+.cascade-row.cascade-rejected .cascade-progress-fill {
+  background: #cbd5e1;
+}
+
+.cascade-row.cascade-rejected .cascade-participant-percent,
+.cascade-row.cascade-rejected .cascade-participant-amount {
+  color: #94a3b8;
 }
 
 /* ========================================
