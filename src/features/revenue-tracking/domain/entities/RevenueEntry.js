@@ -38,6 +38,8 @@ export class RevenueEntry {
   #tipProviderProvisionSnapshot;
   #hasVAT;
   #vatRate;
+  #source;
+  #sourceReference;
 
   constructor({
     id = null,
@@ -66,6 +68,8 @@ export class RevenueEntry {
     tipProviderProvisionSnapshot = null,
     hasVAT = false,
     vatRate = 19,
+    source = null,
+    sourceReference = null,
   }) {
     this.#id = id || generateUUID();
     this.#employeeId = employeeId;
@@ -96,9 +100,9 @@ export class RevenueEntry {
       status instanceof RevenueStatus
         ? status
         : new RevenueStatus(status || REVENUE_STATUS_TYPES.SUBMITTED);
-    this.#entryDate = entryDate ? new Date(entryDate) : new Date();
-    this.#createdAt = createdAt ? new Date(createdAt) : new Date();
-    this.#updatedAt = updatedAt ? new Date(updatedAt) : new Date();
+    this.#entryDate = this.#safeParseDate(entryDate) || new Date();
+    this.#createdAt = this.#safeParseDate(createdAt) || new Date();
+    this.#updatedAt = this.#safeParseDate(updatedAt) || new Date();
 
     // Provision Snapshots - captured at creation time for immutability
     this.#ownerProvisionSnapshot = ownerProvisionSnapshot;
@@ -115,6 +119,23 @@ export class RevenueEntry {
     // VAT (Umsatzsteuer) - Net/Gross calculation
     this.#hasVAT = Boolean(hasVAT);
     this.#vatRate = this.#validateVATRate(vatRate);
+
+    // Source tracking for import duplicate detection
+    this.#source = source ?? null;
+    this.#sourceReference = sourceReference ?? null;
+  }
+
+  #safeParseDate(value) {
+    if (!value) return null;
+    if (value instanceof Date) {
+      return isNaN(value.getTime()) ? null : value;
+    }
+    try {
+      const parsed = new Date(value);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    } catch {
+      return null;
+    }
   }
 
   #validateVATRate(rate) {
@@ -308,6 +329,14 @@ export class RevenueEntry {
     return this.#provisionAmount + this.vatAmount;
   }
 
+  get source() {
+    return this.#source;
+  }
+
+  get sourceReference() {
+    return this.#sourceReference;
+  }
+
   get requiresPropertyAddress() {
     return ProductProvider.requiresFreeTextProvider(this.#category.type);
   }
@@ -455,6 +484,9 @@ export class RevenueEntry {
       // VAT (Umsatzsteuer)
       hasVAT: this.#hasVAT,
       vatRate: this.#vatRate,
+      // Source tracking for import duplicate detection
+      source: this.#source,
+      sourceReference: this.#sourceReference,
     };
   }
 
@@ -491,6 +523,9 @@ export class RevenueEntry {
       // VAT (default: false, 19%)
       hasVAT: json.hasVAT ?? false,
       vatRate: json.vatRate ?? 19,
+      // Source tracking (may be null for legacy/manual entries)
+      source: json.source ?? null,
+      sourceReference: json.sourceReference ?? null,
     });
   }
 }

@@ -175,4 +175,112 @@ export class HierarchyService {
 
     return tree;
   }
+
+  /**
+   * Get all employees from the tree (excluding root) plus Geschäftsführer
+   * Used for WIFO import employee matching
+   * @param {string} treeId - Optional tree ID, uses first tree if not provided
+   * @returns {Promise<Array<{id: string, name: string, firstName: string, lastName: string}>>}
+   */
+  async getAllEmployees(treeId = null) {
+    let tree;
+
+    if (treeId) {
+      tree = await this.#hierarchyRepository.findById(treeId);
+    } else {
+      const allTrees = await this.#hierarchyRepository.findAll();
+      tree = allTrees.length > 0 ? allTrees[0] : null;
+    }
+
+    const employees = [];
+
+    // Add Geschäftsführer (they are not in the tree but can have revenue entries)
+    const geschaeftsfuehrer = [
+      {
+        id: 'marcel-liebetrau',
+        name: 'Marcel Liebetrau',
+        firstName: 'Marcel',
+        lastName: 'Liebetrau',
+        email: '',
+        bankProvision: 90,
+        insuranceProvision: 90,
+        realEstateProvision: 90,
+      },
+      {
+        id: 'daniel-lippa',
+        name: 'Daniel Lippa',
+        firstName: 'Daniel',
+        lastName: 'Lippa',
+        email: '',
+        bankProvision: 90,
+        insuranceProvision: 90,
+        realEstateProvision: 90,
+      },
+    ];
+    employees.push(...geschaeftsfuehrer);
+
+    if (tree && tree.rootId) {
+      this.#collectEmployeesRecursive(tree, tree.rootId, employees);
+    }
+
+    return employees;
+  }
+
+  /**
+   * Recursively collect all employees from a tree
+   * @param {HierarchyTree} tree - The tree to traverse
+   * @param {string} nodeId - Current node ID
+   * @param {Array} result - Result array to populate
+   */
+  #collectEmployeesRecursive(tree, nodeId, result) {
+    const children = tree.getChildren(nodeId);
+
+    for (const child of children) {
+      // Parse name to extract firstName and lastName
+      const nameParts = this.#parseEmployeeName(child.name);
+
+      result.push({
+        id: child.id,
+        name: child.name,
+        firstName: nameParts.firstName,
+        lastName: nameParts.lastName,
+        email: child.email || '',
+        bankProvision: child.bankProvision || 0,
+        insuranceProvision: child.insuranceProvision || 0,
+        realEstateProvision: child.realEstateProvision || 0,
+      });
+
+      // Recurse into children
+      this.#collectEmployeesRecursive(tree, child.id, result);
+    }
+  }
+
+  /**
+   * Parse employee name into firstName and lastName
+   * Handles formats: "FirstName LastName" and "LastName, FirstName"
+   * @param {string} name - Full name
+   * @returns {{firstName: string, lastName: string}}
+   */
+  #parseEmployeeName(name) {
+    if (!name) {
+      return { firstName: '', lastName: '' };
+    }
+
+    // Check for "LastName, FirstName" format
+    if (name.includes(',')) {
+      const [lastName, firstName] = name.split(',').map((s) => s.trim());
+      return { firstName: firstName || '', lastName: lastName || '' };
+    }
+
+    // Check for "FirstName LastName" format
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const firstName = parts.slice(0, -1).join(' ');
+      const lastName = parts[parts.length - 1];
+      return { firstName, lastName };
+    }
+
+    // Single name - assume it's a lastName
+    return { firstName: '', lastName: name.trim() };
+  }
 }

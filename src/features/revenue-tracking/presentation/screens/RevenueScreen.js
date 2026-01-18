@@ -18,6 +18,7 @@ import { Icon } from '../../../hierarchy-tracking/presentation/components/atoms/
 import { SearchBar } from '../../../hierarchy-tracking/presentation/components/molecules/SearchBar.js';
 import { REVENUE_STATUS_TYPES } from '../../domain/value-objects/RevenueStatus.js';
 import { Logger } from './../../../../core/utils/logger.js';
+import { createWIFOImportButton } from '../../../wifo-import/WIFOImportIntegration.js';
 
 const MONTH_NAMES = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -190,6 +191,20 @@ createElement('svg', {
 
     // Check if employee can edit (only their own data, not subordinates)
     const canEdit = this.#canEditRevenue();
+
+    // WIFO Import button for company view (admins)
+    if (this.#isCompanyView && canEdit) {
+      const wifoImportBtn = createWIFOImportButton({
+        revenueService: this.#revenueService,
+        hierarchyService: this.#hierarchyService,
+        onImportComplete: async () => {
+          // Reload data after import
+          await this.#loadData();
+        },
+        variant: 'secondary',
+      });
+      rightGroup.push(wifoImportBtn);
+    }
 
     // Only show add button for non-company view AND if user can edit
     if (!this.#isCompanyView && canEdit) {

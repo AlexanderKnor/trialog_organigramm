@@ -206,6 +206,41 @@ export class RevenueService {
   }
 
   /**
+   * Geschäftsführer data - hardcoded as they are not in the hierarchy tree
+   * They report directly to the company with 90% provision across all types
+   */
+  static #GESCHAEFTSFUEHRER = {
+    'marcel-liebetrau': {
+      id: 'marcel-liebetrau',
+      name: 'Marcel Liebetrau',
+      bankProvision: 90,
+      insuranceProvision: 90,
+      realEstateProvision: 90,
+    },
+    'daniel-lippa': {
+      id: 'daniel-lippa',
+      name: 'Daniel Lippa',
+      bankProvision: 90,
+      insuranceProvision: 90,
+      realEstateProvision: 90,
+    },
+  };
+
+  /**
+   * Check if an employee ID belongs to a Geschäftsführer
+   */
+  #isGeschaeftsfuehrer(employeeId) {
+    return employeeId in RevenueService.#GESCHAEFTSFUEHRER;
+  }
+
+  /**
+   * Get Geschäftsführer data by ID
+   */
+  #getGeschaeftsfuehrerData(employeeId) {
+    return RevenueService.#GESCHAEFTSFUEHRER[employeeId] || null;
+  }
+
+  /**
    * Capture provision snapshots from hierarchy at entry creation time
    * This ensures immutable provision calculations even if hierarchy provisions change later
    */
@@ -213,6 +248,38 @@ export class RevenueService {
     Logger.log('📸 Capturing provision snapshots for employee:', employeeId);
 
     try {
+      // Determine provision type (from entryData or infer from category)
+      const provisionType = entryData.provisionType || this.#inferProvisionType(entryData.category);
+      Logger.log('   Provision type:', provisionType);
+
+      // Check if employee is a Geschäftsführer (not in tree, hardcoded data)
+      if (this.#isGeschaeftsfuehrer(employeeId)) {
+        const gfData = this.#getGeschaeftsfuehrerData(employeeId);
+        Logger.log('   ✓ Geschäftsführer detected:', gfData.name);
+
+        const ownerProvision = this.#getProvisionRateByType(gfData, provisionType);
+
+        Logger.log('   📊 Snapshot values (Geschäftsführer):');
+        Logger.log('      Owner provision:', ownerProvision + '%');
+        Logger.log('      Manager provision: null (reports to company)');
+
+        const hierarchySnapshot = {
+          ownerId: gfData.id,
+          ownerName: gfData.name,
+          managerId: null,
+          managerName: 'Geschäftsführung',
+          capturedAt: new Date().toISOString(),
+          isGeschaeftsfuehrer: true,
+        };
+
+        Logger.log('✅ Provision snapshots captured successfully (Geschäftsführer)');
+        return {
+          ownerProvisionSnapshot: ownerProvision,
+          managerProvisionSnapshot: null,
+          hierarchySnapshot,
+        };
+      }
+
       // Get the main organization tree (use first tree if mainTreeId doesn't exist)
       let tree = null;
 
@@ -237,9 +304,8 @@ export class RevenueService {
 
       Logger.log('   ✓ Tree loaded:', tree.name);
 
-      // Get owner (employee) node
-      const owner = tree.getNode(employeeId);
-      if (!owner) {
+      // Get owner (employee) node - use hasNode to check first to avoid exception
+      if (!tree.hasNode(employeeId)) {
         Logger.warn(`❌ Employee node ${employeeId} not found in tree - entry will use dynamic calculation`);
         return {
           ownerProvisionSnapshot: null,
@@ -248,15 +314,12 @@ export class RevenueService {
         };
       }
 
+      const owner = tree.getNode(employeeId);
       Logger.log('   ✓ Owner node:', owner.name);
 
       // Get manager (parent) node - may be null for root-level employees
       const manager = owner.parentId ? tree.getNode(owner.parentId) : null;
       Logger.log('   Manager:', manager ? manager.name : 'none');
-
-      // Determine provision type (from entryData or infer from category)
-      const provisionType = entryData.provisionType || this.#inferProvisionType(entryData.category);
-      Logger.log('   Provision type:', provisionType);
 
       // Get provision rates at this point in time
       const ownerProvision = this.#getProvisionRateByType(owner, provisionType);
