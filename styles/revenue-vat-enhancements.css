@@ -1,0 +1,879 @@
+/**
+ * Revenue VAT Enhancements CSS
+ * Styles für USt-Berechnungen, Provisions-Breakdown und Live-Berechnung
+ */
+
+/* ═══════════════════════════════════════════════════════════
+   AMOUNT INPUT ROW (Dynamic Layout)
+   ═══════════════════════════════════════════════════════════ */
+
+.amount-input-row {
+  display: grid;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+.amount-input-row.two-columns {
+  grid-template-columns: 1fr 1fr;
+}
+
+.amount-input-row.single-column {
+  grid-template-columns: 1fr;
+}
+
+.amount-input-row.single-column .radio-column {
+  display: none;
+}
+
+.amount-input-row.single-column .input-column {
+  grid-column: 1 / -1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AMOUNT TYPE TOGGLE (Netto/Brutto Radio Buttons)
+   ═══════════════════════════════════════════════════════════ */
+
+.amount-type-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: opacity 0.3s ease;
+}
+
+.amount-type-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary, #10274c);
+  margin-bottom: 0.25rem;
+}
+
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.radio-label:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.radio-label input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-primary, #10274c);
+}
+
+.radio-label input[type="radio"]:checked + .radio-text {
+  color: var(--color-primary, #10274c);
+  font-weight: 600;
+}
+
+.radio-label:has(input[type="radio"]:checked) {
+  border-color: var(--color-primary, #10274c);
+  background: #eff6ff;
+}
+
+.radio-text {
+  font-size: 0.875rem;
+  transition: color 0.2s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CALCULATION PREVIEW (Live-Berechnung im Dialog)
+   ═══════════════════════════════════════════════════════════ */
+
+.calculation-preview-container {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.calculation-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.preview-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-primary, #10274c);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.input-type-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  background: var(--color-primary, #10274c);
+  color: white;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.preview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.preview-section.provision-section {
+  background: #fefce8;
+  border-color: #fde047;
+}
+
+.preview-section.payout-section {
+  background: #ecfdf5;
+  border-color: #34d399;
+}
+
+.section-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.section-values {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.value-row.secondary {
+  color: #94a3b8;
+  font-size: 0.8125rem;
+}
+
+.value-row.input-value {
+  background: #fef3c7;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin: -0.25rem -0.5rem;
+  border-left: 3px solid #fbbf24;
+}
+
+.value-row.input-value .amount {
+  font-weight: 600;
+  color: #92400e;
+}
+
+.value-row.payout-row {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.value-row .amount {
+  font-weight: 500;
+  color: var(--color-primary, #10274c);
+}
+
+.value-row .payout-amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+.preview-note {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  color: #1e40af;
+  line-height: 1.5;
+}
+
+.preview-note.warning {
+  background: #fef3c7;
+  border-left-color: #f59e0b;
+  color: #92400e;
+}
+
+.preview-note.info {
+  background: #f0fdf4;
+  border-left-color: #22c55e;
+  color: #166534;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VAT SUMMARY CARD (Company Dashboard)
+   ═══════════════════════════════════════════════════════════ */
+
+.vat-summary-card {
+  background: white;
+  border: 2px solid var(--color-primary, #10274c);
+  border-radius: 16px;
+  padding: 2rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+              0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.vat-summary-title {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-primary, #10274c);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vat-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.vat-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.vat-summary-item.received {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.vat-summary-item.paid {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.vat-summary-item.due {
+  background: #fff7ed;
+  border-color: #fdba74;
+  grid-column: 1 / -1;
+}
+
+.vat-summary-item.highlight {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  border-width: 2px;
+}
+
+.vat-summary-item.payout,
+.vat-summary-item.profit {
+  grid-column: 1 / -1;
+}
+
+.vat-divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0.5rem 0;
+}
+
+.vat-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.vat-label.strong {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-primary, #10274c);
+}
+
+.vat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.vat-value.positive {
+  color: #059669;
+}
+
+.vat-value.negative {
+  color: #dc2626;
+}
+
+.vat-value.due-amount {
+  color: #ea580c;
+  font-size: 1.5rem;
+}
+
+.vat-value.profit-amount {
+  color: var(--color-primary, #10274c);
+  font-size: 1.5rem;
+}
+
+.vat-summary-note {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #eff6ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #1e40af;
+  line-height: 1.6;
+  grid-column: 1 / -1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REVENUE/PROVISION BREAKDOWN (Tabelle)
+   ═══════════════════════════════════════════════════════════ */
+
+.revenue-provision-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  min-width: 200px;
+}
+
+.breakdown-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.breakdown-section .section-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.breakdown-section .section-values {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.breakdown-section .value-sm {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.breakdown-section .value-sm.secondary {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.breakdown-section.provision-highlight {
+  padding: 0.375rem;
+  background: #fefce8;
+  border-radius: 6px;
+  border-left: 3px solid #fde047;
+}
+
+.breakdown-section.payout-highlight {
+  padding: 0.375rem;
+  background: #ecfdf5;
+  border-radius: 6px;
+  border-left: 3px solid #34d399;
+}
+
+.breakdown-section .value-lg {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #059669;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.breakdown-section .strong {
+  font-weight: 600;
+}
+
+.breakdown-section .payout-amount {
+  color: #059669;
+}
+
+/* Breakdown Lines (Alternative Compact Style) */
+.breakdown-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.breakdown-line:last-child {
+  border-bottom: none;
+}
+
+.breakdown-line .label-sm {
+  font-weight: 500;
+  color: #64748b;
+  font-size: 0.8125rem;
+}
+
+.breakdown-line .label-sm.strong {
+  font-weight: 600;
+  color: var(--color-primary, #10274c);
+  font-size: 0.875rem;
+}
+
+.breakdown-line .values-sm {
+  font-weight: 500;
+  color: #475569;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.breakdown-line.provision-line {
+  background: #fefce8;
+  padding: 0.375rem 0.5rem;
+  border-radius: 4px;
+  border-bottom: none;
+  margin: 0.25rem 0;
+}
+
+.breakdown-line.payout-line {
+  background: #ecfdf5;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border-bottom: none;
+  margin-top: 0.25rem;
+}
+
+.breakdown-line .payout-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #059669;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HIERARCHICAL (TEAM) VIEW - Compact Breakdown
+   ═══════════════════════════════════════════════════════════ */
+
+.hierarchical-provision-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem 0;
+}
+
+.breakdown-line.secondary {
+  color: #94a3b8;
+  font-size: 0.8125rem;
+}
+
+.breakdown-line.manager-line {
+  background: #ecfdf5;
+  padding: 0.375rem 0.5rem;
+  border-radius: 4px;
+  margin-top: 0.125rem;
+}
+
+.label-xs {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.label-xs.strong {
+  font-weight: 600;
+  color: var(--color-primary, #10274c);
+}
+
+.value-xs {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.value-strong {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+.revenue-breakdown-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.revenue-breakdown-compact .value-sm {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+/* Manager Payout (simplified) */
+.manager-payout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.manager-payout .payout-amount {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #059669;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.vat-note-sm {
+  font-size: 0.6875rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.tip-note-sm {
+  font-size: 0.6875rem;
+  color: #f59e0b;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.payout-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-top: 0.25rem;
+}
+
+.tip-provider-payout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.tip-provider-payout .payout-amount {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f59e0b;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.provision-with-tip .tip-info {
+  font-size: 0.6875rem;
+  color: #f59e0b;
+  font-weight: 500;
+  font-style: italic;
+}
+
+/* Tip Provider - Elegant & Compact */
+.provision-with-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.provision-with-tip .provision-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.provision-with-tip .tip-info {
+  font-size: 0.6875rem;
+  color: #f59e0b;
+  font-weight: 500;
+  font-style: italic;
+  padding-left: 0.5rem;
+  border-left: 2px solid #fde047;
+  margin-top: 0.125rem;
+}
+
+/* Tip Provider Breakdown (Dialog) */
+.tip-provider-breakdown .calc-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0.375rem 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROVISION CASCADE (Professional & Clean)
+   ═══════════════════════════════════════════════════════════ */
+
+.provision-cascade-pro {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cascade-container-pro {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1rem;
+  background: white;
+  font-size: 0.875rem;
+}
+
+/* Cascade Sections */
+.cascade-section {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.75rem;
+}
+
+.cascade-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.cascade-section .section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.cascade-section .section-row {
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+/* Provisions Table */
+.prov-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prov-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr 1.5fr 1.5fr;
+  gap: 1rem;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border-radius: 4px;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.prov-col {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prov-col.name-col {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.prov-col.rate-col {
+  color: #64748b;
+  text-align: right;
+}
+
+.prov-col.amount-col {
+  color: #475569;
+  font-family: 'Monaco', monospace;
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+.prov-col.vat-col {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+.prov-col.payout-col {
+  color: #059669;
+  font-family: 'Monaco', monospace;
+  text-align: right;
+}
+
+/* VAT Section */
+.cascade-section.vat-section {
+  background: #fafbfc;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.vat-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.vat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.375rem 0;
+  font-size: 0.8125rem;
+}
+
+.vat-row .vat-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.vat-row .vat-value {
+  color: #475569;
+  font-weight: 600;
+  font-family: 'Monaco', monospace;
+}
+
+.vat-row .vat-value.deduct {
+  color: #dc2626;
+}
+
+.vat-row.result-row {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.vat-row.result-row .vat-value.highlight {
+  color: #ea580c;
+  font-size: 0.9375rem;
+}
+
+.company-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.75rem;
+}
+
+.company-row .vat-value.success {
+  color: var(--color-primary, #10274c);
+  font-size: 0.9375rem;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN
+   ═══════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .vat-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vat-summary-item.payout,
+  .vat-summary-item.profit,
+  .vat-summary-item.due {
+    grid-column: 1;
+  }
+
+  .vat-value {
+    font-size: 1.125rem;
+  }
+
+  .vat-value.due-amount,
+  .vat-value.profit-amount {
+    font-size: 1.25rem;
+  }
+
+  .revenue-provision-breakdown {
+    font-size: 0.8125rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+
+.calculation-preview-container {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vat-summary-card {
+  animation: fadeInScale 0.4s ease-out;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT STYLES (für Buchhaltung)
+   ═══════════════════════════════════════════════════════════ */
+
+@media print {
+  .vat-summary-card {
+    page-break-inside: avoid;
+    border: 2px solid #000;
+    box-shadow: none;
+  }
+
+  .calculation-preview-container {
+    page-break-inside: avoid;
+  }
+
+  .vat-value {
+    color: #000 !important;
+  }
+}

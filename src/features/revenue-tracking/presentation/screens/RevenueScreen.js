@@ -1118,6 +1118,7 @@ createElement('svg', {
     // Main data row
     const mainRow = createElement('tr', {
       className: rowClasses.join(' '),
+      'data-entry-id': entryId,
     }, [
       createElement('td', { className: 'td-expand' }, [expandBtn]),
       createElement('td', { className: 'td-employee' }, [
@@ -1157,20 +1158,85 @@ createElement('svg', {
   }
 
   #toggleEntryExpansion(entryId) {
-    if (this.#expandedEntries.has(entryId)) {
-      // Start closing animation
-      this.#closingEntries.add(entryId);
-      this.#renderContent();
+    const tableBody = this.#element.querySelector('.company-table tbody');
+    if (!tableBody) return;
 
-      // After animation, actually close
-      setTimeout(() => {
+    // Find the main row for this entry
+    const mainRow = tableBody.querySelector(`tr.company-row[data-entry-id="${entryId}"]`);
+    if (!mainRow) return;
+
+    const expandBtn = mainRow.querySelector('.row-expand-btn');
+
+    if (this.#expandedEntries.has(entryId)) {
+      // CLOSE: Animate out, then remove
+      this.#closingEntries.add(entryId);
+
+      // Update button state
+      if (expandBtn) {
+        expandBtn.classList.remove('expanded');
+        expandBtn.classList.add('closing');
+      }
+      mainRow.classList.remove('row-expanded');
+
+      // Find and animate the cascade row
+      const cascadeRow = mainRow.nextElementSibling;
+      if (cascadeRow && cascadeRow.classList.contains('cascade-row')) {
+        const container = cascadeRow.querySelector('.cascade-container');
+        if (container) {
+          container.classList.add('cascade-closing');
+        }
+
+        // Remove after animation completes
+        setTimeout(() => {
+          this.#expandedEntries.delete(entryId);
+          this.#closingEntries.delete(entryId);
+          cascadeRow.remove();
+          if (expandBtn) {
+            expandBtn.classList.remove('closing');
+          }
+        }, 250);
+      } else {
+        // Fallback: just clean up state
         this.#expandedEntries.delete(entryId);
         this.#closingEntries.delete(entryId);
-        this.#renderContent();
-      }, 250);
+        if (expandBtn) {
+          expandBtn.classList.remove('closing');
+        }
+      }
     } else {
+      // OPEN: Create and insert cascade row
       this.#expandedEntries.add(entryId);
-      this.#renderContent();
+
+      // Update button and row state
+      if (expandBtn) {
+        expandBtn.classList.add('expanded');
+      }
+      mainRow.classList.add('row-expanded');
+
+      // Find the entry data and create cascade row
+      const state = this.#state.getState();
+      const entries = this.#filterHierarchicalEntriesByDateRange(state.companyEntries);
+      const entry = entries.find((e) => e.id === entryId);
+
+      if (entry) {
+        const cascade = new ProvisionCascade(entry);
+        const isExcluded = entry.originalEntry?.status?.type === REVENUE_STATUS_TYPES.REJECTED ||
+                          entry.originalEntry?.status?.type === REVENUE_STATUS_TYPES.CANCELLED;
+
+        const cascadeClasses = ['cascade-row'];
+        if (isExcluded) cascadeClasses.push('cascade-rejected');
+
+        const cascadeRow = createElement('tr', { className: cascadeClasses.join(' ') }, [
+          createElement('td', { colspan: '8', className: 'cascade-cell' }, [
+            createElement('div', { className: 'cascade-container' }, [
+              cascade.element,
+            ]),
+          ]),
+        ]);
+
+        // Insert after main row
+        mainRow.after(cascadeRow);
+      }
     }
   }
 
