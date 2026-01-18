@@ -16,6 +16,7 @@ export class ProductEditor {
   #nameInput;
   #categorySelectElement;
   #orderInput;
+  #vatExemptCheckbox;
 
   constructor(product = null, categoryType = null, categories = [], props = {}) {
     this.#product = product;
@@ -51,11 +52,15 @@ export class ProductEditor {
     // Category Select
     const categorySelect = this.#createCategorySelect();
 
+    // VAT Exemption Checkbox
+    const vatExemptField = this.#createVatExemptField();
+
     // Basic Section
     const basicSection = createElement('div', { className: 'editor-section-group' }, [
       createElement('h4', { className: 'editor-section-title' }, ['Produktinformationen']),
       this.#nameInput.element,
       categorySelect,
+      vatExemptField,
     ]);
 
     // Action Bar
@@ -119,6 +124,42 @@ export class ProductEditor {
     return createElement('div', { className: 'editor-field' }, [label, select]);
   }
 
+  #createVatExemptField() {
+    this.#vatExemptCheckbox = createElement('input', {
+      type: 'checkbox',
+      id: 'vat-exempt-checkbox',
+      className: 'editor-checkbox-input',
+    });
+
+    // Set initial value from product
+    if (this.#product?.isVatExempt) {
+      this.#vatExemptCheckbox.checked = true;
+    }
+
+    const checkboxLabel = createElement(
+      'label',
+      {
+        className: 'editor-checkbox-label',
+        htmlFor: 'vat-exempt-checkbox',
+      },
+      [
+        this.#vatExemptCheckbox,
+        createElement('span', { className: 'editor-checkbox-text' }, [
+          'Nicht umsatzsteuerpflichtig',
+        ]),
+      ]
+    );
+
+    const helpText = createElement('p', { className: 'editor-help-text' }, [
+      'Aktivieren Sie diese Option, wenn dieses Produkt nicht der Umsatzsteuer unterliegt (z.B. Versicherungsprovisionen).',
+    ]);
+
+    return createElement('div', { className: 'editor-field editor-checkbox-field' }, [
+      checkboxLabel,
+      helpText,
+    ]);
+  }
+
   #validate() {
     let isValid = true;
 
@@ -143,6 +184,7 @@ export class ProductEditor {
       name: this.#nameInput.value.trim(),
       categoryType: this.#categorySelectElement.value,
       order: 0,
+      isVatExempt: this.#vatExemptCheckbox.checked,
     };
 
     if (this.#props.onSave) {

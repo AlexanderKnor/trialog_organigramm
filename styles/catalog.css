@@ -470,6 +470,32 @@
   color: var(--color-primary);
 }
 
+.editor-checkbox-input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  margin-right: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+.editor-checkbox-text {
+  font-size: 0.875rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.editor-checkbox-field {
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: var(--radius-lg);
+  border: 1px solid #e2e8f0;
+}
+
+.editor-checkbox-field:hover {
+  background: #f1f5f9;
+}
+
 .editor-help-text {
   font-size: 0.75rem;
   color: #94a3b8;

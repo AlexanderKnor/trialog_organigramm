@@ -13,6 +13,7 @@ export class ProductDefinition {
   #categoryType;
   #name;
   #order;
+  #isVatExempt;
   #status;
   #metadata;
 
@@ -21,6 +22,7 @@ export class ProductDefinition {
     categoryType,
     name,
     order = 0,
+    isVatExempt = false,
     status = CATALOG_STATUS_TYPES.ACTIVE,
     metadata = null,
   }) {
@@ -32,6 +34,7 @@ export class ProductDefinition {
     this.#categoryType = categoryType;
     this.#name = name;
     this.#order = order;
+    this.#isVatExempt = Boolean(isVatExempt);
     this.#status = status instanceof CatalogStatus ? status : new CatalogStatus(status);
     this.#metadata = metadata instanceof NodeMetadata ? metadata : new NodeMetadata(metadata || {});
   }
@@ -75,6 +78,10 @@ export class ProductDefinition {
     return this.#order;
   }
 
+  get isVatExempt() {
+    return this.#isVatExempt;
+  }
+
   get status() {
     return this.#status;
   }
@@ -113,6 +120,12 @@ export class ProductDefinition {
     return this;
   }
 
+  updateIsVatExempt(isVatExempt) {
+    this.#isVatExempt = Boolean(isVatExempt);
+    this.#metadata = this.#metadata.withUpdatedTimestamp();
+    return this;
+  }
+
   activate() {
     this.#status = this.#status.activate();
     this.#metadata = this.#metadata.withUpdatedTimestamp();
@@ -133,6 +146,7 @@ export class ProductDefinition {
       categoryType: this.#categoryType,
       name: this.#name,
       order: this.#order,
+      isVatExempt: this.#isVatExempt,
       status: this.#status.toJSON(),
       createdAt: this.#metadata.createdAt,
       updatedAt: this.#metadata.updatedAt,
@@ -145,6 +159,7 @@ export class ProductDefinition {
       categoryType: json.categoryType,
       name: json.name,
       order: json.order ?? 0,
+      isVatExempt: json.isVatExempt ?? false,
       status: json.status ?? CATALOG_STATUS_TYPES.ACTIVE,
       metadata: {
         createdAt: json.createdAt,

@@ -183,8 +183,12 @@ export class CatalogService {
       product.updateOrder(productData.order);
     }
 
+    if (productData.isVatExempt !== undefined) {
+      product.updateIsVatExempt(productData.isVatExempt);
+    }
+
     await this.#catalogRepository.saveProduct(product);
-    Logger.log(`✓ Product created: ${product.name} in category ${categoryType}`);
+    Logger.log(`✓ Product created: ${product.name} in category ${categoryType} (VAT exempt: ${product.isVatExempt})`);
 
     return product;
   }
@@ -221,8 +225,12 @@ export class CatalogService {
       product.updateOrder(updates.order);
     }
 
+    if (updates.isVatExempt !== undefined) {
+      product.updateIsVatExempt(updates.isVatExempt);
+    }
+
     await this.#catalogRepository.saveProduct(product);
-    Logger.log(`✓ Product updated: ${product.name} (category: ${product.categoryType})`);
+    Logger.log(`✓ Product updated: ${product.name} (category: ${product.categoryType}, VAT exempt: ${product.isVatExempt})`);
 
     return product;
   }

@@ -30,13 +30,19 @@ export class ProvisionCascade {
 
     // Start with the entry owner (employee who made the sale)
     const entryOwner = this.#entry.entryOwner;
-    const ownerProvision = this.#getProvisionForCategory(entryOwner, categoryType);
-    const ownerAmount = baseAmount * (ownerProvision / 100);
+    const originalEntry = this.#entry.originalEntry;
+    const ownerBaseProvision = this.#getProvisionForCategory(entryOwner, categoryType);
+
+    // Tip provider provision is deducted from owner's share
+    const tipProviderPercentage = originalEntry.tipProviderProvisionPercentage || 0;
+    const ownerEffectiveProvision = Math.max(0, ownerBaseProvision - tipProviderPercentage);
+    const ownerAmount = baseAmount * (ownerEffectiveProvision / 100);
 
     cascadeItems.push({
       name: entryOwner.name,
       role: 'Erfasser',
-      provision: ownerProvision,
+      provision: ownerEffectiveProvision,
+      baseProvision: ownerBaseProvision, // Store base for cascade calculations
       amount: ownerAmount,
       isOwner: true,
       isCompany: false,
@@ -44,17 +50,15 @@ export class ProvisionCascade {
     });
 
     // Add tip provider directly above owner (if present)
-    const originalEntry = this.#entry.originalEntry;
     let level = 1;
 
     if (originalEntry.hasTipProvider) {
-      const tipProviderProvision = originalEntry.tipProviderProvisionPercentage || 0;
       const tipProviderAmount = originalEntry.tipProviderProvisionAmount || 0;
 
       cascadeItems.push({
         name: originalEntry.tipProviderName || 'Tippgeber',
         role: 'Tippgeber',
-        provision: tipProviderProvision,
+        provision: tipProviderPercentage,
         amount: tipProviderAmount,
         isOwner: false,
         isCompany: false,
@@ -64,7 +68,8 @@ export class ProvisionCascade {
     }
 
     // Add intermediate managers (skip first = company, skip last = entry owner)
-    let previousProvision = ownerProvision;
+    // Use BASE provision for cascade calculations (not reduced by tip provider)
+    let previousProvision = ownerBaseProvision;
 
     for (let i = hierarchyPath.length - 2; i > 0; i--) {
       const manager = hierarchyPath[i];

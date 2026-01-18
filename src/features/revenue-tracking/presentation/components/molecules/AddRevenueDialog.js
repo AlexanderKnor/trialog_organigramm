@@ -46,6 +46,7 @@ export class AddRevenueDialog {
   #categories;
   #currentCategoryData;
   #allEmployees;
+  #currentProducts; // Full product objects with isVatExempt
 
   constructor(props = {}) {
     this.#entry = props.entry || null;
@@ -72,6 +73,7 @@ export class AddRevenueDialog {
     this.#categories = [];
     this.#currentCategoryData = null;
     this.#allEmployees = [];
+    this.#currentProducts = [];
 
     this.#element = this.#render();
     // Note: #initializeForm() will be called after show() to prevent empty modal flash
@@ -804,6 +806,27 @@ export class AddRevenueDialog {
     Logger.log('VAT checkbox changed:', isChecked);
   }
 
+  #updateVATCheckboxState(product) {
+    const isVatExempt = product?.isVatExempt || false;
+    const vatWrapper = this.#element.querySelector('.vat-checkbox-wrapper');
+
+    if (isVatExempt) {
+      // Product is VAT exempt - hide the VAT checkbox completely
+      this.#vatCheckbox.checked = false;
+      vatWrapper?.classList.add('hidden');
+    } else {
+      // Product allows VAT - show the checkbox
+      vatWrapper?.classList.remove('hidden');
+
+      // Set default VAT state based on category (only in create mode)
+      if (!this.#isEditMode) {
+        const categoryType = this.#categorySelect.value;
+        const shouldHaveVAT = this.#shouldCategoryHaveVATByDefault(categoryType);
+        this.#vatCheckbox.checked = shouldHaveVAT;
+      }
+    }
+  }
+
   async #updateProductOptions(categoryType) {
     let products = [];
 
@@ -820,19 +843,26 @@ export class AddRevenueDialog {
       products = Product.getProductsForCategory(categoryType);
     }
 
+    // Store full product objects for VAT exemption checking
+    this.#currentProducts = products;
+
     this.#productSelect.innerHTML = '';
 
     products.forEach((product) => {
       const name = product.name || product;
       const productId = product.id || name;
+      const isVatExempt = product.isVatExempt || false;
       const option = createElement('option', { value: productId }, [name]);
       option.dataset.productName = name;
       option.dataset.productId = productId;
+      option.dataset.isVatExempt = isVatExempt.toString();
       this.#productSelect.appendChild(option);
     });
 
     if (products.length > 0) {
       this.#formData.product = products[0];
+      // Update VAT checkbox state based on first product
+      this.#updateVATCheckboxState(products[0]);
       // Update providers for first product
       if (products[0].id) {
         await this.#updateProviderOptionsForProduct(products[0].id);
@@ -849,6 +879,10 @@ export class AddRevenueDialog {
     const productName = selectedOption?.dataset.productName || productValue;
 
     this.#formData.product = { id: productId, name: productName };
+
+    // Find full product object to get isVatExempt
+    const fullProduct = this.#currentProducts.find(p => (p.id || p.name) === productId);
+    this.#updateVATCheckboxState(fullProduct);
 
     // Update providers for this specific product
     if (productId && productId !== productName) {

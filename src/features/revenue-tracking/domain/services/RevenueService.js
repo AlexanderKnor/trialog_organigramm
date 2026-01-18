@@ -487,7 +487,7 @@ export class RevenueService {
    * Get employee's provision rate for an entry
    * PRIORITY: Uses provision snapshot if available (immutable)
    * FALLBACK: Uses current provision rate from employee node (legacy entries)
-   * DEDUCTION: Subtracts tip provider provision if present
+   * DEDUCTION: Tip provider provision is deducted from owner's share
    */
   #getEmployeeProvisionRateForEntry(employee, entry) {
     let baseProvision = 0;
@@ -508,9 +508,12 @@ export class RevenueService {
       }
     }
 
-    // Tip provider provision is now deducted from COMPANY, not from owner
-    // Owner keeps their full provision percentage
-    return baseProvision;
+    // Tip provider provision is deducted from OWNER's share (not from company)
+    // The tip provider's share comes from the owner's provision
+    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
+    const effectiveProvision = Math.max(0, baseProvision - tipProviderPercentage);
+
+    return effectiveProvision;
   }
 
   /**

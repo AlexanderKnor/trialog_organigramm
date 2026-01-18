@@ -92,17 +92,19 @@ export class CompanyRevenueEntry {
       }
     }
 
-    // Tip provider provision is deducted from COMPANY, not from owner
-    // This is the correct accounting treatment: tip provider is external cost for company
+    // Tip provider provision is deducted from OWNER, not from company
+    // The tip provider's share comes from the owner's provision (internal deduction)
     const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
 
-    // Company gets the remainder: 100% - HIGHEST provision - TIP PROVIDER
-    const companyProvision = Math.max(0, 100 - highestProvision - tipProviderPercentage);
+    // Company gets the remainder: 100% - HIGHEST provision
+    // Tip provider does NOT reduce company share - it's deducted from owner
+    const companyProvision = Math.max(0, 100 - highestProvision);
 
     // Calculate amounts
-    // Owner keeps their FULL provision (tip provider does NOT reduce owner's share)
+    // Owner's effective provision = base provision - tip provider share
+    const ownerEffectiveProvision = Math.max(0, ownerProvision - tipProviderPercentage);
     const companyAmount = entry.provisionAmount * (companyProvision / 100);
-    const ownerAmount = entry.provisionAmount * (ownerProvision / 100);
+    const ownerAmount = entry.provisionAmount * (ownerEffectiveProvision / 100);
 
     return new CompanyRevenueEntry({
       originalEntry: entry,
