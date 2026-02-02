@@ -19,6 +19,7 @@ import { SearchBar } from '../../../hierarchy-tracking/presentation/components/m
 import { REVENUE_STATUS_TYPES } from '../../domain/value-objects/RevenueStatus.js';
 import { Logger } from './../../../../core/utils/logger.js';
 import { createWIFOImportButton } from '../../../wifo-import/WIFOImportIntegration.js';
+import { BillingExportDialog } from '../../../billing-export/presentation/index.js';
 
 const MONTH_NAMES = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -42,6 +43,7 @@ export class RevenueScreen {
   #container;
   #revenueService;
   #hierarchyService;
+  #profileService;
   #state;
   #employee;
   #employeeId;
@@ -60,10 +62,11 @@ export class RevenueScreen {
   #viewMode = 'table'; // 'table', 'dashboard', 'rankings', 'cancellation'
   #isAnimating = false;
 
-  constructor(container, revenueService, hierarchyService, employeeId, treeId) {
+  constructor(container, revenueService, hierarchyService, employeeId, treeId, profileService = null) {
     this.#container = typeof container === 'string' ? getElement(container) : container;
     this.#revenueService = revenueService;
     this.#hierarchyService = hierarchyService;
+    this.#profileService = profileService;
     this.#employeeId = employeeId;
     this.#treeId = treeId;
     this.#state = new RevenueState();
@@ -215,6 +218,17 @@ createElement('svg', {
         onClick: () => this.#showAddDialog(),
       });
       rightGroup.push(addBtn.element);
+    }
+
+    // Billing export button (for admins viewing any employee OR employee viewing own)
+    if (!this.#isCompanyView && (authService.isAdmin() || this.#canEditRevenue())) {
+      const exportBtn = new Button({
+        label: 'Abrechnung',
+        variant: 'secondary',
+        icon: new Icon({ name: 'download', size: 16 }),
+        onClick: () => this.#showBillingExportDialog(this.#employeeId, this.#employee?.name),
+      });
+      rightGroup.push(exportBtn.element);
     }
 
     return createElement('div', { className: 'revenue-toolbar' }, [
@@ -1138,6 +1152,7 @@ createElement('svg', {
       createElement('td', { className: 'td-expand' }, [expandBtn]),
       createElement('td', { className: 'td-employee' }, [
         createElement('span', { className: 'employee-name' }, [employeeName]),
+        this.#createEmployeeExportButton(entry),
       ]),
       createElement('td', {}, [entry.originalEntry.customerName]),
       createElement('td', {}, [entry.originalEntry.category.displayName]),
@@ -1170,6 +1185,24 @@ createElement('svg', {
     }
 
     return { mainRow, cascadeRow };
+  }
+
+  #createEmployeeExportButton(entry) {
+    const employeeId = entry.entryOwner?.id || entry.originalEntry?.employeeId;
+    const employeeName = entry.entryOwner?.name || entry.employee?.name || 'Mitarbeiter';
+
+    const btn = createElement('button', {
+      className: 'employee-export-btn',
+      title: `Abrechnung für ${employeeName} exportieren`,
+      onclick: (e) => {
+        e.stopPropagation();
+        this.#showBillingExportDialog(employeeId, employeeName);
+      },
+    });
+
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>`;
+
+    return btn;
   }
 
   #toggleEntryExpansion(entryId) {
@@ -1533,6 +1566,28 @@ createElement('svg', {
         }
       },
       onCancel: () => dialog.remove(),
+    });
+
+    dialog.show();
+  }
+
+  #showBillingExportDialog(employeeId, employeeName) {
+    const user = authService.getCurrentUser();
+
+    const dialog = new BillingExportDialog({
+      employeeId,
+      employeeName: employeeName || 'Mitarbeiter',
+      revenueService: this.#revenueService,
+      profileService: this.#profileService,
+      hierarchyService: this.#hierarchyService,
+      generatedBy: user?.uid || null,
+      generatedByName: user?.email || null,
+      onExportComplete: (report) => {
+        Logger.log('Billing export completed:', report.metadata.reportNumber);
+      },
+      onCancel: () => {
+        Logger.log('Billing export cancelled');
+      },
     });
 
     dialog.show();

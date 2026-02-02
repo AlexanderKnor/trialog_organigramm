@@ -435,6 +435,7 @@ class Application {
       this.#hierarchyService,
       employeeId,
       treeId,
+      this.#profileService,
     );
     await this.#currentScreen.mount();
   }
