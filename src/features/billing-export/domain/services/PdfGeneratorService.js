@@ -177,11 +177,11 @@ export class PdfGeneratorService {
 
     const boxY = this.#currentY;
 
-    // Left column: Employee name and address
+    // Left column: Recipient name and address
     this.#doc.setFontSize(fontSize.sectionTitle);
     this.#doc.setFont('helvetica', 'bold');
     this.#doc.setTextColor(...colors.primary);
-    this.#doc.text('Mitarbeiter', leftColX + 4, boxY + 4);
+    this.#doc.text('Zahlungsempfänger', leftColX + 4, boxY + 4);
 
     this.#doc.setFontSize(fontSize.normal);
     this.#doc.setFont('helvetica', 'bold');
@@ -530,7 +530,7 @@ export class PdfGeneratorService {
     if (source === LINE_ITEM_SOURCES.HIERARCHY || source === LINE_ITEM_SOURCES.TIP_PROVIDER) {
       return [
         { header: 'Datum', key: 'date', align: 'left', wrap: false },
-        { header: 'Mitarbeiter', key: 'employee', align: 'left', wrap: true },
+        { header: 'Vertriebspartner', key: 'employee', align: 'left', wrap: true },
         { header: 'Kunde', key: 'customer', align: 'left', wrap: true },
         { header: 'Kategorie', key: 'category', align: 'left', wrap: false },
         { header: 'Produkt', key: 'product', align: 'left', wrap: true },

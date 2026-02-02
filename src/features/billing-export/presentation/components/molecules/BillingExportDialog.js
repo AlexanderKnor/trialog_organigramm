@@ -26,7 +26,7 @@ export class BillingExportDialog {
   constructor(props = {}) {
     this.#props = {
       employeeId: props.employeeId,
-      employeeName: props.employeeName || 'Mitarbeiter',
+      employeeName: props.employeeName || 'Vertriebspartner',
       revenueService: props.revenueService,
       profileService: props.profileService,
       hierarchyService: props.hierarchyService,
@@ -84,7 +84,7 @@ export class BillingExportDialog {
     return createElement('div', { className: 'dialog-header-fixed' }, [
       createElement('h2', { className: 'dialog-title' }, ['Abrechnung exportieren']),
       createElement('p', { className: 'dialog-subtitle' }, [
-        `Mitarbeiter: ${this.#props.employeeName}`,
+        `Begünstigter: ${this.#props.employeeName}`,
       ]),
     ]);
   }
