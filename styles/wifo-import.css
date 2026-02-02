@@ -589,6 +589,12 @@
   color: #0f172a;
 }
 
+/* Negative amounts (Stornos) - red styling */
+.wifo-table-cell-amount.wifo-amount-negative {
+  color: #dc2626;
+  font-weight: 700;
+}
+
 .wifo-table-cell-truncate {
   max-width: 200px;
   overflow: hidden;

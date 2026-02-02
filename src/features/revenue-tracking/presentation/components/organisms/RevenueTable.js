@@ -287,19 +287,22 @@ export class RevenueTable {
   }
 
   #renderRevenueAmountCell(entry) {
+    const isNegative = entry.provisionAmount < 0;
+    const negativeClass = isNegative ? ' negative-amount' : '';
+
     if (entry.hasVAT) {
       // Show Netto + Brutto
-      return createElement('td', { className: 'revenue-table-td text-right' }, [
+      return createElement('td', { className: `revenue-table-td text-right${negativeClass}` }, [
         createElement('div', { className: 'revenue-amount-with-vat' }, [
           createElement('div', { className: 'revenue-net' }, [
             createElement('span', { className: 'amount-label' }, ['Netto: ']),
-            createElement('span', { className: 'currency-value' }, [
+            createElement('span', { className: `currency-value${negativeClass}` }, [
               this.#formatCurrency(entry.netAmount),
             ]),
           ]),
           createElement('div', { className: 'revenue-gross' }, [
             createElement('span', { className: 'amount-label' }, ['Brutto: ']),
-            createElement('span', { className: 'currency-value' }, [
+            createElement('span', { className: `currency-value${negativeClass}` }, [
               this.#formatCurrency(entry.grossAmount),
             ]),
           ]),
@@ -307,8 +310,8 @@ export class RevenueTable {
       ]);
     } else {
       // Show only Netto (legacy display)
-      return createElement('td', { className: 'revenue-table-td text-right' }, [
-        createElement('span', { className: 'currency-value' }, [
+      return createElement('td', { className: `revenue-table-td text-right${negativeClass}` }, [
+        createElement('span', { className: `currency-value${negativeClass}` }, [
           this.#formatCurrency(entry.provisionAmount),
         ]),
       ]);
@@ -332,8 +335,11 @@ export class RevenueTable {
   }
 
   #renderProvisionCell(amount) {
-    return createElement('td', { className: 'revenue-table-td text-right' }, [
-      createElement('span', { className: 'provision-badge' }, [
+    const isNegative = amount < 0;
+    const negativeClass = isNegative ? ' negative-amount' : '';
+
+    return createElement('td', { className: `revenue-table-td text-right${negativeClass}` }, [
+      createElement('span', { className: `provision-badge${negativeClass}` }, [
         this.#formatCurrency(amount),
       ]),
     ]);

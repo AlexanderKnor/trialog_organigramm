@@ -157,11 +157,13 @@ export class WIFOPreviewTable {
     gesellschaftCell.title = record.gesellschaft || '';
     row.appendChild(gesellschaftCell);
 
-    // Netto
+    // Netto (negative amounts displayed in red)
+    const isNegativeNetto = typeof record.netto === 'number' && record.netto < 0;
     const nettoStr = typeof record.netto === 'number'
       ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(record.netto)
       : '-';
-    row.appendChild(createElement('td', { className: 'wifo-table-cell-amount' }, [nettoStr]));
+    const nettoCellClass = `wifo-table-cell-amount${isNegativeNetto ? ' wifo-amount-negative' : ''}`;
+    row.appendChild(createElement('td', { className: nettoCellClass }, [nettoStr]));
 
     // Errors
     const errorsCell = createElement('td', { className: 'wifo-table-cell-errors' });

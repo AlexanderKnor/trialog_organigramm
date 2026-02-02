@@ -10,6 +10,15 @@ const SVG_TAGS = new Set([
 ]);
 
 /**
+ * Boolean attributes that should be set as properties, not attributes
+ * In HTML, these attributes are truthy by mere presence (checked="false" is still checked)
+ */
+const BOOLEAN_PROPERTIES = new Set([
+  'checked', 'disabled', 'selected', 'readonly', 'required', 'multiple',
+  'autofocus', 'autoplay', 'controls', 'loop', 'muted', 'open', 'hidden',
+]);
+
+/**
  * Convert camelCase to kebab-case for SVG attributes
  */
 const toKebabCase = (str) => str.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -38,6 +47,10 @@ export const createElement = (tag, attributes = {}, children = []) => {
       Object.entries(value).forEach(([dataKey, dataValue]) => {
         element.dataset[dataKey] = dataValue;
       });
+    } else if (BOOLEAN_PROPERTIES.has(key)) {
+      // Boolean properties must be set as properties, not attributes
+      // In HTML, checked="false" is still checked because the attribute exists
+      element[key] = Boolean(value);
     } else if (isSvg) {
       // Convert camelCase to kebab-case for SVG attributes
       const attrName = toKebabCase(key);

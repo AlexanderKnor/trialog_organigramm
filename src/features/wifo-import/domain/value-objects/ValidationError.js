@@ -32,7 +32,7 @@ export const VALIDATION_ERROR_MESSAGES = Object.freeze({
   [VALIDATION_ERROR_CODE.UNKNOWN_AGENT]: 'Vermittler nicht gefunden',
   [VALIDATION_ERROR_CODE.UNKNOWN_CATEGORY]: 'Unbekannte Kategorie/Sparte',
   [VALIDATION_ERROR_CODE.DUPLICATE_ENTRY]: 'Eintrag bereits vorhanden',
-  [VALIDATION_ERROR_CODE.NEGATIVE_AMOUNT]: 'Negativer Betrag',
+  [VALIDATION_ERROR_CODE.NEGATIVE_AMOUNT]: 'Storno (negativer Betrag)',
   [VALIDATION_ERROR_CODE.FUTURE_DATE]: 'Datum liegt in der Zukunft',
   [VALIDATION_ERROR_CODE.INVALID_PROVISION_TYPE]: 'Ungültige Provisionsart',
   [VALIDATION_ERROR_CODE.AMOUNT_MISMATCH]: 'Beträge stimmen nicht überein',
@@ -98,9 +98,168 @@ export class ValidationError {
       msg = `${this.#field}: ${msg}`;
     }
     if (this.#details) {
-      msg = `${msg} (${this.#details})`;
+      const formattedDetails = this.#formatDetails();
+      if (formattedDetails) {
+        msg = `${msg} (${formattedDetails})`;
+      }
     }
     return msg;
+  }
+
+  /**
+   * Formats details based on error code for human-readable display
+   */
+  #formatDetails() {
+    if (!this.#details) {
+      return '';
+    }
+
+    // String details can be used directly
+    if (typeof this.#details === 'string') {
+      return this.#details;
+    }
+
+    // Number details (e.g., amounts)
+    if (typeof this.#details === 'number') {
+      return this.#details.toString();
+    }
+
+    // Object details - format based on error code
+    if (typeof this.#details === 'object') {
+      return this.#formatObjectDetails();
+    }
+
+    return String(this.#details);
+  }
+
+  /**
+   * Formats object details based on the error code context
+   */
+  #formatObjectDetails() {
+    const details = this.#details;
+
+    // Duplicate entry details
+    if (this.#code === VALIDATION_ERROR_CODE.DUPLICATE_ENTRY ||
+        this.#code === VALIDATION_ERROR_CODE.POTENTIAL_DUPLICATE) {
+      return this.#formatDuplicateDetails(details);
+    }
+
+    // Fuzzy match details
+    if (this.#code === VALIDATION_ERROR_CODE.FUZZY_MATCH) {
+      return this.#formatFuzzyMatchDetails(details);
+    }
+
+    // Unknown agent with suggestions
+    if (this.#code === VALIDATION_ERROR_CODE.UNKNOWN_AGENT && details.suggestions) {
+      return this.#formatAgentSuggestions(details);
+    }
+
+    // Generic object - try to extract meaningful info
+    if (details.name) {
+      return details.name;
+    }
+    if (details.message) {
+      return details.message;
+    }
+
+    // Fallback: list key-value pairs
+    return Object.entries(details)
+      .filter(([, value]) => value !== null && value !== undefined && typeof value !== 'object')
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(', ') || 'Details vorhanden';
+  }
+
+  /**
+   * Formats duplicate entry details
+   */
+  #formatDuplicateDetails(details) {
+    // Internal duplicates (within the same file) - message already contains line number
+    if (details.duplicateType === 'internal') {
+      // No additional details needed, message already says "Duplikat in dieser Datei (Zeile X)"
+      return '';
+    }
+
+    const parts = [];
+
+    // Existing entry info (external duplicates from database)
+    if (details.existingEntry) {
+      const entry = details.existingEntry;
+      if (entry.customerName) {
+        parts.push(entry.customerName);
+      }
+      if (entry.contractNumber) {
+        parts.push(`Vertrag: ${entry.contractNumber}`);
+      }
+      if (entry.entryDate) {
+        const date = entry.entryDate instanceof Date
+          ? entry.entryDate
+          : new Date(entry.entryDate);
+        if (!isNaN(date.getTime())) {
+          parts.push(date.toLocaleDateString('de-DE'));
+        }
+      }
+      if (entry.provisionAmount !== undefined) {
+        const formatted = new Intl.NumberFormat('de-DE', {
+          style: 'currency',
+          currency: 'EUR',
+        }).format(entry.provisionAmount);
+        parts.push(formatted);
+      }
+    }
+
+    // Confidence level (only show if not 100%)
+    if (details.confidence !== undefined && details.confidence < 1) {
+      const percent = Math.round(details.confidence * 100);
+      parts.push(`${percent}% Übereinstimmung`);
+    }
+
+    return parts.length > 0 ? parts.join(', ') : '';
+  }
+
+  /**
+   * Formats fuzzy match details
+   */
+  #formatFuzzyMatchDetails(details) {
+    const parts = [];
+
+    if (details.searchedName) {
+      parts.push(`Gesucht: "${details.searchedName}"`);
+    }
+    if (details.matchedName) {
+      parts.push(`Gefunden: "${details.matchedName}"`);
+    }
+    if (details.score !== undefined) {
+      const percent = Math.round(details.score * 100);
+      parts.push(`${percent}% Ähnlichkeit`);
+    }
+
+    return parts.length > 0 ? parts.join(', ') : 'Ähnlicher Eintrag';
+  }
+
+  /**
+   * Formats unknown agent suggestions
+   */
+  #formatAgentSuggestions(details) {
+    const searchedName = details.searchedName || details.name;
+    if (searchedName) {
+      const suggestions = details.suggestions || [];
+      if (suggestions.length > 0) {
+        const suggestionNames = suggestions
+          .slice(0, 3)
+          .map((s) => {
+            if (typeof s === 'string') return s;
+            const name = s.name || s.employeeName;
+            const score = s.score !== undefined ? ` (${Math.round(s.score * 100)}%)` : '';
+            return name ? `${name}${score}` : null;
+          })
+          .filter(Boolean);
+        if (suggestionNames.length > 0) {
+          return `"${searchedName}" → Vorschläge: ${suggestionNames.join(', ')}`;
+        }
+      }
+      return `"${searchedName}"`;
+    }
+    return 'Unbekannt';
   }
 
   equals(other) {
@@ -187,11 +346,17 @@ export class ValidationError {
   }
 
   static negativeAmount(field, amount) {
+    const formattedAmount = new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(amount);
+
     return new ValidationError({
       code: VALIDATION_ERROR_CODE.NEGATIVE_AMOUNT,
+      message: `Storno: wird mit Status "Storniert" importiert`,
       field,
       severity: VALIDATION_ERROR_SEVERITY.WARNING,
-      details: `${amount}`,
+      details: formattedAmount,
     });
   }
 

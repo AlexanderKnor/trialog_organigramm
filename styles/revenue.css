@@ -2072,6 +2072,31 @@
 }
 
 /* ========================================
+   NEGATIVE AMOUNTS (Stornos)
+   ======================================== */
+
+/* Negative amount styling - red color for cancelled/reversed entries */
+.negative-amount {
+  color: #dc2626 !important;
+}
+
+.currency-value.negative-amount,
+.provision-badge.negative-amount {
+  color: #dc2626 !important;
+  font-weight: 600;
+}
+
+/* Ensure negative amounts stay red even in rejected rows */
+.revenue-table-row.row-rejected .currency-value.negative-amount,
+.revenue-table-row.row-rejected .provision-badge.negative-amount,
+.company-row.row-rejected .currency-value.negative-amount,
+.company-row.row-rejected .provision-badge.negative-amount {
+  color: #dc2626 !important;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+/* ========================================
    RESPONSIVE
    ======================================== */
 

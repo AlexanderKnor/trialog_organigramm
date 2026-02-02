@@ -7,6 +7,7 @@ import { WIFOImportBatch } from '../entities/WIFOImportBatch.js';
 import { WIFOValidationService } from './WIFOValidationService.js';
 import { WIFO_IMPORT_STATUS } from '../value-objects/WIFOImportStatus.js';
 import { RECORD_VALIDATION_STATUS } from '../value-objects/RecordValidationStatus.js';
+import { REVENUE_STATUS_TYPES } from '../../../revenue-tracking/domain/value-objects/RevenueStatus.js';
 import { Logger } from '../../../../core/utils/logger.js';
 
 export class WIFOImportService {
@@ -326,10 +327,14 @@ export class WIFOImportService {
    * @param {Object} options - Import options
    */
   async #importRecord(record, options = {}) {
+    const nettoForLog = record.netto || 0;
+    const statusForLog = nettoForLog < 0 ? 'CANCELLED (Storniert)' : 'PROVISIONED (Provisioniert)';
+
     Logger.log('📥 Importing WIFO record:', {
       vermittler: record.vermittlerName,
       vertrag: record.vertrag,
-      netto: record.netto,
+      netto: nettoForLog,
+      autoStatus: statusForLog,
       mappedEmployeeId: record.mappedEmployeeId,
       mappedCategoryType: record.mappedCategoryType,
     });
@@ -344,15 +349,24 @@ export class WIFOImportService {
 
     const employeeId = record.mappedEmployeeId;
 
+    // Determine status based on netto value:
+    // - Negative amounts → CANCELLED (Storniert)
+    // - Positive amounts → PROVISIONED (Provisioniert)
+    const nettoValue = record.netto || 0;
+    const autoStatus = nettoValue < 0
+      ? REVENUE_STATUS_TYPES.CANCELLED
+      : REVENUE_STATUS_TYPES.PROVISIONED;
+
     // Build revenue entry data matching RevenueEntry constructor
     const entryData = {
       category: record.mappedCategoryType,
       provisionType: this.#mapProvisionType(record.mappedCategoryType),
       customerName: this.#buildCustomerName(record),
-      provisionAmount: record.netto || 0,
+      provisionAmount: nettoValue,
       contractNumber: record.vertrag || '',
       notes: this.#buildDescription(record),
       entryDate: record.datum || new Date(),
+      status: autoStatus,
       // Product mapping (use gesellschaft as provider name)
       product: {
         name: record.tarif || 'WIFO Import',
