@@ -34,6 +34,7 @@ export class HierarchyScreen {
   #zoomControls;
   #keyboardHandler;
   #pendingUpdateResolvers = [];
+  #closeUserMenuHandler = null;
 
   constructor(container, hierarchyService, revenueService = null, profileService = null) {
     this.#container = typeof container === 'string' ? getElement(container) : container;
@@ -163,16 +164,43 @@ export class HierarchyScreen {
   #createHeader() {
     const user = authService.getCurrentUser();
     const userEmail = user?.email || 'User';
-    const userRole = user?.role || '';
     const isAdmin = authService.isAdmin();
+    const displayName = user?.displayName || userEmail.split('@')[0];
 
-    // Admin-only catalog button (inside nav)
-    const catalogButton = isAdmin
-      ? createElement('button', {
-          className: 'btn-catalog',
-          onclick: () => window.navigateToCatalog(),
-        }, ['⚙️'])
-      : null;
+    // Admin-only catalog button (gear/settings icon)
+    let catalogButton = null;
+    if (isAdmin) {
+      catalogButton = createElement('button', {
+        className: 'btn-catalog',
+        title: 'Katalog',
+        onclick: () => window.navigateToCatalog(),
+      });
+      catalogButton.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    }
+
+    // User menu with dropdown
+    const userMenu = createElement('div', { className: 'user-menu' }, [
+      createElement('button', {
+        className: 'user-menu-trigger',
+        onclick: (e) => this.#toggleUserMenu(e),
+      }, [
+        createElement('span', { className: 'user-avatar' }, [displayName.charAt(0).toUpperCase()]),
+        createElement('span', { className: 'user-name' }, [displayName]),
+        isAdmin ? createElement('span', { className: 'user-badge' }, ['Admin']) : null,
+        createElement('span', { className: 'user-menu-arrow' }),
+      ].filter(Boolean)),
+      createElement('div', { className: 'user-menu-dropdown' }, [
+        createElement('button', {
+          className: 'user-menu-item',
+          onclick: () => this.#showChangePasswordDialog(),
+        }, ['Passwort ändern']),
+        createElement('div', { className: 'user-menu-divider' }),
+        createElement('button', {
+          className: 'user-menu-item user-menu-logout',
+          onclick: () => this.#handleLogout(),
+        }, ['Abmelden']),
+      ]),
+    ]);
 
     return createElement('header', { className: 'app-header' }, [
       createElement('div', { className: 'header-date' }),
@@ -181,20 +209,184 @@ export class HierarchyScreen {
         createElement('span', { className: 'logo-divider' }, ['·']),
         createElement('span', { className: 'logo-subtext' }, ['Organigramm']),
       ]),
-      createElement('nav', { className: 'header-nav' }, [
+      createElement('div', { className: 'header-actions' }, [
         catalogButton,
-        createElement('span', { className: 'user-email' }, [
-          userEmail,
-          userRole === 'admin'
-            ? createElement('span', { className: 'user-badge' }, ['Admin'])
-            : null,
-        ].filter(Boolean)),
-        createElement('button', {
-          className: 'btn-logout',
-          onclick: () => this.#handleLogout(),
-        }, ['Abmelden']),
+        userMenu,
       ].filter(Boolean)),
     ]);
+  }
+
+  #toggleUserMenu(e) {
+    e.stopPropagation();
+    const menu = this.#element.querySelector('.user-menu');
+    const isOpen = menu.classList.contains('open');
+
+    if (isOpen) {
+      menu.classList.remove('open');
+      document.removeEventListener('click', this.#closeUserMenuHandler);
+    } else {
+      menu.classList.add('open');
+      // Close menu when clicking outside
+      this.#closeUserMenuHandler = () => {
+        menu.classList.remove('open');
+        document.removeEventListener('click', this.#closeUserMenuHandler);
+      };
+      setTimeout(() => document.addEventListener('click', this.#closeUserMenuHandler), 0);
+    }
+  }
+
+  #showChangePasswordDialog() {
+    // Close user menu
+    const menu = this.#element.querySelector('.user-menu');
+    menu.classList.remove('open');
+
+    // Create and show password change dialog
+    const overlay = createElement('div', { className: 'dialog-overlay' }, [
+      createElement('div', { className: 'change-password-dialog' }, [
+        createElement('div', { className: 'dialog-header' }, [
+          createElement('h2', { className: 'dialog-title' }, ['Passwort ändern']),
+          createElement('button', {
+            className: 'dialog-close',
+            onclick: () => overlay.remove(),
+          }, ['×']),
+        ]),
+        createElement('form', {
+          className: 'change-password-form',
+          onsubmit: async (e) => {
+            e.preventDefault();
+            await this.#handlePasswordChange(e.target, overlay);
+          },
+        }, [
+          createElement('p', { className: 'dialog-description' }, [
+            'Geben Sie Ihr aktuelles Passwort und das neue Passwort ein.',
+          ]),
+          createElement('div', { className: 'form-group' }, [
+            createElement('label', { className: 'form-label' }, ['Aktuelles Passwort']),
+            createElement('input', {
+              className: 'form-input',
+              type: 'password',
+              name: 'currentPassword',
+              required: true,
+              autocomplete: 'current-password',
+            }),
+          ]),
+          createElement('div', { className: 'form-group' }, [
+            createElement('label', { className: 'form-label' }, ['Neues Passwort']),
+            createElement('input', {
+              className: 'form-input',
+              type: 'password',
+              name: 'newPassword',
+              required: true,
+              autocomplete: 'new-password',
+            }),
+            createElement('small', { className: 'form-hint' }, [
+              'Mind. 8 Zeichen, Groß-/Kleinbuchstaben, Zahl, Sonderzeichen',
+            ]),
+          ]),
+          createElement('div', { className: 'form-group' }, [
+            createElement('label', { className: 'form-label' }, ['Neues Passwort bestätigen']),
+            createElement('input', {
+              className: 'form-input',
+              type: 'password',
+              name: 'confirmPassword',
+              required: true,
+              autocomplete: 'new-password',
+            }),
+          ]),
+          createElement('div', { className: 'form-error', style: 'display: none;' }),
+          createElement('div', { className: 'form-success', style: 'display: none;' }),
+          createElement('div', { className: 'dialog-actions' }, [
+            createElement('button', {
+              className: 'btn btn-ghost',
+              type: 'button',
+              onclick: () => overlay.remove(),
+            }, ['Abbrechen']),
+            createElement('button', {
+              className: 'btn btn-primary',
+              type: 'submit',
+            }, ['Passwort ändern']),
+          ]),
+        ]),
+      ]),
+    ]);
+
+    document.body.appendChild(overlay);
+
+    // Focus first input
+    setTimeout(() => overlay.querySelector('input')?.focus(), 100);
+  }
+
+  async #handlePasswordChange(form, overlay) {
+    const currentPassword = form.currentPassword.value;
+    const newPassword = form.newPassword.value;
+    const confirmPassword = form.confirmPassword.value;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const errorDiv = form.querySelector('.form-error');
+    const successDiv = form.querySelector('.form-success');
+
+    // Clear messages
+    errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
+
+    // Validate
+    if (newPassword !== confirmPassword) {
+      errorDiv.textContent = 'Die neuen Passwörter stimmen nicht überein.';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    const validation = this.#validatePasswordStrength(newPassword);
+    if (!validation.valid) {
+      errorDiv.innerHTML = validation.error;
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      errorDiv.textContent = 'Das neue Passwort muss sich vom aktuellen unterscheiden.';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Wird geändert...';
+
+    try {
+      const result = await authService.changePassword(currentPassword, newPassword);
+
+      if (result.success) {
+        successDiv.textContent = 'Passwort erfolgreich geändert!';
+        successDiv.style.display = 'block';
+        form.reset();
+
+        // Close dialog after success
+        setTimeout(() => overlay.remove(), 1500);
+      } else {
+        errorDiv.textContent = result.error;
+        errorDiv.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Passwort ändern';
+      }
+    } catch (error) {
+      errorDiv.textContent = 'Ein Fehler ist aufgetreten.';
+      errorDiv.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Passwort ändern';
+    }
+  }
+
+  #validatePasswordStrength(password) {
+    const errors = [];
+    if (password.length < 8) errors.push('• Mindestens 8 Zeichen');
+    if (!/[A-Z]/.test(password)) errors.push('• Mindestens 1 Großbuchstabe');
+    if (!/[a-z]/.test(password)) errors.push('• Mindestens 1 Kleinbuchstabe');
+    if (!/[0-9]/.test(password)) errors.push('• Mindestens 1 Zahl');
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) errors.push('• Mindestens 1 Sonderzeichen');
+
+    if (errors.length > 0) {
+      return { valid: false, error: `Anforderungen:\n${errors.join('\n')}` };
+    }
+    return { valid: true };
   }
 
   async #handleLogout() {

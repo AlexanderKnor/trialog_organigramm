@@ -185,6 +185,13 @@
 .login-footer-text {
   font-size: 0.875rem;
   color: #64748b;
+  margin: 0;
+}
+
+.login-footer-secondary {
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-3);
+  border-top: 1px solid #f1f5f9;
 }
 
 .login-link {
@@ -197,6 +204,104 @@
 .login-link:hover {
   color: #2a5298;
   text-decoration: underline;
+}
+
+/* Action Label (Registration, Password Reset) */
+.logo-action-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-1) var(--spacing-3);
+  background: rgba(16, 39, 76, 0.05);
+  border-radius: 6px;
+  display: inline-block;
+}
+
+/* Info Text */
+.login-info-text {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: var(--spacing-5);
+  padding: var(--spacing-4);
+  background: rgba(16, 39, 76, 0.03);
+  border-radius: 10px;
+  border: 1px solid rgba(16, 39, 76, 0.05);
+}
+
+/* Success Message */
+.form-success {
+  padding: var(--spacing-4);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.04) 0%, rgba(34, 197, 94, 0.02) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-left: 3px solid #16a34a;
+  border-radius: 10px;
+  color: #15803d;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.6;
+  box-shadow:
+    0 1px 3px rgba(34, 197, 94, 0.08),
+    0 2px 6px rgba(34, 197, 94, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.form-success::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+}
+
+/* ========================================
+   SECURITY SECTION (Profile)
+   ======================================== */
+
+.security-section {
+  max-width: 480px;
+}
+
+.security-info {
+  margin-bottom: var(--spacing-6);
+}
+
+.security-description {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.6;
+  padding: var(--spacing-4);
+  background: rgba(16, 39, 76, 0.03);
+  border-radius: 10px;
+  border: 1px solid rgba(16, 39, 76, 0.05);
+  margin: 0;
+}
+
+.change-password-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+.change-password-form .form-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: var(--spacing-1);
+}
+
+.change-password-form .form-actions {
+  margin-top: var(--spacing-2);
+}
+
+.change-password-form .form-error,
+.change-password-form .form-success {
+  margin-top: var(--spacing-2);
 }
 
 /* Responsive */

@@ -82,7 +82,7 @@ export class LoginScreen {
         }, ['Anmelden']),
       ]),
 
-      // Footer
+      // Footer with links
       createElement('div', { className: 'login-footer' }, [
         createElement('p', { className: 'login-footer-text' }, [
           'Noch kein Account? ',
@@ -94,6 +94,16 @@ export class LoginScreen {
               this.#showRegisterForm();
             },
           }, ['Registrieren']),
+        ]),
+        createElement('p', { className: 'login-footer-text login-footer-secondary' }, [
+          createElement('a', {
+            href: '#',
+            className: 'login-link',
+            onclick: (e) => {
+              e.preventDefault();
+              this.#showForgotPasswordForm();
+            },
+          }, ['Passwort vergessen?']),
         ]),
       ]),
     ]);
@@ -256,6 +266,156 @@ export class LoginScreen {
         });
       });
     }, 250);
+  }
+
+  #showForgotPasswordForm() {
+    // Smooth transition to forgot password form
+    const loginCard = this.#element.querySelector('.login-card');
+
+    // Fade-out current content
+    loginCard.style.opacity = '0';
+    loginCard.style.transform = 'translateX(-20px)';
+    loginCard.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+
+    setTimeout(() => {
+      clearElement(loginCard);
+
+      loginCard.appendChild(
+        createElement('div', {}, [
+          // Logo
+          createElement('div', { className: 'login-logo' }, [
+            createElement('div', { className: 'logo-company' }, [
+              createElement('span', { className: 'logo-text' }, ['Trialog']),
+              createElement('span', { className: 'logo-company-type' }, ['Makler Gruppe']),
+            ]),
+            createElement('div', { className: 'logo-action-label' }, ['Passwort zurücksetzen']),
+          ]),
+
+          // Info text
+          createElement('p', { className: 'login-info-text' }, [
+            'Geben Sie Ihre E-Mail-Adresse ein. Sie erhalten einen Link zum Zurücksetzen Ihres Passworts.',
+          ]),
+
+          // Form
+          createElement('form', {
+            className: 'login-form',
+            onsubmit: (e) => this.#handleForgotPassword(e),
+          }, [
+            // Email input
+            createElement('div', { className: 'form-group' }, [
+              createElement('label', { className: 'form-label', for: 'reset-email' }, ['E-Mail']),
+              createElement('input', {
+                className: 'form-input',
+                type: 'email',
+                id: 'reset-email',
+                name: 'email',
+                required: true,
+                autocomplete: 'email',
+                placeholder: 'ihre.email@trialog.de',
+                title: '',
+              }),
+            ]),
+
+            // Success/Error message
+            createElement('div', { className: 'form-error', style: 'display: none;' }),
+            createElement('div', { className: 'form-success', style: 'display: none;' }),
+
+            // Submit button
+            createElement('button', {
+              className: 'btn btn-primary btn-block',
+              type: 'submit',
+            }, ['Link anfordern']),
+          ]),
+
+          // Footer
+          createElement('div', { className: 'login-footer' }, [
+            createElement('p', { className: 'login-footer-text' }, [
+              createElement('a', {
+                href: '#',
+                className: 'login-link',
+                onclick: (e) => {
+                  e.preventDefault();
+                  this.#showLoginForm();
+                },
+              }, ['Zurück zur Anmeldung']),
+            ]),
+          ]),
+        ])
+      );
+
+      // Fade-in new content
+      const newLoginCard = this.#element.querySelector('.login-card');
+      newLoginCard.style.animation = 'none';
+
+      requestAnimationFrame(() => {
+        newLoginCard.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+        newLoginCard.style.opacity = '0';
+        newLoginCard.style.transform = 'translateX(20px)';
+
+        requestAnimationFrame(() => {
+          newLoginCard.style.opacity = '1';
+          newLoginCard.style.transform = 'translateX(0)';
+        });
+      });
+    }, 250);
+  }
+
+  async #handleForgotPassword(e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const email = form.email.value.trim();
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const errorDiv = form.querySelector('.form-error');
+    const successDiv = form.querySelector('.form-success');
+
+    // Clear previous messages
+    errorDiv.style.display = 'none';
+    errorDiv.textContent = '';
+    successDiv.style.display = 'none';
+    successDiv.textContent = '';
+
+    // Validate email
+    if (!email) {
+      errorDiv.textContent = 'Bitte geben Sie Ihre E-Mail-Adresse ein.';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Wird gesendet...';
+
+    try {
+      const result = await authService.requestPasswordReset(email);
+
+      if (result.success) {
+        // Show success message
+        successDiv.innerHTML = `
+          <strong>E-Mail gesendet!</strong><br><br>
+          Falls ein Account mit dieser E-Mail existiert, erhalten Sie in Kürze eine E-Mail mit einem Link zum Zurücksetzen Ihres Passworts.<br><br>
+          <em>Bitte prüfen Sie auch Ihren Spam-Ordner.</em>
+        `;
+        successDiv.style.display = 'block';
+        successDiv.style.whiteSpace = 'normal';
+
+        // Hide form elements
+        form.email.disabled = true;
+        submitBtn.style.display = 'none';
+
+        Logger.log('Password reset email requested for:', email);
+      } else {
+        errorDiv.textContent = result.error;
+        errorDiv.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Link anfordern';
+      }
+    } catch (error) {
+      errorDiv.textContent = 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.';
+      errorDiv.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Link anfordern';
+    }
   }
 
   #showLoginForm() {

@@ -41,11 +41,19 @@ export class AuthService {
       signInWithEmailAndPassword,
       createUserWithEmailAndPassword,
       signOut,
+      sendPasswordResetEmail,
+      updatePassword,
+      reauthenticateWithCredential,
+      EmailAuthProvider,
     } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
 
     this.signInWithEmailAndPassword = signInWithEmailAndPassword;
     this.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
     this.signOut = signOut;
+    this.sendPasswordResetEmail = sendPasswordResetEmail;
+    this.updatePassword = updatePassword;
+    this.reauthenticateWithCredential = reauthenticateWithCredential;
+    this.EmailAuthProvider = EmailAuthProvider;
 
     // Dynamic imports for Firestore
     const {
@@ -389,6 +397,72 @@ async deleteEmployeeAccount(email) {
         error: error.message,
       };
     }
+  }
+
+  /**
+   * Send password reset email to user
+   * @param {string} email - User's email address
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async requestPasswordReset(email) {
+    try {
+      await this.sendPasswordResetEmail(this.#auth, email);
+      Logger.log(`✓ Password reset email sent to: ${email}`);
+      return { success: true };
+    } catch (error) {
+      Logger.error('Failed to send password reset email:', error);
+      return {
+        success: false,
+        error: this.#getErrorMessage(error.code),
+      };
+    }
+  }
+
+  /**
+   * Change password for currently logged in user
+   * Requires re-authentication with current password for security
+   * @param {string} currentPassword - Current password for verification
+   * @param {string} newPassword - New password to set
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async changePassword(currentPassword, newPassword) {
+    try {
+      const user = this.#auth.currentUser;
+      if (!user) {
+        return {
+          success: false,
+          error: 'Kein Benutzer angemeldet.',
+        };
+      }
+
+      // Re-authenticate user before changing password (Firebase security requirement)
+      const credential = this.EmailAuthProvider.credential(user.email, currentPassword);
+      await this.reauthenticateWithCredential(user, credential);
+
+      // Update password
+      await this.updatePassword(user, newPassword);
+
+      Logger.log(`✓ Password changed successfully for: ${user.email}`);
+      return { success: true };
+    } catch (error) {
+      Logger.error('Failed to change password:', error);
+      return {
+        success: false,
+        error: this.#getPasswordChangeErrorMessage(error.code),
+      };
+    }
+  }
+
+  #getPasswordChangeErrorMessage(errorCode) {
+    const errorMessages = {
+      'auth/wrong-password': 'Das aktuelle Passwort ist falsch.',
+      'auth/invalid-credential': 'Das aktuelle Passwort ist falsch.',
+      'auth/weak-password': 'Das neue Passwort ist zu schwach. Mindestens 6 Zeichen erforderlich.',
+      'auth/requires-recent-login': 'Bitte melden Sie sich erneut an und versuchen Sie es noch einmal.',
+      'auth/too-many-requests': 'Zu viele fehlgeschlagene Versuche. Bitte warten Sie einen Moment.',
+    };
+
+    return errorMessages[errorCode] || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.';
   }
 
   isAuthenticated() {
