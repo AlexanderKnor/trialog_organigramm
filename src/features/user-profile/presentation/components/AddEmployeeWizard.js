@@ -261,10 +261,10 @@ export class AddEmployeeWizard {
 
     this.#inputs.birthDate = new Input({
       id: 'wizard-birthDate',
-      label: 'Geburtsdatum *',
+      label: 'Geburtsdatum',
       type: 'date',
       value: this.#formData.birthDate,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.birthDate = val,
     });
 
@@ -280,11 +280,11 @@ export class AddEmployeeWizard {
 
     this.#inputs.phone = new Input({
       id: 'wizard-phone',
-      label: 'Telefon *',
+      label: 'Telefon',
       type: 'tel',
       placeholder: '+49 123 456789',
       value: this.#formData.phone,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.phone = val,
     });
 
@@ -347,41 +347,41 @@ export class AddEmployeeWizard {
     const sectionHeader = createElement('div', { className: 'wizard-section-header' }, [
       createElement('h3', { className: 'section-title' }, ['Anschrift']),
       createElement('p', { className: 'section-description' }, [
-        'Wohnadresse des Mitarbeiters'
+        'Wohnadresse des Mitarbeiters (optional, kann später ergänzt werden)'
       ]),
     ]);
     this.#inputs.street = new Input({
-      label: 'Straße *',
+      label: 'Straße',
       placeholder: 'Musterstraße',
       value: this.#formData.street,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.street = val,
     });
 
     this.#inputs.houseNumber = new Input({
-      label: 'Hausnummer *',
+      label: 'Hausnummer',
       placeholder: '123',
       value: this.#formData.houseNumber,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.houseNumber = val,
     });
 
     this.#inputs.postalCode = new Input({
-      label: 'PLZ *',
-      placeholder: '12345 (5 Ziffern)',
+      label: 'PLZ',
+      placeholder: '12345',
       value: this.#formData.postalCode,
-      required: true,
+      required: false,
       onChange: (val) => {
         this.#formData.postalCode = val;
-        this.#validatePostalCode(val);
+        if (val) this.#validatePostalCode(val);
       },
     });
 
     this.#inputs.city = new Input({
-      label: 'Stadt *',
+      label: 'Stadt',
       placeholder: 'Berlin',
       value: this.#formData.city,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.city = val,
     });
 
@@ -406,17 +406,17 @@ export class AddEmployeeWizard {
     const sectionHeader = createElement('div', { className: 'wizard-section-header' }, [
       createElement('h3', { className: 'section-title' }, ['Steuer & Rechtliches']),
       createElement('p', { className: 'section-description' }, [
-        'Steuerliche und rechtliche Informationen'
+        'Steuerliche und rechtliche Informationen (optional, kann später ergänzt werden)'
       ]),
     ]);
     this.#inputs.taxNumber = new Input({
-      label: 'Steuernummer *',
-      placeholder: '12/345/67890 (10-13 Ziffern)',
+      label: 'Steuernummer',
+      placeholder: '12/345/67890',
       value: this.#formData.taxNumber,
-      required: true,
+      required: false,
       onChange: (val) => {
         this.#formData.taxNumber = val;
-        this.#validateTaxNumber(val);
+        if (val) this.#validateTaxNumber(val);
       },
     });
 
@@ -431,10 +431,10 @@ export class AddEmployeeWizard {
     });
 
     this.#inputs.taxOffice = new Input({
-      label: 'Finanzamt *',
+      label: 'Finanzamt',
       placeholder: 'Finanzamt Berlin',
       value: this.#formData.taxOffice,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.taxOffice = val,
     });
 
@@ -465,10 +465,10 @@ export class AddEmployeeWizard {
     ]);
 
     this.#inputs.registrationCourt = new Input({
-      label: 'Amtsgericht *',
+      label: 'Amtsgericht',
       placeholder: 'Amtsgericht Berlin',
       value: this.#formData.registrationCourt,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.registrationCourt = val,
     });
 
@@ -503,44 +503,44 @@ export class AddEmployeeWizard {
     const sectionHeader = createElement('div', { className: 'wizard-section-header' }, [
       createElement('h3', { className: 'section-title' }, ['Bankverbindung']),
       createElement('p', { className: 'section-description' }, [
-        'Bankdaten für Provisionsauszahlungen'
+        'Bankdaten für Provisionsauszahlungen (optional, kann später ergänzt werden)'
       ]),
     ]);
     this.#inputs.iban = new Input({
-      label: 'IBAN *',
-      placeholder: 'DE89370400440532013000 (DE + 20 Ziffern)',
+      label: 'IBAN',
+      placeholder: 'DE89370400440532013000',
       value: this.#formData.iban,
-      required: true,
+      required: false,
       onChange: (val) => {
         this.#formData.iban = val;
-        this.#validateIBAN(val);
+        if (val) this.#validateIBAN(val);
       },
     });
 
     this.#inputs.bic = new Input({
-      label: 'BIC *',
-      placeholder: 'COBADEFFXXX (8 oder 11 Zeichen)',
+      label: 'BIC',
+      placeholder: 'COBADEFFXXX',
       value: this.#formData.bic,
-      required: true,
+      required: false,
       onChange: (val) => {
         this.#formData.bic = val;
-        this.#validateBIC(val);
+        if (val) this.#validateBIC(val);
       },
     });
 
     this.#inputs.bankName = new Input({
-      label: 'Bankname *',
+      label: 'Bankname',
       placeholder: 'Commerzbank',
       value: this.#formData.bankName,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.bankName = val,
     });
 
     this.#inputs.accountHolder = new Input({
-      label: 'Kontoinhaber *',
+      label: 'Kontoinhaber',
       placeholder: 'Max Mustermann',
       value: this.#formData.accountHolder,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.accountHolder = val,
     });
 
@@ -568,14 +568,14 @@ export class AddEmployeeWizard {
     const sectionHeader = createElement('div', { className: 'wizard-section-header' }, [
       createElement('h3', { className: 'section-title' }, ['Qualifikationen']),
       createElement('p', { className: 'section-description' }, [
-        'Berufliche Qualifikationen und Zertifizierungen'
+        'Berufliche Qualifikationen und Zertifizierungen (optional, kann später ergänzt werden)'
       ]),
     ]);
     this.#inputs.ihkRegistrationNumber = new Input({
-      label: 'IHK Vermittlerregister-Nr. *',
+      label: 'IHK Vermittlerregister-Nr.',
       placeholder: 'D-ABCD-12345-2024',
       value: this.#formData.ihkRegistrationNumber,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.ihkRegistrationNumber = val,
     });
 
@@ -624,50 +624,50 @@ export class AddEmployeeWizard {
     const sectionHeader = createElement('div', { className: 'wizard-section-header' }, [
       createElement('h3', { className: 'section-title' }, ['Karriere & Provisionen']),
       createElement('p', { className: 'section-description' }, [
-        'Rangname und Provisions-Sätze für verschiedene Produktkategorien'
+        'Rangname und Provisions-Sätze (optional, Standardwerte werden verwendet)'
       ]),
     ]);
     this.#inputs.rankName = new Input({
-      label: 'Rang/Karrierestufe *',
-      placeholder: 'Senior Berater',
+      label: 'Rang/Karrierestufe',
+      placeholder: 'Berater (Standard)',
       value: this.#formData.rankName,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.rankName = val,
     });
 
     this.#inputs.bankProvision = new Input({
-      label: 'Bank-Provision (%) *',
+      label: 'Bank-Provision (%)',
       type: 'number',
       placeholder: '0',
       min: '0',
       max: '100',
       step: '0.1',
       value: this.#formData.bankProvision,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.bankProvision = val,
     });
 
     this.#inputs.insuranceProvision = new Input({
-      label: 'Versicherung-Provision (%) *',
+      label: 'Versicherung-Provision (%)',
       type: 'number',
       placeholder: '0',
       min: '0',
       max: '100',
       step: '0.1',
       value: this.#formData.insuranceProvision,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.insuranceProvision = val,
     });
 
     this.#inputs.realEstateProvision = new Input({
-      label: 'Immobilien-Provision (%) *',
+      label: 'Immobilien-Provision (%)',
       type: 'number',
       placeholder: '0',
       min: '0',
       max: '100',
       step: '0.1',
       value: this.#formData.realEstateProvision,
-      required: true,
+      required: false,
       onChange: (val) => this.#formData.realEstateProvision = val,
     });
 
@@ -884,12 +884,17 @@ export class AddEmployeeWizard {
   }
 
   #validateCurrentStep() {
-    // Simple validation - check required fields are filled
-    // Detailed validation happens on complete
+    // Only Step 1 has mandatory fields (Firebase requirements)
+    // All other steps are optional - data can be added later
     switch (this.#currentStep) {
       case 1:
-        if (!this.#formData.firstName || !this.#formData.lastName || !this.#formData.email) {
-          alert('Bitte alle Pflichtfelder ausfüllen');
+        // Firebase mandatory: Name and Email
+        if (!this.#formData.firstName?.trim() || !this.#formData.lastName?.trim()) {
+          alert('Vor- und Nachname sind Pflichtfelder');
+          return false;
+        }
+        if (!this.#formData.email?.trim()) {
+          alert('E-Mail-Adresse ist ein Pflichtfeld');
           return false;
         }
         // Password validation only in create mode
@@ -904,35 +909,13 @@ export class AddEmployeeWizard {
           }
         }
         break;
+      // Steps 2-6: All fields are optional (can be filled later)
       case 2:
-        if (!this.#formData.street || !this.#formData.houseNumber || !this.#formData.postalCode || !this.#formData.city) {
-          alert('Bitte alle Adressfelder ausfüllen');
-          return false;
-        }
-        break;
       case 3:
-        if (!this.#formData.taxNumber || !this.#formData.taxOffice || !this.#formData.registrationCourt) {
-          alert('Bitte alle Pflichtfelder ausfüllen');
-          return false;
-        }
-        break;
       case 4:
-        if (!this.#formData.iban || !this.#formData.bic || !this.#formData.bankName || !this.#formData.accountHolder) {
-          alert('Bitte alle Bankdaten ausfüllen');
-          return false;
-        }
-        break;
       case 5:
-        if (!this.#formData.ihkRegistrationNumber) {
-          alert('Bitte IHK-Registrierungsnummer eingeben');
-          return false;
-        }
-        break;
       case 6:
-        if (!this.#formData.rankName) {
-          alert('Bitte Rang eingeben');
-          return false;
-        }
+        // No mandatory validation - all fields optional
         break;
     }
     return true;
