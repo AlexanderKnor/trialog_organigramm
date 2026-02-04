@@ -19,6 +19,11 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Move zoom controls left when sidebar is open */
+.hierarchy-screen:has(.sidebar.visible) .zoom-controls {
+  right: calc(var(--sidebar-width) + 24px);
+}
+
 /* Subtle glass-morphism container */
 .zoom-controls-container {
   display: inline-flex;
@@ -202,6 +207,13 @@
 @media (max-width: 768px) {
   .zoom-controls {
     top: calc(var(--header-height) + 16px);
+    right: 16px;
+  }
+
+  /* On mobile, hide zoom controls when sidebar is open (sidebar is 100% width) */
+  .hierarchy-screen:has(.sidebar.visible) .zoom-controls {
+    opacity: 0;
+    pointer-events: none;
     right: 16px;
   }
 
