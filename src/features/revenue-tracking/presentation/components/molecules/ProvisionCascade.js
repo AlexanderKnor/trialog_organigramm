@@ -23,7 +23,7 @@ export class ProvisionCascade {
   #render() {
     const hierarchyPath = this.#entry.hierarchyPath;
     const categoryType = this.#entry.originalEntry.category.type;
-    const baseAmount = this.#entry.originalEntry.provisionAmount;
+    const baseAmount = this.#entry.originalEntry.grossAmount || this.#entry.originalEntry.provisionAmount;
 
     // Build cascade items (employee → managers → company)
     const cascadeItems = [];
@@ -34,37 +34,44 @@ export class ProvisionCascade {
     const ownerBaseProvision = this.#getProvisionForCategory(entryOwner, categoryType);
 
     // Tip provider provision is deducted from owner's share
-    const tipProviderPercentage = originalEntry.tipProviderProvisionPercentage || 0;
+    const tipProviderPercentage = originalEntry.totalTipProviderPercentage;
     const ownerEffectiveProvision = Math.max(0, ownerBaseProvision - tipProviderPercentage);
     const ownerAmount = baseAmount * (ownerEffectiveProvision / 100);
 
-    cascadeItems.push({
-      name: entryOwner.name,
-      role: 'Erfasser',
-      provision: ownerEffectiveProvision,
-      baseProvision: ownerBaseProvision, // Store base for cascade calculations
-      amount: ownerAmount,
-      isOwner: true,
-      isCompany: false,
-      level: 0,
-    });
+    // Direct company revenue: skip owner card (company is both owner and recipient)
+    const isDirectCompanyRevenue = entryOwner.id === hierarchyPath[0]?.id && hierarchyPath.length === 1;
 
-    // Add tip provider directly above owner (if present)
-    let level = 1;
+    if (!isDirectCompanyRevenue) {
+      cascadeItems.push({
+        name: entryOwner.name,
+        role: 'Erfasser',
+        provision: ownerEffectiveProvision,
+        baseProvision: ownerBaseProvision,
+        amount: ownerAmount,
+        isOwner: true,
+        isCompany: false,
+        level: 0,
+      });
+    }
+
+    // Add tip providers directly above owner (if present)
+    let level = isDirectCompanyRevenue ? 0 : 1;
 
     if (originalEntry.hasTipProvider) {
-      const tipProviderAmount = originalEntry.tipProviderProvisionAmount || 0;
+      for (const tp of originalEntry.tipProviders) {
+        const tpAmount = tp.calculateAmount(baseAmount);
 
-      cascadeItems.push({
-        name: originalEntry.tipProviderName || 'Tippgeber',
-        role: 'Tippgeber',
-        provision: tipProviderPercentage,
-        amount: tipProviderAmount,
-        isOwner: false,
-        isCompany: false,
-        isTipProvider: true,
-        level: level++,
-      });
+        cascadeItems.push({
+          name: tp.name || 'Tippgeber',
+          role: 'Tippgeber',
+          provision: tp.provisionPercentage,
+          amount: tpAmount,
+          isOwner: false,
+          isCompany: false,
+          isTipProvider: true,
+          level: level++,
+        });
+      }
     }
 
     // Add intermediate managers (skip first = company, skip last = entry owner)

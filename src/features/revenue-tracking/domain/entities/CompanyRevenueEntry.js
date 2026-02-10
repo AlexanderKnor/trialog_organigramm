@@ -55,6 +55,28 @@ export class CompanyRevenueEntry {
     company,
     hierarchyPath,
   }) {
+    // Direct company revenue: 100% goes to company (no employee cascade)
+    // Tip provider is deducted from company's share (company is the entry owner)
+    if (entryOwner.id === company.id) {
+      const tipProviderPercentage = entry.totalTipProviderPercentage;
+      const companyProvision = 100 - tipProviderPercentage;
+      const baseAmount = entry.grossAmount || entry.provisionAmount;
+      const companyAmount = Math.round(baseAmount * (companyProvision / 100) * 100) / 100;
+
+      return new CompanyRevenueEntry({
+        originalEntry: entry,
+        entryOwner,
+        directSubordinate: company,
+        company,
+        hierarchyPath: [company],
+        directSubordinateProvisionPercentage: 0,
+        highestProvisionPercentageInPath: 0,
+        companyProvisionPercentage: companyProvision,
+        companyProvisionAmount: companyAmount,
+        ownerProvisionAmount: 0,
+      });
+    }
+
     let ownerProvision, directSubProvision, highestProvision;
 
     // PRIORITY: Use snapshots if available
@@ -94,7 +116,8 @@ export class CompanyRevenueEntry {
 
     // Tip provider provision is deducted from OWNER, not from company
     // The tip provider's share comes from the owner's provision (internal deduction)
-    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
+    // Clamp to owner's rate to prevent cascade overflow (sum > 100%)
+    const tipProviderPercentage = Math.min(entry.totalTipProviderPercentage, ownerProvision);
 
     // Company gets the remainder: 100% - HIGHEST provision
     // Tip provider does NOT reduce company share - it's deducted from owner
@@ -102,9 +125,10 @@ export class CompanyRevenueEntry {
 
     // Calculate amounts
     // Owner's effective provision = base provision - tip provider share
-    const ownerEffectiveProvision = Math.max(0, ownerProvision - tipProviderPercentage);
-    const companyAmount = entry.provisionAmount * (companyProvision / 100);
-    const ownerAmount = entry.provisionAmount * (ownerEffectiveProvision / 100);
+    const ownerEffectiveProvision = ownerProvision - tipProviderPercentage;
+    const baseAmount = entry.grossAmount || entry.provisionAmount;
+    const companyAmount = Math.round(baseAmount * (companyProvision / 100) * 100) / 100;
+    const ownerAmount = Math.round(baseAmount * (ownerEffectiveProvision / 100) * 100) / 100;
 
     return new CompanyRevenueEntry({
       originalEntry: entry,

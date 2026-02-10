@@ -1,6 +1,7 @@
 /**
  * Molecule: AddRevenueDialog
  * Dialog for adding new revenue entries
+ * Supports multiple tip providers (Tippgeber) per entry.
  */
 
 import { createElement } from '../../../../../core/utils/index.js';
@@ -23,6 +24,7 @@ export class AddRevenueDialog {
   #revenueService;
   #hierarchyService;
   #isLoading; // Loading state for smooth transitions
+  #companyMode; // Company mode: allows selecting target employee
 
   // Form inputs
   #dateInput;
@@ -39,9 +41,13 @@ export class AddRevenueDialog {
   #provisionAmountInput;
   #vatCheckbox;
   #notesInput;
-  #tipProviderSelect;
-  #tipProviderProvisionInput;
   #trackingModeRadios; // Track revenue vs provision
+  #employeeSelect; // Employee selector for company mode
+
+  // Multi-tip-provider state
+  #tipProviderRows = []; // Array of { id, selectEl, provisionInput, removeBtn }
+  #tipProviderContainer; // DOM container for tip provider rows
+  #addTipProviderBtn; // Button to add new row
 
   // Dynamic catalog data
   #categories;
@@ -55,6 +61,7 @@ export class AddRevenueDialog {
     this.#revenueService = props.revenueService || null;
     this.#hierarchyService = props.hierarchyService || null;
     this.#isLoading = true; // Start in loading state
+    this.#companyMode = props.companyMode || false;
 
     this.#props = {
       onSave: props.onSave || null,
@@ -67,8 +74,6 @@ export class AddRevenueDialog {
       category: this.#entry?.category?.type || REVENUE_CATEGORY_TYPES.BANK,
       product: null,
       provider: null,
-      tipProvider: null,
-      tipProviderProvision: null,
       trackingMode: 'revenue', // 'revenue' or 'provision'
     };
 
@@ -78,65 +83,44 @@ export class AddRevenueDialog {
     this.#currentProducts = [];
 
     this.#element = this.#render();
-    // Note: #initializeForm() will be called after show() to prevent empty modal flash
   }
 
   async #initializeForm() {
     try {
-      // Load categories from catalog
       await this.#loadCategories();
-
-      // Load employees for tip provider dropdown
       await this.#loadEmployeesForTipProvider();
 
-      // Populate form if editing
       if (this.#isEditMode) {
         await this.#populateForm();
       } else {
-        // Initialize with first category
         if (this.#categories.length > 0) {
           const firstCategoryType = this.#categories[0].type || this.#categories[0];
           await this.#onCategoryChange(firstCategoryType);
         }
       }
 
-      // Data loaded - transition from skeleton to real form
       this.#isLoading = false;
       this.#transitionToLoadedState();
     } catch (error) {
       Logger.error('Failed to initialize form:', error);
-      // Still show form even if some data failed to load
       this.#isLoading = false;
       this.#transitionToLoadedState();
     }
   }
 
-  /**
-   * Smooth transition from skeleton to loaded form
-   */
   #transitionToLoadedState() {
     const skeletonContainer = this.#element.querySelector('.dialog-skeleton-container');
     const formContainer = this.#element.querySelector('.dialog-form-container');
 
-    Logger.log('Transitioning to loaded state:', {
-      skeleton: !!skeletonContainer,
-      form: !!formContainer,
-    });
-
     if (!skeletonContainer || !formContainer) {
-      Logger.error('Could not find containers - showing form immediately');
-
-      // Fallback: Find and show form container directly
       const allFormContainers = this.#element.querySelectorAll('.dialog-form-container');
       if (allFormContainers.length > 0) {
         allFormContainers[0].style.display = 'block';
         allFormContainers[0].style.opacity = '1';
-        Logger.log('Fallback: Showing form container');
       }
       return;
     }
 
-    // Fade out skeleton
     skeletonContainer.style.opacity = '0';
     skeletonContainer.style.transition = 'opacity 0.25s ease';
 
@@ -145,15 +129,12 @@ export class AddRevenueDialog {
       formContainer.style.display = 'block';
       formContainer.style.opacity = '1';
 
-      // Add instant-load class if edit mode to skip stagger animations
       if (this.#isEditMode) {
         formContainer.classList.add('instant-load');
       }
 
-      // CRITICAL: Trigger animations AFTER display: block
       requestAnimationFrame(() => {
         formContainer.classList.add('animate-in');
-        Logger.log('Form container shown and animating');
       });
     }, 250);
   }
@@ -161,27 +142,22 @@ export class AddRevenueDialog {
   async #populateForm() {
     if (!this.#entry) return;
 
-    // Set customer name
     this.#customerNameInput.setValue(this.#entry.customerName || '');
 
-    // Set address
     const addr = this.#entry.customerAddress || {};
     this.#streetInput.setValue(addr.street || '');
     this.#houseNumberInput.setValue(addr.houseNumber || '');
     this.#postalCodeInput.setValue(addr.postalCode || '');
     this.#cityInput.setValue(addr.city || '');
 
-    // Set category and update dependent selects
     const categoryType = this.#entry.category?.type || REVENUE_CATEGORY_TYPES.BANK;
     this.#categorySelect.value = categoryType;
     await this.#onCategoryChange(categoryType);
 
-    // Set product (after options are updated)
     if (this.#entry.product?.name) {
       this.#productSelect.value = this.#entry.product.name;
     }
 
-    // Set provider
     if (this.#entry.productProvider?.name) {
       const requiresPropertyAddress = this.#currentCategoryData?.requiresPropertyAddress ||
         ProductProvider.requiresFreeTextProvider(categoryType);
@@ -193,27 +169,29 @@ export class AddRevenueDialog {
       }
     }
 
-    // Set date
     if (this.#entry.entryDate) {
       const dateStr = new Date(this.#entry.entryDate).toISOString().split('T')[0];
       this.#dateInput.setValue(dateStr);
     }
 
-    // Set other fields
     this.#contractNumberInput.setValue(this.#entry.contractNumber || '');
     this.#provisionAmountInput.setValue(this.#entry.provisionAmount?.toString() || '');
     this.#notesInput.setValue(this.#entry.notes || '');
 
-    // Set tip provider if present
-    if (this.#entry.tipProviderId) {
-      this.#tipProviderSelect.value = this.#entry.tipProviderId;
-      this.#tipProviderProvisionInput.setValue(this.#entry.tipProviderProvisionPercentage?.toString() || '');
-      this.#tipProviderProvisionInput.setDisabled(false);
-    } else {
-      this.#tipProviderProvisionInput.setDisabled(true);
+    // Populate tip providers (multi-provider)
+    const tipProviders = this.#entry.tipProviders || [];
+    if (tipProviders.length > 0) {
+      for (const tp of tipProviders) {
+        this.#addTipProviderRow(tp.id, tp.provisionPercentage);
+      }
+    } else if (this.#entry.tipProviderId) {
+      // Legacy fallback: single tip provider
+      this.#addTipProviderRow(
+        this.#entry.tipProviderId,
+        this.#entry.tipProviderProvisionPercentage || 0,
+      );
     }
 
-    // Set VAT checkbox
     if (this.#entry.hasVAT !== undefined) {
       this.#vatCheckbox.checked = this.#entry.hasVAT;
     }
@@ -224,17 +202,14 @@ export class AddRevenueDialog {
 
     const dialogTitle = this.#isEditMode ? 'Umsatz bearbeiten' : 'Neuer Umsatz';
 
-    // Create skeleton and real form content
     const skeletonContent = this.#renderSkeleton();
     const realFormContent = this.#renderRealForm();
 
-    // Scrollable body container (contains skeleton and form)
     const dialogBody = createElement('div', { className: 'dialog-body-scroll' }, [
       skeletonContent,
       realFormContent,
     ]);
 
-    // Dialog structure: Fixed header + Scrollable body
     const dialogContent = createElement('div', { className: 'dialog-content dialog-wide' }, [
       createElement('div', { className: 'dialog-header-fixed' }, [
         createElement('h2', { className: 'dialog-title' }, [dialogTitle]),
@@ -242,7 +217,6 @@ export class AddRevenueDialog {
       dialogBody,
     ]);
 
-    // Add scroll listener for header shadow effect
     dialogBody.addEventListener('scroll', () => {
       const header = dialogContent.querySelector('.dialog-header-fixed');
       if (dialogBody.scrollTop > 10) {
@@ -254,7 +228,6 @@ export class AddRevenueDialog {
 
     overlay.appendChild(dialogContent);
 
-    // Close on overlay click
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         this.#handleCancel();
@@ -264,18 +237,12 @@ export class AddRevenueDialog {
     return overlay;
   }
 
-  /**
-   * Render skeleton loading state
-   */
   #renderSkeleton() {
     const skeletonForm = createElement('div', { className: 'dialog-form' }, [
-      // Customer name skeleton
       createElement('div', { className: 'skeleton-form-col' }, [
         createElement('div', { className: 'skeleton skeleton-text-sm' }),
         createElement('div', { className: 'skeleton skeleton-input' }),
       ]),
-
-      // Address row skeleton
       createElement('div', { className: 'skeleton-form-row' }, [
         createElement('div', { className: 'skeleton-form-col' }, [
           createElement('div', { className: 'skeleton skeleton-text-sm' }),
@@ -286,8 +253,6 @@ export class AddRevenueDialog {
           createElement('div', { className: 'skeleton skeleton-input' }),
         ]),
       ]),
-
-      // City row skeleton
       createElement('div', { className: 'skeleton-form-row' }, [
         createElement('div', { className: 'skeleton-form-col' }, [
           createElement('div', { className: 'skeleton skeleton-text-sm' }),
@@ -298,8 +263,6 @@ export class AddRevenueDialog {
           createElement('div', { className: 'skeleton skeleton-input' }),
         ]),
       ]),
-
-      // Selection row skeleton
       createElement('div', { className: 'skeleton-form-row' }, [
         createElement('div', { className: 'skeleton-form-col' }, [
           createElement('div', { className: 'skeleton skeleton-text-sm' }),
@@ -314,8 +277,6 @@ export class AddRevenueDialog {
           createElement('div', { className: 'skeleton skeleton-select' }),
         ]),
       ]),
-
-      // Contract & amount row skeleton
       createElement('div', { className: 'skeleton-form-row' }, [
         createElement('div', { className: 'skeleton-form-col' }, [
           createElement('div', { className: 'skeleton skeleton-text-sm' }),
@@ -337,107 +298,40 @@ export class AddRevenueDialog {
       createElement('div', { className: 'skeleton skeleton-button' }),
     ]);
 
-    const skeletonContainer = createElement('div', {
+    return createElement('div', {
       className: 'dialog-skeleton-container',
-      style: 'opacity: 1; transition: opacity 0.3s ease;'
-    }, [
-      skeletonForm,
-      skeletonActions,
-    ]);
-
-    return skeletonContainer;
+      style: 'opacity: 1; transition: opacity 0.3s ease;',
+    }, [skeletonForm, skeletonActions]);
   }
 
-  /**
-   * Render real form (hidden initially)
-   */
   #renderRealForm() {
-    Logger.log('🎨 Rendering real form...');
-
-    // Date field with today's date as default
     const today = new Date().toISOString().split('T')[0];
-    this.#dateInput = new Input({
-      label: 'Datum',
-      type: 'date',
-      value: today,
-      required: true,
-    });
+    this.#dateInput = new Input({ label: 'Datum', type: 'date', value: today, required: true });
+    this.#customerNameInput = new Input({ label: 'Kundenname', placeholder: 'Max Mustermann', required: true });
+    this.#streetInput = new Input({ label: 'Strasse', placeholder: 'Musterstrasse' });
+    this.#houseNumberInput = new Input({ label: 'Hausnr.', placeholder: '123' });
+    this.#postalCodeInput = new Input({ label: 'PLZ', placeholder: '12345' });
+    this.#cityInput = new Input({ label: 'Stadt', placeholder: 'Musterstadt' });
 
-    // Customer Name
-    this.#customerNameInput = new Input({
-      label: 'Kundenname',
-      placeholder: 'Max Mustermann',
-      required: true,
-    });
-
-    Logger.log('✓ Input fields created:', {
-      dateInput: !!this.#dateInput,
-      customerNameInput: !!this.#customerNameInput,
-    });
-
-    // Address fields
-    this.#streetInput = new Input({
-      label: 'Strasse',
-      placeholder: 'Musterstrasse',
-    });
-
-    this.#houseNumberInput = new Input({
-      label: 'Hausnr.',
-      placeholder: '123',
-    });
-
-    this.#postalCodeInput = new Input({
-      label: 'PLZ',
-      placeholder: '12345',
-    });
-
-    this.#cityInput = new Input({
-      label: 'Stadt',
-      placeholder: 'Musterstadt',
-    });
-
-    // Category select (will be populated dynamically)
     this.#categorySelect = createElement('select', {
       className: 'input-field',
       onchange: (e) => this.#onCategoryChange(e.target.value),
     }, [createElement('option', {}, ['Kategorien werden geladen...'])]);
 
-    // Product select (will be populated dynamically)
     this.#productSelect = createElement('select', {
       className: 'input-field',
       onchange: (e) => this.#onProductChange(e.target.value),
     }, [createElement('option', {}, ['Produkte werden geladen...'])]);
 
-    // Provider select (will be populated dynamically)
     this.#providerSelect = createElement('select', {
       className: 'input-field',
     }, [createElement('option', {}, ['Produktgeber werden geladen...'])]);
 
-    // Property address input (for real estate categories)
-    this.#propertyAddressInput = new Input({
-      label: 'Objektadresse',
-      placeholder: 'Adresse des Objekts',
-    });
-
-    // Contract number
-    this.#contractNumberInput = new Input({
-      label: 'Vertragsnummer',
-      placeholder: 'ABC-123456',
-      required: true,
-    });
-
-    // Tracking mode toggle (Revenue vs Provision)
+    this.#propertyAddressInput = new Input({ label: 'Objektadresse', placeholder: 'Adresse des Objekts' });
+    this.#contractNumberInput = new Input({ label: 'Vertragsnummer', placeholder: 'ABC-123456', required: true });
     this.#trackingModeRadios = this.#createTrackingModeToggle();
+    this.#provisionAmountInput = new Input({ label: 'Umsatz Netto (EUR)', placeholder: '0.00', type: 'number', required: true });
 
-    // Provision amount (label changes based on tracking mode)
-    this.#provisionAmountInput = new Input({
-      label: 'Umsatz Netto (EUR)',
-      placeholder: '0.00',
-      type: 'number',
-      required: true,
-    });
-
-    // VAT Checkbox
     this.#vatCheckbox = createElement('input', {
       type: 'checkbox',
       id: 'revenue-vat-checkbox',
@@ -445,51 +339,30 @@ export class AddRevenueDialog {
       onchange: (e) => this.#onVATChange(e.target.checked),
     });
 
-    // Notes
-    this.#notesInput = new Input({
-      label: 'Notizen',
-      placeholder: 'Optionale Notizen...',
-    });
+    this.#notesInput = new Input({ label: 'Notizen', placeholder: 'Optionale Notizen...' });
 
-    // Tip Provider (Tippgeber) select - will be populated dynamically
-    this.#tipProviderSelect = createElement('select', {
+    this.#employeeSelect = createElement('select', {
       className: 'input-field',
-      onchange: (e) => this.#onTipProviderChange(e.target.value),
-    }, [
-      createElement('option', { value: '' }, ['Kein Tippgeber']),
-      createElement('option', {}, ['Mitarbeiter werden geladen...'])
-    ]);
+      onchange: (e) => this.#onEmployeeChange(e.target.value),
+    }, [createElement('option', { value: '' }, ['Mitarbeiter auswählen...'])]);
 
-    // Tip Provider Provision input
-    this.#tipProviderProvisionInput = new Input({
-      label: 'Tippgeber-Provision (%)',
-      type: 'number',
-      placeholder: '0',
-      min: '0',
-      max: '100',
-      step: '0.1',
-    });
-
-    // Disable tip provider provision input initially
-    this.#tipProviderProvisionInput.setDisabled(true);
+    // Multi-tip-provider: container and add button
+    this.#tipProviderContainer = createElement('div', { className: 'tip-provider-rows' });
+    this.#addTipProviderBtn = createElement('button', {
+      type: 'button',
+      className: 'btn-add-tip-provider',
+      onclick: () => this.#addTipProviderRow(),
+    }, ['+ Tippgeber hinzufügen']);
 
     // Form layout
     const addressRow = createElement('div', { className: 'dialog-form-row' }, [
-      createElement('div', { className: 'dialog-form-col-3' }, [
-        this.#streetInput.element,
-      ]),
-      createElement('div', { className: 'dialog-form-col-1' }, [
-        this.#houseNumberInput.element,
-      ]),
+      createElement('div', { className: 'dialog-form-col-3' }, [this.#streetInput.element]),
+      createElement('div', { className: 'dialog-form-col-1' }, [this.#houseNumberInput.element]),
     ]);
 
     const cityRow = createElement('div', { className: 'dialog-form-row' }, [
-      createElement('div', { className: 'dialog-form-col-1' }, [
-        this.#postalCodeInput.element,
-      ]),
-      createElement('div', { className: 'dialog-form-col-2' }, [
-        this.#cityInput.element,
-      ]),
+      createElement('div', { className: 'dialog-form-col-1' }, [this.#postalCodeInput.element]),
+      createElement('div', { className: 'dialog-form-col-2' }, [this.#cityInput.element]),
     ]);
 
     const categoryWrapper = createElement('div', { className: 'input-wrapper' }, [
@@ -502,49 +375,34 @@ export class AddRevenueDialog {
       this.#productSelect,
     ]);
 
-    const providerWrapper = createElement('div', {
-      className: 'input-wrapper provider-wrapper',
-    }, [
+    const providerWrapper = createElement('div', { className: 'input-wrapper provider-wrapper' }, [
       createElement('label', { className: 'input-label' }, ['Produktgeber']),
       this.#providerSelect,
     ]);
 
-    const propertyAddressWrapper = createElement('div', {
-      className: 'input-wrapper property-address-wrapper hidden',
-    }, [
+    const propertyAddressWrapper = createElement('div', { className: 'input-wrapper property-address-wrapper hidden' }, [
       this.#propertyAddressInput.element,
     ]);
 
     const selectionRow = createElement('div', { className: 'dialog-form-row' }, [
       createElement('div', { className: 'dialog-form-col-1' }, [categoryWrapper]),
       createElement('div', { className: 'dialog-form-col-1' }, [productWrapper]),
-      createElement('div', { className: 'dialog-form-col-1' }, [
-        providerWrapper,
-        propertyAddressWrapper,
-      ]),
+      createElement('div', { className: 'dialog-form-col-1' }, [providerWrapper, propertyAddressWrapper]),
     ]);
 
-    // Tracking mode wrapper (only visible in create mode)
     const trackingModeWrapper = createElement('div', {
-      className: `tracking-mode-wrapper ${this.#isEditMode ? 'hidden' : ''}`,
+      className: 'tracking-mode-wrapper',
     }, [
       createElement('label', { className: 'input-label' }, ['Was möchten Sie erfassen?']),
       this.#trackingModeRadios,
     ]);
 
     const dateAndContractRow = createElement('div', { className: 'dialog-form-row' }, [
-      createElement('div', { className: 'dialog-form-col-1' }, [
-        this.#dateInput.element,
-      ]),
-      createElement('div', { className: 'dialog-form-col-1' }, [
-        this.#contractNumberInput.element,
-      ]),
-      createElement('div', { className: 'dialog-form-col-1' }, [
-        this.#provisionAmountInput.element,
-      ]),
+      createElement('div', { className: 'dialog-form-col-1' }, [this.#dateInput.element]),
+      createElement('div', { className: 'dialog-form-col-1' }, [this.#contractNumberInput.element]),
+      createElement('div', { className: 'dialog-form-col-1' }, [this.#provisionAmountInput.element]),
     ]);
 
-    // VAT checkbox row
     const vatCheckboxWrapper = createElement('div', { className: 'vat-checkbox-wrapper' }, [
       createElement('label', { className: 'vat-checkbox-label', htmlFor: 'revenue-vat-checkbox' }, [
         this.#vatCheckbox,
@@ -554,44 +412,34 @@ export class AddRevenueDialog {
       ]),
     ]);
 
-    // Tip Provider row (Tippgeber)
-    const tipProviderWrapper = createElement('div', { className: 'input-wrapper' }, [
-      createElement('label', { className: 'input-label' }, ['Tippgeber (optional)']),
-      this.#tipProviderSelect,
+    const employeeSelectorWrapper = createElement('div', {
+      className: `input-wrapper employee-selector-wrapper ${this.#companyMode ? '' : 'hidden'}`,
+    }, [
+      createElement('label', { className: 'input-label' }, ['Mitarbeiter']),
+      this.#employeeSelect,
     ]);
 
-    const tipProviderRow = createElement('div', { className: 'dialog-form-row tip-provider-row' }, [
-      createElement('div', { className: 'dialog-form-col-2' }, [
-        tipProviderWrapper,
+    // Tip provider section with visual grouping similar to employee selector
+    const tipProviderSection = createElement('div', { className: 'tip-provider-section' }, [
+      createElement('div', { className: 'tip-provider-section-header' }, [
+        createElement('label', { className: 'input-label' }, ['Tippgeber']),
+        createElement('span', { className: 'tip-provider-section-hint' }, ['optional']),
       ]),
-      createElement('div', { className: 'dialog-form-col-1' }, [
-        this.#tipProviderProvisionInput.element,
-      ]),
+      this.#tipProviderContainer,
+      this.#addTipProviderBtn,
     ]);
 
     // Actions
-    const cancelBtn = new Button({
-      label: 'Abbrechen',
-      variant: 'ghost',
-      onClick: () => this.#handleCancel(),
-    });
-
-    const saveBtn = new Button({
-      label: 'Speichern',
-      variant: 'primary',
-      onClick: () => this.#handleSave(),
-    });
-
-    const actions = createElement('div', { className: 'dialog-actions' }, [
-      cancelBtn.element,
-      saveBtn.element,
-    ]);
+    const cancelBtn = new Button({ label: 'Abbrechen', variant: 'ghost', onClick: () => this.#handleCancel() });
+    const saveBtn = new Button({ label: 'Speichern', variant: 'primary', onClick: () => this.#handleSave() });
+    const actions = createElement('div', { className: 'dialog-actions' }, [cancelBtn.element, saveBtn.element]);
 
     const formContainer = createElement('div', {
       className: 'dialog-form-container',
-      style: 'display: none; opacity: 0; transition: opacity 0.4s ease;'
+      style: 'display: none; opacity: 0; transition: opacity 0.4s ease;',
     }, [
       createElement('div', { className: 'dialog-form' }, [
+        employeeSelectorWrapper,
         this.#customerNameInput.element,
         addressRow,
         cityRow,
@@ -599,20 +447,184 @@ export class AddRevenueDialog {
         trackingModeWrapper,
         dateAndContractRow,
         vatCheckboxWrapper,
-        tipProviderRow,
+        tipProviderSection,
         this.#notesInput.element,
       ]),
       actions,
     ]);
 
-    Logger.log('✓ Form container created with', formContainer.children.length, 'children');
-
     return formContainer;
   }
 
+  // === Multi-Tip-Provider Row Management ===
+
+  /**
+   * Add a new tip provider row to the UI
+   */
+  #addTipProviderRow(selectedId = '', provisionPct = '') {
+    // Create select element with standard input-field styling
+    const selectEl = createElement('select', { className: 'input-field' });
+    this.#populateTipProviderRowSelect(selectEl, selectedId);
+
+    selectEl.addEventListener('change', () => {
+      this.#refreshTipProviderSelects();
+    });
+
+    // Provision input - create raw input to avoid Input component's wrapper/label overhead
+    const provisionInputEl = createElement('input', {
+      type: 'number',
+      className: 'input-field',
+      placeholder: 'Provision %',
+      min: '0',
+      max: '100',
+      step: '0.1',
+    });
+    if (provisionPct !== '' && provisionPct !== null && provisionPct !== undefined) {
+      provisionInputEl.value = provisionPct.toString();
+    }
+
+    // Lightweight provisionInput facade for .value / .setError() compatibility
+    const provisionInput = {
+      get value() { return provisionInputEl.value; },
+      setValue(v) { provisionInputEl.value = v; },
+      setError(msg) {
+        provisionInputEl.classList.add('input-error');
+        // Remove existing error message if present
+        const existing = provisionInputEl.parentElement?.querySelector('.input-error-message');
+        if (existing) existing.remove();
+        if (msg) {
+          const errorEl = createElement('span', { className: 'input-error-message' }, [msg]);
+          provisionInputEl.parentElement?.appendChild(errorEl);
+        }
+      },
+      element: provisionInputEl,
+    };
+
+    // Remove error state on input
+    provisionInputEl.addEventListener('input', () => {
+      provisionInputEl.classList.remove('input-error');
+      const errMsg = provisionInputEl.parentElement?.querySelector('.input-error-message');
+      if (errMsg) errMsg.remove();
+    });
+
+    // Remove button
+    const removeBtn = createElement('button', {
+      type: 'button',
+      className: 'btn-remove-tip-provider',
+      title: 'Tippgeber entfernen',
+      onclick: () => this.#removeTipProviderRow(rowData),
+    }, ['×']);
+
+    // Row uses dialog-form-row layout with proper column proportions
+    const rowEl = createElement('div', { className: 'dialog-form-row tip-provider-row' }, [
+      createElement('div', { className: 'dialog-form-col-2' }, [
+        createElement('div', { className: 'input-wrapper tp-row-field' }, [selectEl]),
+      ]),
+      createElement('div', { className: 'dialog-form-col-1' }, [
+        createElement('div', { className: 'input-wrapper tp-row-field' }, [provisionInputEl]),
+      ]),
+      createElement('div', { className: 'tp-row-action' }, [removeBtn]),
+    ]);
+
+    const rowData = { rowEl, selectEl, provisionInput, removeBtn };
+    this.#tipProviderRows.push(rowData);
+    this.#tipProviderContainer.appendChild(rowEl);
+
+    this.#refreshTipProviderSelects();
+    this.#updateAddButtonVisibility();
+  }
+
+  /**
+   * Remove a tip provider row
+   */
+  #removeTipProviderRow(rowData) {
+    const index = this.#tipProviderRows.indexOf(rowData);
+    if (index !== -1) {
+      this.#tipProviderRows.splice(index, 1);
+      rowData.rowEl.remove();
+      this.#refreshTipProviderSelects();
+      this.#updateAddButtonVisibility();
+    }
+  }
+
+  /**
+   * Populate a single tip provider select, excluding already-selected IDs
+   */
+  #populateTipProviderRowSelect(selectEl, selectedId = '') {
+    const currentValue = selectedId || selectEl.value || '';
+    selectEl.innerHTML = '';
+
+    // "Select" placeholder
+    const placeholderOpt = createElement('option', { value: '' }, ['Tippgeber wählen...']);
+    selectEl.appendChild(placeholderOpt);
+
+    // Get IDs already selected in other rows
+    const usedIds = new Set();
+    for (const row of this.#tipProviderRows) {
+      if (row.selectEl !== selectEl && row.selectEl.value) {
+        usedIds.add(row.selectEl.value);
+      }
+    }
+
+    // Exclude the current employee
+    const excludeId = this.#props.employeeId;
+
+    this.#allEmployees
+      .filter((emp) => emp.id !== excludeId && !usedIds.has(emp.id))
+      .forEach((employee) => {
+        const option = createElement('option', { value: employee.id }, [employee.name]);
+        selectEl.appendChild(option);
+      });
+
+    // Restore selection if the value is still available
+    if (currentValue) {
+      selectEl.value = currentValue;
+    }
+  }
+
+  /**
+   * Refresh all tip provider selects to reflect current selections
+   */
+  #refreshTipProviderSelects() {
+    for (const row of this.#tipProviderRows) {
+      this.#populateTipProviderRowSelect(row.selectEl);
+    }
+  }
+
+  /**
+   * Hide the "add" button when all employees are used
+   */
+  #updateAddButtonVisibility() {
+    const excludeId = this.#props.employeeId;
+    const availableCount = this.#allEmployees.filter((emp) => emp.id !== excludeId).length;
+    const usedCount = this.#tipProviderRows.length;
+
+    if (usedCount >= availableCount) {
+      this.#addTipProviderBtn.classList.add('hidden');
+    } else {
+      this.#addTipProviderBtn.classList.remove('hidden');
+    }
+  }
+
+  /**
+   * Collect tip providers data from all rows
+   */
+  #collectTipProviders() {
+    const tipProviders = [];
+    for (const row of this.#tipProviderRows) {
+      const id = row.selectEl.value;
+      if (!id) continue;
+      const provisionPercentage = parseFloat(row.provisionInput.value) || 0;
+      const name = this.#allEmployees.find((e) => e.id === id)?.name || id;
+      tipProviders.push({ id, name, provisionPercentage });
+    }
+    return tipProviders;
+  }
+
+  // === Category / Product / Provider Loading ===
+
   async #loadCategories() {
     if (!this.#revenueService) {
-      // Fallback to hardcoded categories
       this.#categories = RevenueCategory.allCategories;
       this.#populateCategorySelect();
       return;
@@ -623,7 +635,6 @@ export class AddRevenueDialog {
       this.#populateCategorySelect();
     } catch (error) {
       Logger.error('Failed to load categories:', error);
-      // Fallback to hardcoded
       this.#categories = RevenueCategory.allCategories;
       this.#populateCategorySelect();
     }
@@ -631,7 +642,6 @@ export class AddRevenueDialog {
 
   #populateCategorySelect() {
     this.#categorySelect.innerHTML = '';
-
     this.#categories.forEach((category) => {
       const displayName = category.displayName || category.toString();
       const type = category.type || category;
@@ -642,34 +652,22 @@ export class AddRevenueDialog {
 
   async #loadEmployeesForTipProvider() {
     if (!this.#hierarchyService) {
-      Logger.warn('HierarchyService not available - tip provider dropdown will be empty');
       this.#allEmployees = [];
-      this.#populateTipProviderSelect();
       return;
     }
 
     try {
-      // Load all trees (should be only one: the main organization tree)
       const allTrees = await this.#hierarchyService.getAllTrees();
-
       if (allTrees.length === 0) {
-        Logger.warn('No trees found - tip provider dropdown will be empty');
         this.#allEmployees = [];
-        this.#populateTipProviderSelect();
         return;
       }
 
-      const tree = allTrees[0]; // Get first tree
+      const tree = allTrees[0];
       const allNodes = tree.getAllNodes();
 
-      // Filter out root node and current employee
-      let employees = allNodes
-        .filter(node =>
-          !node.isRoot &&
-          node.id !== this.#props.employeeId
-        );
+      let employees = allNodes.filter((node) => !node.isRoot && node.id !== this.#props.employeeId);
 
-      // Add hardcoded Geschäftsführer (not in tree)
       const geschaeftsfuehrerIds = ['marcel-liebetrau', 'daniel-lippa'];
       const geschaeftsfuehrerData = {
         'marcel-liebetrau': { id: 'marcel-liebetrau', name: 'Marcel Liebetrau' },
@@ -682,80 +680,76 @@ export class AddRevenueDialog {
         }
       }
 
-      // Sort alphabetically
       this.#allEmployees = employees.sort((a, b) => a.name.localeCompare(b.name));
 
-      this.#populateTipProviderSelect();
+      this.#populateEmployeeSelect();
     } catch (error) {
       Logger.error('Failed to load employees for tip provider:', error);
       this.#allEmployees = [];
-      this.#populateTipProviderSelect();
     }
   }
 
-  #populateTipProviderSelect() {
-    this.#tipProviderSelect.innerHTML = '';
+  #onEmployeeChange(employeeId) {
+    this.#props.employeeId = employeeId || null;
+    this.#employeeSelect.style.borderColor = '';
+    // Refresh tip provider selects (exclude newly selected employee)
+    this.#refreshTipProviderSelects();
+    this.#updateAddButtonVisibility();
+  }
 
-    // Add "No tip provider" option
-    const noneOption = createElement('option', { value: '' }, ['Kein Tippgeber']);
-    this.#tipProviderSelect.appendChild(noneOption);
+  #populateEmployeeSelect() {
+    if (!this.#employeeSelect || !this.#companyMode) return;
 
-    // Add all employees
+    this.#employeeSelect.innerHTML = '';
+    const defaultOption = createElement('option', { value: '' }, ['Mitarbeiter auswählen...']);
+    this.#employeeSelect.appendChild(defaultOption);
+
     this.#allEmployees.forEach((employee) => {
       const option = createElement('option', { value: employee.id }, [employee.name]);
-      this.#tipProviderSelect.appendChild(option);
+      this.#employeeSelect.appendChild(option);
     });
   }
 
-  #onTipProviderChange(tipProviderId) {
-    this.#formData.tipProvider = tipProviderId || null;
-
-    // Enable/disable provision input based on selection
-    if (tipProviderId) {
-      this.#tipProviderProvisionInput.setDisabled(false);
-    } else {
-      this.#tipProviderProvisionInput.setValue('');
-      this.#tipProviderProvisionInput.setDisabled(true);
-    }
-  }
-
   async #getOwnerProvision(categoryType) {
-    if (!this.#hierarchyService) {
-      return 100; // Fallback if no hierarchy service
-    }
+    if (!this.#hierarchyService) return 100;
 
     try {
-      // Get the tree and owner node
       const allTrees = await this.#hierarchyService.getAllTrees();
-      if (allTrees.length === 0) {
-        return 100;
-      }
+      if (allTrees.length === 0) return 100;
 
       const tree = allTrees[0];
-      const owner = tree.getNode(this.#props.employeeId);
+      const employeeId = this.#props.employeeId;
 
-      if (!owner) {
-        return 100;
-      }
-
-      // Get provision based on category type
       const provisionType = this.#currentCategoryData?.provisionType?.type ||
         this.#currentCategoryData?.provisionType ||
         this.#inferProvisionType(categoryType);
 
+      // Geschaeftsfuehrer are not in the tree but have fixed 90% provisions
+      const geschaeftsfuehrerProvisions = {
+        'marcel-liebetrau': { bank: 90, insurance: 90, realEstate: 90 },
+        'daniel-lippa': { bank: 90, insurance: 90, realEstate: 90 },
+      };
+
+      const gfData = geschaeftsfuehrerProvisions[employeeId];
+      if (gfData) {
+        return gfData[provisionType] || 90;
+      }
+
+      const owner = tree.getNode(employeeId);
+      if (!owner) return 100;
+
+      // Root node (company) always has 100% provision
+      if (owner.isRoot) return 100;
+
       switch (provisionType) {
-        case 'bank':
-          return owner.bankProvision || 0;
-        case 'insurance':
-          return owner.insuranceProvision || 0;
-        case 'realEstate':
-          return owner.realEstateProvision || 0;
-        default:
-          return 0;
+        case 'bank': return owner.bankProvision || 0;
+        case 'insurance': return owner.insuranceProvision || 0;
+        case 'realEstate': return owner.realEstateProvision || 0;
+        default: return 0;
       }
     } catch (error) {
       Logger.error('Failed to get owner provision:', error);
-      return 100; // Fallback
+      return 100;
     }
   }
 
@@ -773,7 +767,6 @@ export class AddRevenueDialog {
   async #onCategoryChange(categoryType) {
     this.#formData.category = categoryType;
 
-    // Load category data to check requiresPropertyAddress
     if (this.#revenueService) {
       try {
         this.#currentCategoryData = await this.#revenueService.getCategoryByType(categoryType);
@@ -784,9 +777,7 @@ export class AddRevenueDialog {
     }
 
     await this.#updateProductOptions(categoryType);
-    // Providers are loaded automatically in #updateProductOptions() for first product
 
-    // Toggle property address field visibility
     const providerWrapper = this.#element.querySelector('.provider-wrapper');
     const propertyAddressWrapper = this.#element.querySelector('.property-address-wrapper');
 
@@ -801,7 +792,6 @@ export class AddRevenueDialog {
       propertyAddressWrapper.classList.add('hidden');
     }
 
-    // Set default VAT checkbox based on category (only in create mode)
     if (!this.#isEditMode) {
       const shouldHaveVAT = this.#shouldCategoryHaveVATByDefault(categoryType);
       this.#vatCheckbox.checked = shouldHaveVAT;
@@ -809,84 +799,60 @@ export class AddRevenueDialog {
   }
 
   #shouldCategoryHaveVATByDefault(categoryType) {
-    // Real estate categories typically have VAT
     const vatCategories = ['realEstate', 'propertyManagement'];
     return vatCategories.includes(categoryType);
   }
 
   #onVATChange(isChecked) {
-    // Visual feedback could be added here if needed
-    // For now, just store the state (will be read in #handleSave)
     Logger.log('VAT checkbox changed:', isChecked);
   }
 
   #createTrackingModeToggle() {
     const revenueRadio = createElement('input', {
-      type: 'radio',
-      name: 'tracking-mode',
-      id: 'tracking-mode-revenue',
-      value: 'revenue',
-      checked: true,
+      type: 'radio', name: 'tracking-mode', id: 'tracking-mode-revenue', value: 'revenue', checked: true,
     });
-
     const provisionRadio = createElement('input', {
-      type: 'radio',
-      name: 'tracking-mode',
-      id: 'tracking-mode-provision',
-      value: 'provision',
+      type: 'radio', name: 'tracking-mode', id: 'tracking-mode-provision', value: 'provision',
     });
 
-    // Add event listeners after creation for better compatibility
     revenueRadio.addEventListener('change', () => this.#onTrackingModeChange('revenue'));
     provisionRadio.addEventListener('change', () => this.#onTrackingModeChange('provision'));
 
-    const toggle = createElement('div', { className: 'tracking-mode-toggle' }, [
-      createElement('label', {
-        className: 'tracking-mode-option tracking-mode-option-active',
-        htmlFor: 'tracking-mode-revenue',
-      }, [
+    return createElement('div', { className: 'tracking-mode-toggle' }, [
+      createElement('label', { className: 'tracking-mode-option tracking-mode-option-active', htmlFor: 'tracking-mode-revenue' }, [
         revenueRadio,
         createElement('span', { className: 'tracking-mode-label' }, ['Umsatz erfassen']),
       ]),
-      createElement('label', {
-        className: 'tracking-mode-option',
-        htmlFor: 'tracking-mode-provision',
-      }, [
+      createElement('label', { className: 'tracking-mode-option', htmlFor: 'tracking-mode-provision' }, [
         provisionRadio,
         createElement('span', { className: 'tracking-mode-label' }, ['Provision erfassen']),
       ]),
     ]);
-
-    return toggle;
   }
 
   #onTrackingModeChange(mode) {
     this.#formData.trackingMode = mode;
 
-    // Update active state on toggle options
     const options = this.#trackingModeRadios.querySelectorAll('.tracking-mode-option');
-    options.forEach(opt => {
+    options.forEach((opt) => {
       const radio = opt.querySelector('input[type="radio"]');
-      if (radio.value === mode) {
-        opt.classList.add('tracking-mode-option-active');
-      } else {
-        opt.classList.remove('tracking-mode-option-active');
-      }
+      opt.classList.toggle('tracking-mode-option-active', radio.value === mode);
     });
 
-    // Update input label
     const labelElement = this.#provisionAmountInput.element.querySelector('.input-label');
     if (labelElement) {
       if (mode === 'provision') {
-        labelElement.textContent = 'Eigene Provision (EUR)';
-        this.#provisionAmountInput.element.querySelector('input').placeholder = 'Ihre Provision';
+        const provisionLabel = this.#companyMode
+          ? 'Mitarbeiter-Provision (EUR)'
+          : 'Eigene Provision (EUR)';
+        const placeholderText = this.#companyMode ? 'Provision' : 'Ihre Provision';
+        labelElement.textContent = provisionLabel;
+        this.#provisionAmountInput.element.querySelector('input').placeholder = placeholderText;
       } else {
         labelElement.textContent = 'Umsatz Netto (EUR)';
         this.#provisionAmountInput.element.querySelector('input').placeholder = '0.00';
       }
     }
-
-    Logger.log('Tracking mode changed:', mode);
   }
 
   #updateVATCheckboxState(product) {
@@ -894,14 +860,10 @@ export class AddRevenueDialog {
     const vatWrapper = this.#element.querySelector('.vat-checkbox-wrapper');
 
     if (isVatExempt) {
-      // Product is VAT exempt - hide the VAT checkbox completely
       this.#vatCheckbox.checked = false;
       vatWrapper?.classList.add('hidden');
     } else {
-      // Product allows VAT - show the checkbox
       vatWrapper?.classList.remove('hidden');
-
-      // Set default VAT state based on category (only in create mode)
       if (!this.#isEditMode) {
         const categoryType = this.#categorySelect.value;
         const shouldHaveVAT = this.#shouldCategoryHaveVATByDefault(categoryType);
@@ -913,7 +875,6 @@ export class AddRevenueDialog {
   async #updateProductOptions(categoryType) {
     let products = [];
 
-    // Try to load from catalog via RevenueService
     if (this.#revenueService) {
       try {
         products = await this.#revenueService.getProductsForCategory(categoryType);
@@ -922,13 +883,10 @@ export class AddRevenueDialog {
         products = Product.getProductsForCategory(categoryType);
       }
     } else {
-      // Fallback to hardcoded
       products = Product.getProductsForCategory(categoryType);
     }
 
-    // Store full product objects for VAT exemption checking
     this.#currentProducts = products;
-
     this.#productSelect.innerHTML = '';
 
     products.forEach((product) => {
@@ -944,9 +902,7 @@ export class AddRevenueDialog {
 
     if (products.length > 0) {
       this.#formData.product = products[0];
-      // Update VAT checkbox state based on first product
       this.#updateVATCheckboxState(products[0]);
-      // Update providers for first product
       if (products[0].id) {
         await this.#updateProviderOptionsForProduct(products[0].id);
       } else {
@@ -956,18 +912,15 @@ export class AddRevenueDialog {
   }
 
   async #onProductChange(productValue) {
-    // Find selected option
-    const selectedOption = Array.from(this.#productSelect.options).find(opt => opt.value === productValue);
+    const selectedOption = Array.from(this.#productSelect.options).find((opt) => opt.value === productValue);
     const productId = selectedOption?.dataset.productId;
     const productName = selectedOption?.dataset.productName || productValue;
 
     this.#formData.product = { id: productId, name: productName };
 
-    // Find full product object to get isVatExempt
-    const fullProduct = this.#currentProducts.find(p => (p.id || p.name) === productId);
+    const fullProduct = this.#currentProducts.find((p) => (p.id || p.name) === productId);
     this.#updateVATCheckboxState(fullProduct);
 
-    // Update providers for this specific product
     if (productId && productId !== productName) {
       await this.#updateProviderOptionsForProduct(productId);
     } else {
@@ -978,7 +931,6 @@ export class AddRevenueDialog {
   async #updateProviderOptionsForProduct(productId) {
     let providers = [];
 
-    // Load providers for specific product
     if (this.#revenueService && this.#revenueService.getProvidersForProduct) {
       try {
         providers = await this.#revenueService.getProvidersForProduct(productId);
@@ -993,7 +945,6 @@ export class AddRevenueDialog {
     }
 
     this.#providerSelect.innerHTML = '';
-
     providers.forEach((provider) => {
       const name = provider.name || provider;
       const option = createElement('option', { value: name }, [name]);
@@ -1008,7 +959,6 @@ export class AddRevenueDialog {
   async #updateProviderOptions(categoryType) {
     let providers = [];
 
-    // Try to load from catalog via RevenueService
     if (this.#revenueService) {
       try {
         providers = await this.#revenueService.getProvidersForCategory(categoryType);
@@ -1017,12 +967,10 @@ export class AddRevenueDialog {
         providers = ProductProvider.getProvidersForCategory(categoryType);
       }
     } else {
-      // Fallback to hardcoded
       providers = ProductProvider.getProvidersForCategory(categoryType);
     }
 
     this.#providerSelect.innerHTML = '';
-
     providers.forEach((provider) => {
       const name = provider.name || provider;
       const option = createElement('option', { value: name }, [name]);
@@ -1040,7 +988,6 @@ export class AddRevenueDialog {
     const enteredAmount = parseFloat(this.#provisionAmountInput.value) || 0;
     const trackingMode = this.#formData.trackingMode;
 
-    // Validation
     if (!customerName) {
       this.#customerNameInput.setError('Kundenname ist erforderlich');
       return;
@@ -1059,89 +1006,95 @@ export class AddRevenueDialog {
       return;
     }
 
+    // Validate employee selection in company mode
+    if (this.#companyMode) {
+      const selectedEmployeeId = this.#employeeSelect?.value;
+      if (!selectedEmployeeId) {
+        this.#employeeSelect.style.borderColor = 'var(--color-error, #e53935)';
+        return;
+      }
+    }
+
     const categoryType = this.#categorySelect.value;
 
-    // Get tip provider data early (needed for back-calculation)
-    const tipProviderId = this.#tipProviderSelect.value || null;
+    // Collect tip providers from all rows
+    const tipProviders = this.#collectTipProviders();
+    const totalTipProviderPct = tipProviders.reduce((sum, tp) => sum + tp.provisionPercentage, 0);
 
-    // Read tip provider provision
-    const tipProviderProvision = tipProviderId
-      ? parseFloat(this.#tipProviderProvisionInput.value) || 0
-      : 0;
+    // Validate each tip provider row has a provision > 0
+    for (let i = 0; i < this.#tipProviderRows.length; i++) {
+      const row = this.#tipProviderRows[i];
+      const id = row.selectEl.value;
+      if (!id) continue; // Empty row ignored
+      const pct = parseFloat(row.provisionInput.value) || 0;
+      if (pct <= 0) {
+        row.provisionInput.setError('Provision ist erforderlich');
+        return;
+      }
+    }
+
+    // Validate total tip provider provision
+    if (totalTipProviderPct > 100) {
+      if (this.#tipProviderRows.length > 0) {
+        const lastRow = this.#tipProviderRows[this.#tipProviderRows.length - 1];
+        lastRow.provisionInput.setError('Gesamte Tippgeber-Provision darf nicht über 100% sein');
+      }
+      return;
+    }
+
+    // Validate against owner's provision
+    if (tipProviders.length > 0) {
+      const ownerProvision = await this.#getOwnerProvision(categoryType);
+      if (totalTipProviderPct > ownerProvision) {
+        const lastRow = this.#tipProviderRows[this.#tipProviderRows.length - 1];
+        const provisionLabel = this.#companyMode
+          ? `die Mitarbeiter-Provision`
+          : 'Ihre Provision';
+        lastRow.provisionInput.setError(
+          `Gesamte Tippgeber-Provision (${totalTipProviderPct}%) darf nicht höher als ${provisionLabel} (${ownerProvision}%) sein`,
+        );
+        return;
+      }
+    }
 
     // Calculate revenue amount (back-calculate if tracking provision)
     let provisionAmount = enteredAmount;
 
     if (trackingMode === 'provision') {
-      // Back-calculate revenue from entered provision
       const ownerBaseProvision = await this.#getOwnerProvision(categoryType);
 
-      // Validate owner has provision for this category
       if (ownerBaseProvision <= 0) {
-        this.#provisionAmountInput.setError(
-          'Sie haben keine Provision für diese Kategorie. Bitte wählen Sie eine andere Kategorie.'
-        );
+        const noProvisionMsg = this.#companyMode
+          ? 'Der Mitarbeiter hat keine Provision für diese Kategorie. Bitte wählen Sie eine andere Kategorie.'
+          : 'Sie haben keine Provision für diese Kategorie. Bitte wählen Sie eine andere Kategorie.';
+        this.#provisionAmountInput.setError(noProvisionMsg);
         return;
       }
 
-      // Calculate effective provision (base - tip provider)
-      const ownerEffectiveProvision = ownerBaseProvision - tipProviderProvision;
+      const ownerEffectiveProvision = ownerBaseProvision - totalTipProviderPct;
 
       if (ownerEffectiveProvision <= 0) {
+        const effectiveLabel = this.#companyMode
+          ? 'Die effektive Mitarbeiter-Provision'
+          : 'Ihre effektive Provision';
         this.#provisionAmountInput.setError(
-          `Ihre effektive Provision (${ownerBaseProvision}% - ${tipProviderProvision}% Tippgeber) ist 0% oder negativ. ` +
-          'Bitte reduzieren Sie die Tippgeber-Provision.'
+          `${effectiveLabel} (${ownerBaseProvision}% - ${totalTipProviderPct}% Tippgeber) ist 0% oder negativ. ` +
+          'Bitte reduzieren Sie die Tippgeber-Provision.',
         );
         return;
       }
 
-      // Back-calculate: revenue = provision / (effectiveProvision% / 100)
       provisionAmount = enteredAmount / (ownerEffectiveProvision / 100);
     }
 
-    // Extract product ID and name from selected option
     const productValue = this.#productSelect.value;
     const selectedProductOption = this.#productSelect.querySelector('option:checked');
     const productId = selectedProductOption?.dataset.productId || productValue;
     const productName = selectedProductOption?.dataset.productName || productValue;
-
     const providerName = this.#providerSelect.value;
     const propertyAddress = this.#propertyAddressInput.value.trim();
     const entryDate = this.#dateInput.value || new Date().toISOString().split('T')[0];
 
-    // Tip provider data already retrieved earlier for back-calculation
-    // Convert to null if not selected (for storage)
-    const tipProviderProvisionForStorage = tipProviderId ? tipProviderProvision : null;
-
-    // Validation: Tip provider provision must be set if tip provider is selected
-    if (tipProviderId && (tipProviderProvisionForStorage === null || tipProviderProvisionForStorage <= 0)) {
-      this.#tipProviderProvisionInput.setError('Tippgeber-Provision ist erforderlich');
-      return;
-    }
-
-    // Validation: Tip provider provision cannot exceed 100%
-    if (tipProviderProvision > 100) {
-      this.#tipProviderProvisionInput.setError('Tippgeber-Provision darf nicht über 100% sein');
-      return;
-    }
-
-    // Validation: Tip provider provision cannot exceed owner's provision
-    if (tipProviderId && tipProviderProvision > 0) {
-      const ownerProvision = await this.#getOwnerProvision(categoryType);
-      if (tipProviderProvision > ownerProvision) {
-        this.#tipProviderProvisionInput.setError(
-          `Tippgeber-Provision darf nicht höher als Ihre Provision (${ownerProvision}%) sein`
-        );
-        return;
-      }
-    }
-
-    // Find tip provider name
-    const tipProviderName = tipProviderId
-      ? this.#allEmployees.find(e => e.id === tipProviderId)?.name || null
-      : null;
-
-    // Get provisionType from category data (determines which HierarchyNode provision field to use)
     const provisionType = this.#currentCategoryData?.provisionType?.type ||
       this.#currentCategoryData?.provisionType ||
       null;
@@ -1156,7 +1109,7 @@ export class AddRevenueDialog {
         city: this.#cityInput.value.trim(),
       },
       category: categoryType,
-      provisionType: provisionType,
+      provisionType,
       product: {
         id: productId,
         name: productName,
@@ -1174,18 +1127,19 @@ export class AddRevenueDialog {
       contractNumber,
       provisionAmount,
       notes: this.#notesInput.value.trim(),
-      // VAT (Umsatzsteuer)
       hasVAT: this.#vatCheckbox.checked,
-      vatRate: 19, // Fixed German VAT rate
-      // Tip Provider (Tippgeber)
-      tipProviderId,
-      tipProviderName,
-      tipProviderProvisionPercentage: tipProviderProvisionForStorage,
+      vatRate: 19,
+      // Multi-tip-provider
+      tipProviders,
     };
 
-    // Include entry ID if editing
     if (this.#isEditMode && this.#entry) {
       data.id = this.#entry.id;
+    }
+
+    // Include selected employee ID for company mode
+    if (this.#companyMode) {
+      data.employeeId = this.#employeeSelect?.value || this.#props.employeeId;
     }
 
     this.#props.onSave?.(data);
@@ -1201,18 +1155,14 @@ export class AddRevenueDialog {
   }
 
   async show() {
-    // Append to DOM first (shows skeleton)
     document.body.appendChild(this.#element);
-
-    // Then load data and transition to real form
     await this.#initializeForm();
 
-    // Focus first field after data is loaded
     setTimeout(() => {
       if (this.#customerNameInput && this.#customerNameInput.focus) {
         this.#customerNameInput.focus();
       }
-    }, 400); // Wait for fade-in animation
+    }, 400);
   }
 
   remove() {

@@ -103,7 +103,9 @@ export class PdfGeneratorService {
       );
     }
 
+    this.#renderMissingSectionNotes(report);
     this.#renderTotalSummary(report);
+    this.#renderPaymentInfo();
     this.#renderFooter(report);
 
     const blob = this.#doc.output('blob');
@@ -345,13 +347,15 @@ export class PdfGeneratorService {
     this.#doc.setFont('helvetica', 'bold');
     this.#doc.setTextColor(...colors.white);
 
-    // Summary with all totals: Entries | Netto | MwSt | Brutto | Provision
+    // Summary: Entries | Umsatz Brutto | Provision Netto/MwSt/Brutto
     const summaryY = this.#currentY + 1;
+    const provVat = summary.totalProvisionVat || 0;
+    const provNetto = Math.round((summary.totalProvision - provVat) * 100) / 100;
     this.#doc.text(`${summary.entryCount} Einträge`, margin.left + 3, summaryY);
-    this.#doc.text(`Netto: ${this.#formatCurrency(summary.totalNet)}`, margin.left + 45, summaryY);
-    this.#doc.text(`MwSt: ${this.#formatCurrency(summary.totalVat)}`, margin.left + 95, summaryY);
-    this.#doc.text(`Brutto: ${this.#formatCurrency(summary.totalGross)}`, margin.left + 140, summaryY);
-    this.#doc.text(`Provision: ${this.#formatCurrency(summary.totalProvision)}`, this.#contentWidth + margin.left - 3, summaryY, { align: 'right' });
+    this.#doc.text(`Umsatz Brutto: ${this.#formatCurrency(summary.totalGross)}`, margin.left + 40, summaryY);
+    this.#doc.text(`Prov. Netto: ${this.#formatCurrency(provNetto)}`, margin.left + 110, summaryY);
+    this.#doc.text(`Prov. MwSt: ${this.#formatCurrency(provVat)}`, margin.left + 170, summaryY);
+    this.#doc.text(`Prov. Brutto: ${this.#formatCurrency(summary.totalProvision)}`, this.#contentWidth + margin.left - 3, summaryY, { align: 'right' });
 
     this.#currentY += 12;
     this.#doc.setTextColor(...colors.black);
@@ -360,7 +364,7 @@ export class PdfGeneratorService {
   #renderTotalSummary(report) {
     const { colors, fontSize, margin, lineHeight } = PDF_CONFIG;
 
-    this.#checkPageBreak(70);
+    this.#checkPageBreak(90);
 
     // Section title
     this.#doc.setFontSize(fontSize.sectionTitle);
@@ -378,12 +382,6 @@ export class PdfGeneratorService {
     const leftBoxX = margin.left;
     const rightBoxX = PDF_CONFIG.pageWidth - margin.right - rightBoxWidth;
 
-    // Calculate box heights
-    let provisionRowCount = 0;
-    if (report.hasOwnRevenue) provisionRowCount++;
-    if (report.hasHierarchyRevenue) provisionRowCount++;
-    if (report.hasTipProviderRevenue) provisionRowCount++;
-    const rightBoxHeight = (provisionRowCount * 6) + 22;
     const leftBoxHeight = 32;
 
     // Left box: Umsatz-Übersicht (Netto, MwSt, Brutto)
@@ -413,7 +411,14 @@ export class PdfGeneratorService {
     this.#doc.text('Brutto gesamt:', leftLabelX, leftY);
     this.#doc.text(this.#formatCurrency(totalSummary.totalGross), leftValueX, leftY, { align: 'right' });
 
-    // Right box: Provisions-Übersicht
+    // Right box: Provisions-Übersicht (with VAT breakdown)
+    // Calculate right box height: header(8) + per-source rows(6 each) + separator(4) + subtotal rows(6×3) + total(8)
+    let rightProvisionRows = 0;
+    if (report.hasOwnRevenue) rightProvisionRows++;
+    if (report.hasHierarchyRevenue) rightProvisionRows++;
+    if (report.hasTipProviderRevenue) rightProvisionRows++;
+    const rightBoxHeight = (rightProvisionRows * 6) + 8 + 4 + 24 + 8;
+
     this.#doc.setFillColor(...colors.lightGray);
     this.#doc.roundedRect(rightBoxX, this.#currentY - 3, rightBoxWidth, rightBoxHeight, 2, 2, 'F');
 
@@ -430,6 +435,7 @@ export class PdfGeneratorService {
     const rightValueX = rightBoxX + rightBoxWidth - 5;
     let rightY = this.#currentY + 11;
 
+    // Per-source provision (netto)
     if (report.hasOwnRevenue) {
       this.#doc.text('Eigene Umsätze:', rightLabelX, rightY);
       this.#doc.text(this.#formatCurrency(report.ownSummary.totalProvision), rightValueX, rightY, { align: 'right' });
@@ -454,16 +460,129 @@ export class PdfGeneratorService {
     this.#doc.setLineWidth(0.5);
     this.#doc.line(rightLabelX, rightY - 3, rightValueX, rightY - 3);
 
-    // Total provision
+    // Provision totals with VAT breakdown (VAT is extracted, not added)
+    // Inline calculation to avoid getter dependency issues
+    const totalProv = report.totalProvision || 0;
+    const totalProvVat = (report.ownSummary?.totalProvisionVat || 0)
+      + (report.hierarchySummary?.totalProvisionVat || 0)
+      + (report.tipProviderSummary?.totalProvisionVat || 0);
+    const totalProvNetto = Math.round((totalProv - totalProvVat) * 100) / 100;
+    const isSmallBusiness = report.employeeDetails?.isSmallBusiness ?? false;
+
     this.#doc.setFont('helvetica', 'bold');
     this.#doc.setFontSize(fontSize.sectionTitle);
     this.#doc.setTextColor(...colors.primary);
     this.#doc.text('GESAMTPROVISION:', rightLabelX, rightY + 2);
     this.#doc.setTextColor(...colors.accent);
-    this.#doc.text(this.#formatCurrency(report.totalProvision), rightValueX, rightY + 2, { align: 'right' });
+    this.#doc.text(this.#formatCurrency(totalProv), rightValueX, rightY + 2, { align: 'right' });
+    rightY += 8;
+
+    this.#doc.setFontSize(fontSize.normal);
+    this.#doc.setFont('helvetica', 'normal');
+    this.#doc.setTextColor(...colors.black);
+
+    if (!isSmallBusiness) {
+      this.#doc.text('darin enth. Netto:', rightLabelX, rightY + 2);
+      this.#doc.text(this.#formatCurrency(totalProvNetto), rightValueX, rightY + 2, { align: 'right' });
+      rightY += 5;
+
+      this.#doc.text('darin enth. 19% MwSt:', rightLabelX, rightY + 2);
+      this.#doc.text(this.#formatCurrency(totalProvVat), rightValueX, rightY + 2, { align: 'right' });
+    } else {
+      this.#doc.setFont('helvetica', 'italic');
+      this.#doc.setFontSize(fontSize.small);
+      this.#doc.setTextColor(...colors.secondary);
+      this.#doc.text('Gem. §19 UStG keine USt', rightLabelX, rightY + 2);
+    }
 
     this.#currentY += Math.max(leftBoxHeight, rightBoxHeight) + 8;
     this.#doc.setLineWidth(0.2);
+  }
+
+  #renderMissingSectionNotes(report) {
+    const notes = [];
+
+    if (!report.hasOwnRevenue) {
+      notes.push('Keine eigenen Umsätze im Abrechnungszeitraum vorhanden.');
+    }
+
+    if (!report.hasHierarchyRevenue) {
+      notes.push('Keine Team-Umsätze im Abrechnungszeitraum vorhanden.');
+    }
+
+    if (!report.hasTipProviderRevenue) {
+      notes.push('Keine Tippgeber-Umsätze im Abrechnungszeitraum vorhanden.');
+    }
+
+    if (notes.length === 0) return;
+
+    const { colors, fontSize, margin, lineHeight } = PDF_CONFIG;
+    const noteBlockHeight = 8 + (notes.length * lineHeight);
+
+    this.#checkPageBreak(noteBlockHeight + 4);
+
+    this.#doc.setFontSize(fontSize.small);
+    this.#doc.setFont('helvetica', 'italic');
+    this.#doc.setTextColor(...colors.secondary);
+
+    notes.forEach((note) => {
+      this.#doc.text(`Hinweis: ${note}`, margin.left, this.#currentY);
+      this.#currentY += lineHeight;
+    });
+
+    this.#currentY += 4;
+    this.#doc.setTextColor(...colors.black);
+    this.#doc.setFont('helvetica', 'normal');
+  }
+
+  #renderPaymentInfo() {
+    const { colors, fontSize, margin } = PDF_CONFIG;
+    const blockHeight = 38;
+
+    this.#checkPageBreak(blockHeight);
+
+    // Subtle separator line
+    this.#doc.setDrawColor(...colors.borderGray);
+    this.#doc.setLineWidth(0.3);
+    this.#doc.line(margin.left, this.#currentY, margin.left + this.#contentWidth, this.#currentY);
+    this.#currentY += 6;
+
+    // Section title
+    this.#doc.setFontSize(fontSize.small);
+    this.#doc.setFont('helvetica', 'bold');
+    this.#doc.setTextColor(...colors.primary);
+    this.#doc.text('ZAHLUNGSHINWEIS', margin.left, this.#currentY);
+    this.#currentY += 5;
+
+    // Payment instruction text
+    this.#doc.setFontSize(fontSize.small);
+    this.#doc.setFont('helvetica', 'normal');
+    this.#doc.setTextColor(...colors.black);
+    this.#doc.text(
+      'Ein Sollsaldo ist innerhalb von 5 Tagen durch Überweisung über unser Konto zu entrichten:',
+      margin.left,
+      this.#currentY,
+    );
+    this.#currentY += 6;
+
+    // Bank details
+    this.#doc.setFont('helvetica', 'bold');
+    this.#doc.text('Volksbank im Münsterland eG', margin.left, this.#currentY);
+    this.#currentY += 5;
+
+    this.#doc.setFont('helvetica', 'normal');
+    this.#doc.text('IBAN:', margin.left, this.#currentY);
+    this.#doc.setFont('helvetica', 'bold');
+    this.#doc.text('DE17 4036 1906 5318 8510 00', margin.left + 14, this.#currentY);
+    this.#currentY += 4;
+
+    this.#doc.setFont('helvetica', 'normal');
+    this.#doc.text('BIC:', margin.left, this.#currentY);
+    this.#doc.setFont('helvetica', 'bold');
+    this.#doc.text('GENODEM1IBB', margin.left + 14, this.#currentY);
+
+    this.#currentY += 8;
+    this.#doc.setFont('helvetica', 'normal');
   }
 
   #renderFooter(report) {
@@ -513,7 +632,7 @@ export class PdfGeneratorService {
 
   #getColumnsForSource(source) {
     // Base columns for own revenues (expanded layout for landscape)
-    // Total content width: 267mm - includes Netto, MwSt, Brutto
+    // Total content width: 267mm - includes revenue Netto/MwSt/Brutto + provision Netto/MwSt/Brutto
     const baseColumns = [
       { header: 'Datum', key: 'date', align: 'left', wrap: false },
       { header: 'Kunde', key: 'customer', align: 'left', wrap: true },
@@ -524,13 +643,15 @@ export class PdfGeneratorService {
       { header: 'MwSt', key: 'vat', align: 'right', wrap: false },
       { header: 'Brutto', key: 'gross', align: 'right', wrap: false },
       { header: 'Prov.%', key: 'percent', align: 'right', wrap: false },
-      { header: 'Provision', key: 'provision', align: 'right', wrap: false },
+      { header: 'Prov. Netto', key: 'provNet', align: 'right', wrap: false },
+      { header: 'Prov. MwSt', key: 'provVat', align: 'right', wrap: false },
+      { header: 'Prov. Brutto', key: 'provGross', align: 'right', wrap: false },
     ];
 
     if (source === LINE_ITEM_SOURCES.HIERARCHY || source === LINE_ITEM_SOURCES.TIP_PROVIDER) {
       return [
         { header: 'Datum', key: 'date', align: 'left', wrap: false },
-        { header: 'Vertriebspartner', key: 'employee', align: 'left', wrap: true },
+        { header: 'Vertriebsp.', key: 'employee', align: 'left', wrap: true },
         { header: 'Kunde', key: 'customer', align: 'left', wrap: true },
         { header: 'Kategorie', key: 'category', align: 'left', wrap: false },
         { header: 'Produkt', key: 'product', align: 'left', wrap: true },
@@ -538,7 +659,9 @@ export class PdfGeneratorService {
         { header: 'MwSt', key: 'vat', align: 'right', wrap: false },
         { header: 'Brutto', key: 'gross', align: 'right', wrap: false },
         { header: 'Prov.%', key: 'percent', align: 'right', wrap: false },
-        { header: 'Provision', key: 'provision', align: 'right', wrap: false },
+        { header: 'Prov. Netto', key: 'provNet', align: 'right', wrap: false },
+        { header: 'Prov. MwSt', key: 'provVat', align: 'right', wrap: false },
+        { header: 'Prov. Brutto', key: 'provGross', align: 'right', wrap: false },
       ];
     }
 
@@ -547,13 +670,13 @@ export class PdfGeneratorService {
 
   #getColumnWidthsForSource(source) {
     // Total content width: 267mm (A4 landscape 297mm minus 15mm margins on each side)
-    // 10 columns with Netto, MwSt, Brutto
+    // 12 columns with revenue Netto/MwSt/Brutto + provision Netto/MwSt/Brutto
     if (source === LINE_ITEM_SOURCES.HIERARCHY || source === LINE_ITEM_SOURCES.TIP_PROVIDER) {
-      // 10 columns: Date(20) + Employee(34) + Customer(37) + Category(26) + Product(46) + Net(22) + MwSt(20) + Brutto(24) + %(16) + Provision(22) = 267
-      return [20, 34, 37, 26, 46, 22, 20, 24, 16, 22];
+      // 12 columns: Date(18) + Employee(28) + Customer(28) + Category(20) + Product(30) + Net(19) + MwSt(17) + Brutto(19) + %(13) + P.Netto(24) + P.MwSt(22) + P.Brutto(29) = 267
+      return [18, 28, 28, 20, 30, 19, 17, 19, 13, 24, 22, 29];
     }
-    // 10 columns: Date(20) + Customer(38) + Category(26) + Product(44) + Provider(32) + Net(24) + MwSt(20) + Brutto(24) + %(15) + Provision(24) = 267
-    return [20, 38, 26, 44, 32, 24, 20, 24, 15, 24];
+    // 12 columns: Date(18) + Customer(30) + Category(20) + Product(30) + Provider(22) + Net(19) + MwSt(17) + Brutto(19) + %(13) + P.Netto(24) + P.MwSt(22) + P.Brutto(33) = 267
+    return [18, 30, 20, 30, 22, 19, 17, 19, 13, 24, 22, 33];
   }
 
   #getRowValuesForSource(item, source) {
@@ -571,11 +694,13 @@ export class PdfGeneratorService {
         this.#formatCurrency(item.vatAmount),
         this.#formatCurrency(item.grossAmount),
         this.#formatPercentage(item.provisionPercentage),
+        this.#formatCurrency(item.provisionNetAmount),
+        this.#formatCurrency(item.provisionVatAmount),
         this.#formatCurrency(item.provisionAmount),
       ];
     }
 
-    // Own revenues: 10 columns with Netto, MwSt, Brutto
+    // Own revenues: 12 columns with revenue Netto/MwSt/Brutto + provision Netto/MwSt/Brutto
     return [
       formattedDate,
       item.customerName || '',
@@ -586,6 +711,8 @@ export class PdfGeneratorService {
       this.#formatCurrency(item.vatAmount),
       this.#formatCurrency(item.grossAmount),
       this.#formatPercentage(item.provisionPercentage),
+      this.#formatCurrency(item.provisionNetAmount),
+      this.#formatCurrency(item.provisionVatAmount),
       this.#formatCurrency(item.provisionAmount),
     ];
   }

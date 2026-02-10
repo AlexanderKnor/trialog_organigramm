@@ -83,11 +83,14 @@ export class RevenueService {
   async getTipProviderRevenues(tipProviderId) {
     const entries = await this.getEntriesByTipProvider(tipProviderId);
 
-    return entries.map(entry => ({
-      entry,
-      tipProviderProvision: entry.tipProviderProvisionPercentage || 0,
-      tipProviderAmount: entry.tipProviderProvisionAmount || 0,
-    }));
+    return entries.map(entry => {
+      const allocation = entry.tipProviders.find(tp => tp.id === tipProviderId);
+      return {
+        entry,
+        tipProviderProvision: allocation ? allocation.provisionPercentage : 0,
+        tipProviderAmount: allocation ? allocation.calculateAmount(entry.grossAmount || entry.provisionAmount) : 0,
+      };
+    });
   }
 
   async getHierarchicalRevenues(managerId, treeId) {
@@ -140,6 +143,22 @@ export class RevenueService {
     }
 
     const companyEntries = [];
+
+    // Load direct company entries (company's own revenue, no cascade)
+    const companyDirectEntries = await this.#revenueRepository.findByEmployeeId(companyId);
+    for (const entry of companyDirectEntries) {
+      const companyEntry = CompanyRevenueEntry.calculate({
+        entry,
+        entryOwner: company,
+        directSubordinate: company,
+        company,
+        hierarchyPath: [company],
+      });
+
+      if (companyEntry.hasCompanyProvision) {
+        companyEntries.push(companyEntry);
+      }
+    }
 
     // Get all employees in the organization (excluding root)
     const allEmployees = this.#getAllEmployeesRecursive(tree, companyId);
@@ -454,12 +473,12 @@ export class RevenueService {
       }
       entriesByEmployee.get(entry.employeeId).push(entry);
 
-      // Group by tipProviderId
-      if (entry.tipProviderId) {
-        if (!entriesByTipProvider.has(entry.tipProviderId)) {
-          entriesByTipProvider.set(entry.tipProviderId, []);
+      // Group by each tip provider (multi-tip-provider support)
+      for (const tp of entry.tipProviders) {
+        if (!entriesByTipProvider.has(tp.id)) {
+          entriesByTipProvider.set(tp.id, []);
         }
-        entriesByTipProvider.get(entry.tipProviderId).push(entry);
+        entriesByTipProvider.get(tp.id).push(entry);
       }
     }
 
@@ -484,7 +503,7 @@ export class RevenueService {
           continue;
         }
 
-        const entryRevenue = entry.provisionAmount || 0;
+        const entryRevenue = entry.grossAmount || entry.provisionAmount || 0;
         monthlyRevenue += entryRevenue;
         activeEntryCount++;
 
@@ -505,8 +524,9 @@ export class RevenueService {
           continue;
         }
 
-        const entryRevenue = entry.provisionAmount || 0;
-        const tipProvision = entry.tipProviderProvisionAmount || 0;
+        const entryRevenue = entry.grossAmount || entry.provisionAmount || 0;
+        const allocation = entry.tipProviders.find(tp => tp.id === employee.id);
+        const tipProvision = allocation ? allocation.calculateAmount(entryRevenue) : 0;
 
         tipProviderRevenue += entryRevenue;
         tipProviderProvision += tipProvision;
@@ -529,18 +549,36 @@ export class RevenueService {
       totalEmployeeProvisions += employeeProvision;
     }
 
+    // Include direct company entries (root node's own revenue)
+    const rootEntries = entriesByEmployee.get(tree.rootId) || [];
+    const filteredRootEntries = this.#filterEntriesByMonth(rootEntries, month, year);
+    let directCompanyRevenue = 0;
+    let directCompanyEntries = 0;
+
+    for (const entry of filteredRootEntries) {
+      if (entry.status?.type === REVENUE_STATUS_TYPES.REJECTED ||
+          entry.status?.type === REVENUE_STATUS_TYPES.CANCELLED) {
+        continue;
+      }
+      directCompanyRevenue += entry.provisionAmount || 0;
+      directCompanyEntries++;
+    }
+
+    totalCompanyRevenue += directCompanyRevenue;
+    totalCompanyEntries += directCompanyEntries;
+
     // Company provision = total revenue - all employee provisions
     const companyProvision = totalCompanyRevenue - totalEmployeeProvisions;
 
     // Set root node data with total company revenue and company provision
     revenueDataMap.set(tree.rootId, {
-      monthlyRevenue: 0, // Root doesn't have own entries
-      entryCount: 0,
+      monthlyRevenue: directCompanyRevenue,
+      entryCount: directCompanyEntries,
       employeeProvision: 0,
       totalRevenue: totalCompanyRevenue,
       totalEntries: totalCompanyEntries,
       companyProvision: companyProvision,
-      totalEmployees: allEmployees.length, // Total count of all employees in tree
+      totalEmployees: allEmployees.length,
     });
 
     return revenueDataMap;
@@ -573,7 +611,7 @@ export class RevenueService {
 
     // Tip provider provision is deducted from OWNER's share (not from company)
     // The tip provider's share comes from the owner's provision
-    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
+    const tipProviderPercentage = entry.totalTipProviderPercentage;
     const effectiveProvision = Math.max(0, baseProvision - tipProviderPercentage);
 
     return effectiveProvision;

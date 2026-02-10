@@ -140,18 +140,20 @@ export class HierarchicalRevenueEntry {
     // Calculate provision amounts
     // Tip provider provision is deducted from OWNER, not from company
     // The tip provider's share comes from the owner's provision
-    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
-    const ownerEffectiveProvision = Math.max(0, ownerProvision - tipProviderPercentage);
+    // Clamp to owner's rate to prevent cascade overflow (sum > 100%)
+    const tipProviderPercentage = Math.min(entry.totalTipProviderPercentage, ownerProvision);
+    const ownerEffectiveProvision = ownerProvision - tipProviderPercentage;
 
     // Manager delta is based on owner's BASE provision (for correct cascade)
     const provisionDifference = managerProvision - ownerProvision;
+    const baseAmount = entry.grossAmount || entry.provisionAmount;
     const managerAmount =
       provisionDifference > 0
-        ? entry.provisionAmount * (provisionDifference / 100)
+        ? Math.round(baseAmount * (provisionDifference / 100) * 100) / 100
         : 0;
 
     // Owner gets their effective provision (after tip deduction)
-    const ownerAmount = entry.provisionAmount * (ownerEffectiveProvision / 100);
+    const ownerAmount = Math.round(baseAmount * (ownerEffectiveProvision / 100) * 100) / 100;
 
     return new HierarchicalRevenueEntry({
       originalEntry: entry,

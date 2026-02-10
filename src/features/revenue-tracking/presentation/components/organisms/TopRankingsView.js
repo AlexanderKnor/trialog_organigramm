@@ -61,7 +61,7 @@ export class TopRankingsView {
       const employeeId = entry.entryOwner?.id || entry.employee?.id || 'unknown';
       const employeeName = entry.entryOwner?.name || entry.employee?.name || 'Unbekannt';
       const employee = entry.entryOwner || entry.employee;
-      const revenue = entry.originalEntry?.provisionAmount || 0;
+      const revenue = entry.originalEntry?.grossAmount || entry.originalEntry?.provisionAmount || 0;
 
       // Calculate employee's actual provision based on their rate
       const categoryType = entry.originalEntry?.category?.type;

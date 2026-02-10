@@ -1,6 +1,7 @@
 /**
  * Entity: RevenueEntry
- * Core domain entity representing a revenue entry for an employee
+ * Core domain entity representing a revenue entry for an employee.
+ * Supports N tip providers per entry (multi-Tippgeber).
  */
 
 import { generateUUID } from '../../../../core/utils/index.js';
@@ -10,6 +11,7 @@ import { RevenueStatus, REVENUE_STATUS_TYPES } from '../value-objects/RevenueSta
 import { Product } from '../value-objects/Product.js';
 import { ProductProvider } from '../value-objects/ProductProvider.js';
 import { CustomerAddress } from '../value-objects/CustomerAddress.js';
+import { TipProviderAllocation } from '../value-objects/TipProviderAllocation.js';
 
 export class RevenueEntry {
   #id;
@@ -32,10 +34,7 @@ export class RevenueEntry {
   #ownerProvisionSnapshot;
   #managerProvisionSnapshot;
   #hierarchySnapshot;
-  #tipProviderId;
-  #tipProviderName;
-  #tipProviderProvisionPercentage;
-  #tipProviderProvisionSnapshot;
+  #tipProviders; // Array<TipProviderAllocation>
   #hasVAT;
   #vatRate;
   #source;
@@ -62,6 +61,9 @@ export class RevenueEntry {
     ownerProvisionSnapshot = null,
     managerProvisionSnapshot = null,
     hierarchySnapshot = null,
+    // Multi-tip-provider (new format)
+    tipProviders = null,
+    // Legacy single-tip-provider fields (backward compatibility)
     tipProviderId = null,
     tipProviderName = null,
     tipProviderProvisionPercentage = null,
@@ -83,8 +85,6 @@ export class RevenueEntry {
       category instanceof RevenueCategory
         ? category
         : new RevenueCategory(category);
-    // provisionType determines which HierarchyNode provision field to use (bank, insurance, realEstate)
-    // Fallback to category type for backward compatibility with legacy entries
     this.#provisionType = provisionType || this.#inferProvisionType(this.#category.type);
     this.#product =
       product instanceof Product ? product : Product.fromJSON(product);
@@ -109,12 +109,14 @@ export class RevenueEntry {
     this.#managerProvisionSnapshot = managerProvisionSnapshot;
     this.#hierarchySnapshot = hierarchySnapshot || null;
 
-    // Tip Provider (Tippgeber) - Independent provision allocation
-    this.#validateTipProvider(tipProviderId, employeeId, tipProviderProvisionPercentage);
-    this.#tipProviderId = tipProviderId;
-    this.#tipProviderName = tipProviderName;
-    this.#tipProviderProvisionPercentage = this.#validateProvisionPercentage(tipProviderProvisionPercentage);
-    this.#tipProviderProvisionSnapshot = tipProviderProvisionSnapshot;
+    // Tip Providers (Tippgeber) - Multi-provider support
+    this.#tipProviders = this.#buildTipProviders({
+      tipProviders,
+      tipProviderId,
+      tipProviderName,
+      tipProviderProvisionPercentage,
+    });
+    this.#validateTipProviders(this.#tipProviders, employeeId);
 
     // VAT (Umsatzsteuer) - Net/Gross calculation
     this.#hasVAT = Boolean(hasVAT);
@@ -123,6 +125,61 @@ export class RevenueEntry {
     // Source tracking for import duplicate detection
     this.#source = source ?? null;
     this.#sourceReference = sourceReference ?? null;
+  }
+
+  /**
+   * Build tip providers array from either new format or legacy single fields
+   */
+  #buildTipProviders({ tipProviders, tipProviderId, tipProviderName, tipProviderProvisionPercentage }) {
+    // New format: array of tip provider allocations
+    if (Array.isArray(tipProviders) && tipProviders.length > 0) {
+      return tipProviders.map((tp) =>
+        tp instanceof TipProviderAllocation
+          ? tp
+          : TipProviderAllocation.fromJSON(tp),
+      );
+    }
+
+    // Legacy format: single tip provider fields -> convert to single-element array
+    if (tipProviderId) {
+      return [
+        new TipProviderAllocation({
+          id: tipProviderId,
+          name: tipProviderName || tipProviderId,
+          provisionPercentage: tipProviderProvisionPercentage ?? 0,
+        }),
+      ];
+    }
+
+    // No tip providers
+    return [];
+  }
+
+  /**
+   * Validate tip providers array
+   */
+  #validateTipProviders(tipProviders, employeeId) {
+    const seenIds = new Set();
+    for (const tp of tipProviders) {
+      // No self-assignment
+      if (tp.id === employeeId) {
+        throw new ValidationError('Tip provider cannot be the same as the entry owner', 'tipProviderId');
+      }
+      // No duplicate IDs
+      if (seenIds.has(tp.id)) {
+        throw new ValidationError(`Duplicate tip provider ID: ${tp.id}`, 'tipProviders');
+      }
+      seenIds.add(tp.id);
+    }
+
+    // Sum must not exceed 100%
+    const totalPct = tipProviders.reduce((sum, tp) => sum + tp.provisionPercentage, 0);
+    if (totalPct > 100) {
+      throw new ValidationError(
+        `Total tip provider provision (${totalPct}%) exceeds 100%`,
+        'tipProviders',
+      );
+    }
   }
 
   #safeParseDate(value) {
@@ -140,7 +197,7 @@ export class RevenueEntry {
 
   #validateVATRate(rate) {
     if (rate === null || rate === undefined) {
-      return 19; // Default German VAT rate
+      return 19;
     }
 
     const num = parseFloat(rate);
@@ -155,187 +212,121 @@ export class RevenueEntry {
     return num;
   }
 
-  #validateTipProvider(tipProviderId, employeeId, tipProviderProvision) {
-    // Business Rule: Tip provider cannot be the entry owner
-    if (tipProviderId && tipProviderId === employeeId) {
-      throw new ValidationError('Tip provider cannot be the same as the entry owner', 'tipProviderId');
-    }
+  // === Core Getters ===
 
-    // Business Rule: If tip provider is set, provision percentage must be provided
-    if (tipProviderId && (tipProviderProvision === null || tipProviderProvision === undefined)) {
-      throw new ValidationError('Tip provider provision percentage is required when tip provider is set', 'tipProviderProvisionPercentage');
-    }
-  }
-
-  #validateProvisionPercentage(percentage) {
-    if (percentage === null || percentage === undefined) {
-      return null;
-    }
-
-    const num = parseFloat(percentage);
-    if (isNaN(num)) {
-      throw new ValidationError('Provision percentage must be a number', 'tipProviderProvisionPercentage');
-    }
-
-    if (num < 0 || num > 100) {
-      throw new ValidationError('Provision percentage must be between 0 and 100', 'tipProviderProvisionPercentage');
-    }
-
-    return num;
-  }
-
-  get id() {
-    return this.#id;
-  }
-
-  get employeeId() {
-    return this.#employeeId;
-  }
-
-  get customerNumber() {
-    return this.#customerNumber;
-  }
-
-  get customerName() {
-    return this.#customerName;
-  }
-
-  get customerAddress() {
-    return this.#customerAddress;
-  }
-
-  get category() {
-    return this.#category;
-  }
-
-  get provisionType() {
-    return this.#provisionType;
-  }
-
-  get product() {
-    return this.#product;
-  }
-
-  get productProvider() {
-    return this.#productProvider;
-  }
-
-  get propertyAddress() {
-    return this.#propertyAddress;
-  }
-
-  get contractNumber() {
-    return this.#contractNumber;
-  }
-
-  get provisionAmount() {
-    return this.#provisionAmount;
-  }
-
-  get notes() {
-    return this.#notes;
-  }
-
-  get status() {
-    return this.#status;
-  }
-
-  get createdAt() {
-    return this.#createdAt;
-  }
-
-  get updatedAt() {
-    return this.#updatedAt;
-  }
-
-  get entryDate() {
-    return this.#entryDate;
-  }
-
-  get ownerProvisionSnapshot() {
-    return this.#ownerProvisionSnapshot;
-  }
-
-  get managerProvisionSnapshot() {
-    return this.#managerProvisionSnapshot;
-  }
-
-  get hierarchySnapshot() {
-    return this.#hierarchySnapshot;
-  }
+  get id() { return this.#id; }
+  get employeeId() { return this.#employeeId; }
+  get customerNumber() { return this.#customerNumber; }
+  get customerName() { return this.#customerName; }
+  get customerAddress() { return this.#customerAddress; }
+  get category() { return this.#category; }
+  get provisionType() { return this.#provisionType; }
+  get product() { return this.#product; }
+  get productProvider() { return this.#productProvider; }
+  get propertyAddress() { return this.#propertyAddress; }
+  get contractNumber() { return this.#contractNumber; }
+  get provisionAmount() { return this.#provisionAmount; }
+  get notes() { return this.#notes; }
+  get status() { return this.#status; }
+  get createdAt() { return this.#createdAt; }
+  get updatedAt() { return this.#updatedAt; }
+  get entryDate() { return this.#entryDate; }
+  get ownerProvisionSnapshot() { return this.#ownerProvisionSnapshot; }
+  get managerProvisionSnapshot() { return this.#managerProvisionSnapshot; }
+  get hierarchySnapshot() { return this.#hierarchySnapshot; }
 
   get hasProvisionSnapshot() {
     return this.#ownerProvisionSnapshot !== null && this.#ownerProvisionSnapshot !== undefined;
   }
 
-  get tipProviderId() {
-    return this.#tipProviderId;
+  // === Multi-Tip-Provider Getters ===
+
+  /** Defensive copy of the tip providers array */
+  get tipProviders() {
+    return [...this.#tipProviders];
   }
 
-  get tipProviderName() {
-    return this.#tipProviderName;
+  /** Flat array of tip provider IDs (for Firestore array-contains queries) */
+  get tipProviderIds() {
+    return this.#tipProviders.map((tp) => tp.id);
   }
 
-  get tipProviderProvisionPercentage() {
-    return this.#tipProviderProvisionPercentage;
-  }
-
-  get tipProviderProvisionSnapshot() {
-    return this.#tipProviderProvisionSnapshot;
-  }
-
+  /** Whether this entry has at least one tip provider */
   get hasTipProvider() {
-    return this.#tipProviderId !== null && this.#tipProviderId !== undefined;
+    return this.#tipProviders.length > 0;
   }
 
+  /** Sum of all tip provider provision percentages */
+  get totalTipProviderPercentage() {
+    return this.#tipProviders.reduce((sum, tp) => sum + tp.provisionPercentage, 0);
+  }
+
+  /** Sum of all individual tip provider provision amounts */
   get tipProviderProvisionAmount() {
-    if (!this.hasTipProvider || this.#tipProviderProvisionPercentage === null) {
-      return 0;
-    }
-    return this.#provisionAmount * (this.#tipProviderProvisionPercentage / 100);
+    return this.#tipProviders.reduce(
+      (sum, tp) => sum + tp.calculateAmount(this.grossAmount),
+      0,
+    );
   }
 
+  /** Owner's effective provision after all tip provider deductions */
   get ownerProvisionAfterTipProvider() {
     if (!this.#ownerProvisionSnapshot) {
       return 0;
     }
-    const tipProviderDeduction = this.#tipProviderProvisionPercentage || 0;
-    return Math.max(0, this.#ownerProvisionSnapshot - tipProviderDeduction);
+    return Math.max(0, this.#ownerProvisionSnapshot - this.totalTipProviderPercentage);
   }
 
-  get hasVAT() {
-    return this.#hasVAT;
+  // === Backward-Compatibility Getters (legacy single-tip-provider) ===
+
+  /** First tip provider ID or null (backward compat) */
+  get tipProviderId() {
+    return this.#tipProviders.length > 0 ? this.#tipProviders[0].id : null;
   }
 
-  get vatRate() {
-    return this.#vatRate;
+  /** First tip provider name or null (backward compat) */
+  get tipProviderName() {
+    return this.#tipProviders.length > 0 ? this.#tipProviders[0].name : null;
   }
+
+  /**
+   * Total tip provider percentage (backward compat).
+   * Used by cascade calculations that expect a single percentage value.
+   */
+  get tipProviderProvisionPercentage() {
+    return this.totalTipProviderPercentage || null;
+  }
+
+  /** Not stored per-provider anymore - returns null */
+  get tipProviderProvisionSnapshot() {
+    return null;
+  }
+
+  // === VAT Getters ===
+
+  get hasVAT() { return this.#hasVAT; }
+  get vatRate() { return this.#vatRate; }
 
   get netAmount() {
     return this.#provisionAmount;
   }
 
   get vatAmount() {
-    if (!this.#hasVAT) {
-      return 0;
-    }
-    return this.#provisionAmount * (this.#vatRate / 100);
+    if (!this.#hasVAT) return 0;
+    return Math.round(this.#provisionAmount * (this.#vatRate / 100) * 100) / 100;
   }
 
   get grossAmount() {
-    if (!this.#hasVAT) {
-      return this.#provisionAmount;
-    }
-    return this.#provisionAmount + this.vatAmount;
+    if (!this.#hasVAT) return this.#provisionAmount;
+    return Math.round((this.#provisionAmount + this.vatAmount) * 100) / 100;
   }
 
-  get source() {
-    return this.#source;
-  }
+  // === Source ===
 
-  get sourceReference() {
-    return this.#sourceReference;
-  }
+  get source() { return this.#source; }
+  get sourceReference() { return this.#sourceReference; }
+
+  // === Derived ===
 
   get requiresPropertyAddress() {
     return ProductProvider.requiresFreeTextProvider(this.#category.type);
@@ -358,18 +349,13 @@ export class RevenueEntry {
     );
   }
 
-  /**
-   * Infer provisionType from category type for backward compatibility
-   * Used when provisionType is not explicitly provided (legacy entries)
-   */
   #inferProvisionType(categoryType) {
-    // Map known category types to provision types
     const CATEGORY_TO_PROVISION = {
       bank: 'bank',
       insurance: 'insurance',
       realEstate: 'realEstate',
       propertyManagement: 'realEstate',
-      energyContracts: 'bank', // Default to bank for energy contracts
+      energyContracts: 'bank',
     };
     return CATEGORY_TO_PROVISION[categoryType] || 'bank';
   }
@@ -426,20 +412,28 @@ export class RevenueEntry {
     if (updates.entryDate !== undefined) {
       this.#entryDate = new Date(updates.entryDate);
     }
-    // Tip Provider fields
-    if (updates.tipProviderId !== undefined) {
-      this.#validateTipProvider(updates.tipProviderId, this.#employeeId, updates.tipProviderProvisionPercentage);
-      this.#tipProviderId = updates.tipProviderId;
+
+    // Tip Providers - new multi-provider format
+    if (updates.tipProviders !== undefined) {
+      this.#tipProviders = this.#buildTipProviders({
+        tipProviders: updates.tipProviders,
+        tipProviderId: null,
+        tipProviderName: null,
+        tipProviderProvisionPercentage: null,
+      });
+      this.#validateTipProviders(this.#tipProviders, this.#employeeId);
     }
-    if (updates.tipProviderName !== undefined) {
-      this.#tipProviderName = updates.tipProviderName;
+    // Legacy single tip provider fields (backward compat for update)
+    else if (updates.tipProviderId !== undefined) {
+      this.#tipProviders = this.#buildTipProviders({
+        tipProviders: null,
+        tipProviderId: updates.tipProviderId,
+        tipProviderName: updates.tipProviderName ?? null,
+        tipProviderProvisionPercentage: updates.tipProviderProvisionPercentage ?? null,
+      });
+      this.#validateTipProviders(this.#tipProviders, this.#employeeId);
     }
-    if (updates.tipProviderProvisionPercentage !== undefined) {
-      this.#tipProviderProvisionPercentage = this.#validateProvisionPercentage(updates.tipProviderProvisionPercentage);
-    }
-    if (updates.tipProviderProvisionSnapshot !== undefined) {
-      this.#tipProviderProvisionSnapshot = updates.tipProviderProvisionSnapshot;
-    }
+
     // VAT fields
     if (updates.hasVAT !== undefined) {
       this.#hasVAT = Boolean(updates.hasVAT);
@@ -454,6 +448,10 @@ export class RevenueEntry {
   }
 
   toJSON() {
+    // Serialize tip providers in both new and legacy formats for backward compatibility
+    const tipProvidersJSON = this.#tipProviders.map((tp) => tp.toJSON());
+    const firstTp = this.#tipProviders.length > 0 ? this.#tipProviders[0] : null;
+
     return {
       id: this.#id,
       employeeId: this.#employeeId,
@@ -476,11 +474,14 @@ export class RevenueEntry {
       ownerProvisionSnapshot: this.#ownerProvisionSnapshot,
       managerProvisionSnapshot: this.#managerProvisionSnapshot,
       hierarchySnapshot: this.#hierarchySnapshot,
-      // Tip Provider (Tippgeber)
-      tipProviderId: this.#tipProviderId,
-      tipProviderName: this.#tipProviderName,
-      tipProviderProvisionPercentage: this.#tipProviderProvisionPercentage,
-      tipProviderProvisionSnapshot: this.#tipProviderProvisionSnapshot,
+      // Multi-Tip-Provider (new format)
+      tipProviders: tipProvidersJSON,
+      tipProviderIds: this.tipProviderIds,
+      // Legacy single-tip-provider (backward compat - write first provider)
+      tipProviderId: firstTp?.id ?? null,
+      tipProviderName: firstTp?.name ?? null,
+      tipProviderProvisionPercentage: this.totalTipProviderPercentage || null,
+      tipProviderProvisionSnapshot: null,
       // VAT (Umsatzsteuer)
       hasVAT: this.#hasVAT,
       vatRate: this.#vatRate,
@@ -491,6 +492,12 @@ export class RevenueEntry {
   }
 
   static fromJSON(json) {
+    // Determine tip providers: prefer new format, fall back to legacy
+    let tipProviders = null;
+    if (Array.isArray(json.tipProviders) && json.tipProviders.length > 0) {
+      tipProviders = json.tipProviders;
+    }
+
     return new RevenueEntry({
       id: json.id,
       employeeId: json.employeeId,
@@ -515,11 +522,12 @@ export class RevenueEntry {
       ownerProvisionSnapshot: json.ownerProvisionSnapshot ?? null,
       managerProvisionSnapshot: json.managerProvisionSnapshot ?? null,
       hierarchySnapshot: json.hierarchySnapshot ?? null,
-      // Tip Provider (may be null)
-      tipProviderId: json.tipProviderId ?? null,
-      tipProviderName: json.tipProviderName ?? null,
-      tipProviderProvisionPercentage: json.tipProviderProvisionPercentage ?? null,
-      tipProviderProvisionSnapshot: json.tipProviderProvisionSnapshot ?? null,
+      // Multi-tip-provider (new format takes priority)
+      tipProviders: tipProviders,
+      // Legacy single tip provider (used as fallback if tipProviders is null)
+      tipProviderId: tipProviders ? null : (json.tipProviderId ?? null),
+      tipProviderName: tipProviders ? null : (json.tipProviderName ?? null),
+      tipProviderProvisionPercentage: tipProviders ? null : (json.tipProviderProvisionPercentage ?? null),
       // VAT (default: false, 19%)
       hasVAT: json.hasVAT ?? false,
       vatRate: json.vatRate ?? 19,

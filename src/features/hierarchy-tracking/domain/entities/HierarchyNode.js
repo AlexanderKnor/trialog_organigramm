@@ -354,6 +354,9 @@ export class HierarchyNode {
       description,
       type: NODE_TYPES.ROOT,
       parentId: null,
+      bankProvision: 100,
+      realEstateProvision: 100,
+      insuranceProvision: 100,
     });
   }
 }

@@ -9,6 +9,8 @@ export class ProvisionSummary {
   #totalVat;
   #totalGross;
   #totalProvision;
+  #totalProvisionVat;
+  #totalProvisionGross;
   #categoryBreakdown;
 
   constructor({
@@ -17,6 +19,8 @@ export class ProvisionSummary {
     totalVat = 0,
     totalGross = 0,
     totalProvision = 0,
+    totalProvisionVat = 0,
+    totalProvisionGross = 0,
     categoryBreakdown = {},
   } = {}) {
     this.#entryCount = entryCount;
@@ -24,6 +28,8 @@ export class ProvisionSummary {
     this.#totalVat = totalVat;
     this.#totalGross = totalGross;
     this.#totalProvision = totalProvision;
+    this.#totalProvisionVat = totalProvisionVat;
+    this.#totalProvisionGross = totalProvisionGross;
     this.#categoryBreakdown = { ...categoryBreakdown };
   }
 
@@ -45,6 +51,18 @@ export class ProvisionSummary {
 
   get totalProvision() {
     return this.#totalProvision;
+  }
+
+  get totalProvisionVat() {
+    return this.#totalProvisionVat;
+  }
+
+  get totalProvisionGross() {
+    return this.#totalProvisionGross;
+  }
+
+  get totalProvisionNet() {
+    return Math.round((this.#totalProvision - this.#totalProvisionVat) * 100) / 100;
   }
 
   get categoryBreakdown() {
@@ -78,6 +96,9 @@ export class ProvisionSummary {
       acc.totalVat += item.vatAmount || 0;
       acc.totalGross += item.grossAmount || 0;
       acc.totalProvision += item.provisionAmount || 0;
+      acc.totalProvisionVat += item.provisionVatAmount || 0;
+      // provisionAmount IS the gross provision (calculated from gross revenue)
+      acc.totalProvisionGross += item.provisionAmount || 0;
 
       const category = item.categoryType || 'other';
       if (!categoryBreakdown[category]) {
@@ -98,6 +119,8 @@ export class ProvisionSummary {
       totalVat: 0,
       totalGross: 0,
       totalProvision: 0,
+      totalProvisionVat: 0,
+      totalProvisionGross: 0,
     });
 
     return new ProvisionSummary({
@@ -124,6 +147,8 @@ export class ProvisionSummary {
       totalVat: this.#totalVat + other.totalVat,
       totalGross: this.#totalGross + other.totalGross,
       totalProvision: this.#totalProvision + other.totalProvision,
+      totalProvisionVat: this.#totalProvisionVat + other.totalProvisionVat,
+      totalProvisionGross: this.#totalProvisionGross + other.totalProvisionGross,
       categoryBreakdown: mergedBreakdown,
     });
   }
@@ -135,6 +160,8 @@ export class ProvisionSummary {
       totalVat: this.#totalVat,
       totalGross: this.#totalGross,
       totalProvision: this.#totalProvision,
+      totalProvisionVat: this.#totalProvisionVat,
+      totalProvisionGross: this.#totalProvisionGross,
       categoryBreakdown: this.#categoryBreakdown,
     };
   }
@@ -147,6 +174,8 @@ export class ProvisionSummary {
       totalVat: json.totalVat || 0,
       totalGross: json.totalGross || 0,
       totalProvision: json.totalProvision || 0,
+      totalProvisionVat: json.totalProvisionVat || 0,
+      totalProvisionGross: json.totalProvisionGross || 0,
       categoryBreakdown: json.categoryBreakdown || {},
     });
   }

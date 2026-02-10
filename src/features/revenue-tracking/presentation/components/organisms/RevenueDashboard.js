@@ -156,8 +156,10 @@ export class RevenueDashboard {
       } else if (this.#mode === 'tipProvider') {
         // Tip Provider mode: entry is RevenueEntry where employee is tip provider
         const cat = entry.category.type;
-        const revenue = entry.provisionAmount;
-        const provision = entry.tipProviderProvisionAmount || 0;
+        const revenue = entry.grossAmount || entry.provisionAmount;
+        // Find this employee's specific allocation from the tipProviders array
+        const allocation = (entry.tipProviders || []).find((tp) => tp.id === this.#employee?.id);
+        const provision = allocation ? allocation.calculateAmount(revenue) : (entry.tipProviderProvisionAmount || 0);
 
         totalRevenue += revenue;
         totalProvision += provision;
@@ -170,7 +172,7 @@ export class RevenueDashboard {
       } else {
         // Own mode: entry is RevenueEntry
         const cat = entry.category.type;
-        const revenue = entry.provisionAmount;
+        const revenue = entry.grossAmount || entry.provisionAmount;
         const provisionPercent = this.#getProvisionPercent(cat);
         const provision = revenue * provisionPercent / 100;
 

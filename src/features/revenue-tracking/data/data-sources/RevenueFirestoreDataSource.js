@@ -219,15 +219,36 @@ export class RevenueFirestoreDataSource {
       const firestore = this.#getFirestore();
       const { collection, query, where, getDocs } = await this.#importFirestoreHelpers();
 
-      // Query entries where this employee is the tip provider
-      const q = query(
+      // Dual query for backward compatibility:
+      // Query 1 (new): tipProviderIds array-contains
+      const newQuery = query(
         collection(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES),
-        where('tipProviderId', '==', tipProviderId)
+        where('tipProviderIds', 'array-contains', tipProviderId),
       );
 
-      const querySnapshot = await getDocs(q);
-      const entries = querySnapshot.docs.map((doc) => doc.data());
+      // Query 2 (legacy): tipProviderId == scalar field
+      const legacyQuery = query(
+        collection(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES),
+        where('tipProviderId', '==', tipProviderId),
+      );
 
+      // Run both in parallel, merge and deduplicate by doc ID
+      const [newSnapshot, legacySnapshot] = await Promise.all([
+        getDocs(newQuery),
+        getDocs(legacyQuery),
+      ]);
+
+      const entriesMap = new Map();
+      for (const doc of newSnapshot.docs) {
+        entriesMap.set(doc.id, doc.data());
+      }
+      for (const doc of legacySnapshot.docs) {
+        if (!entriesMap.has(doc.id)) {
+          entriesMap.set(doc.id, doc.data());
+        }
+      }
+
+      const entries = Array.from(entriesMap.values());
       Logger.log(`✓ Loaded ${entries.length} revenue entries where ${tipProviderId} is tip provider`);
       return entries;
     } catch (error) {

@@ -28,6 +28,9 @@ export class ReportLineItem {
   #grossAmount;
   #provisionPercentage;
   #provisionAmount;
+  #provisionVatRate;
+  #provisionVatAmount;
+  #provisionGrossAmount;
   #source;
   #subordinateName;
   #subordinateId;
@@ -50,6 +53,9 @@ export class ReportLineItem {
     grossAmount,
     provisionPercentage,
     provisionAmount,
+    provisionVatRate = 0,
+    provisionVatAmount = 0,
+    provisionGrossAmount = null,
     source = LINE_ITEM_SOURCES.OWN,
     subordinateName = null,
     subordinateId = null,
@@ -65,12 +71,18 @@ export class ReportLineItem {
     this.#productName = productName;
     this.#providerName = providerName;
     this.#contractNumber = contractNumber;
-    this.#netAmount = netAmount;
+    this.#netAmount = Math.round((netAmount || 0) * 100) / 100;
     this.#vatRate = vatRate;
-    this.#vatAmount = vatAmount;
-    this.#grossAmount = grossAmount;
+    this.#vatAmount = Math.round((vatAmount || 0) * 100) / 100;
+    this.#grossAmount = Math.round((grossAmount || 0) * 100) / 100;
     this.#provisionPercentage = provisionPercentage;
-    this.#provisionAmount = provisionAmount;
+    this.#provisionAmount = Math.round((provisionAmount || 0) * 100) / 100;
+    this.#provisionVatRate = provisionVatRate;
+    this.#provisionVatAmount = Math.round((provisionVatAmount || 0) * 100) / 100;
+    // provisionAmount IS the gross provision (calculated from gross revenue)
+    this.#provisionGrossAmount = provisionGrossAmount !== null
+      ? Math.round(provisionGrossAmount * 100) / 100
+      : this.#provisionAmount;
     this.#source = source;
     this.#subordinateName = subordinateName;
     this.#subordinateId = subordinateId;
@@ -93,6 +105,10 @@ export class ReportLineItem {
   get grossAmount() { return this.#grossAmount; }
   get provisionPercentage() { return this.#provisionPercentage; }
   get provisionAmount() { return this.#provisionAmount; }
+  get provisionVatRate() { return this.#provisionVatRate; }
+  get provisionVatAmount() { return this.#provisionVatAmount; }
+  get provisionGrossAmount() { return this.#provisionGrossAmount; }
+  get provisionNetAmount() { return Math.round((this.#provisionAmount - this.#provisionVatAmount) * 100) / 100; }
   get source() { return this.#source; }
   get subordinateName() { return this.#subordinateName; }
   get subordinateId() { return this.#subordinateId; }
@@ -108,6 +124,10 @@ export class ReportLineItem {
 
   get hasVat() {
     return this.#vatRate > 0 && this.#vatAmount > 0;
+  }
+
+  get hasProvisionVat() {
+    return this.#provisionVatRate > 0 && this.#provisionVatAmount > 0;
   }
 
   get isOwnRevenue() {
@@ -153,6 +173,9 @@ export class ReportLineItem {
       grossAmount: this.#grossAmount,
       provisionPercentage: this.#provisionPercentage,
       provisionAmount: this.#provisionAmount,
+      provisionVatRate: this.#provisionVatRate,
+      provisionVatAmount: this.#provisionVatAmount,
+      provisionGrossAmount: this.#provisionGrossAmount,
       source: this.#source,
       subordinateName: this.#subordinateName,
       subordinateId: this.#subordinateId,

@@ -19,7 +19,9 @@ export class BillingReportAssembler {
 
   static createOwnLineItem(entry, employeeDetails) {
     const provisionPercentage = BillingReportAssembler.#getEffectiveOwnerProvision(entry, employeeDetails);
-    const provisionAmount = (entry.provisionAmount || 0) * (provisionPercentage / 100);
+    const provisionAmount = Math.round((entry.grossAmount || entry.provisionAmount || 0) * (provisionPercentage / 100) * 100) / 100;
+    const { provisionVatRate, provisionVatAmount, provisionGrossAmount } =
+      BillingReportAssembler.#calculateProvisionVat(provisionAmount, employeeDetails, entry.hasVAT, entry.vatRate);
 
     return new ReportLineItem({
       originalEntryId: entry.id,
@@ -37,6 +39,9 @@ export class BillingReportAssembler {
       grossAmount: entry.grossAmount || entry.provisionAmount || 0,
       provisionPercentage,
       provisionAmount,
+      provisionVatRate,
+      provisionVatAmount,
+      provisionGrossAmount,
       source: LINE_ITEM_SOURCES.OWN,
       subordinateName: null,
       subordinateId: null,
@@ -44,10 +49,12 @@ export class BillingReportAssembler {
     });
   }
 
-  static createHierarchyLineItem(hierarchicalEntry) {
+  static createHierarchyLineItem(hierarchicalEntry, employeeDetails) {
     const entry = hierarchicalEntry.originalEntry;
     const provisionPercentage = hierarchicalEntry.managerProvisionPercentage || 0;
     const provisionAmount = hierarchicalEntry.managerProvisionAmount || 0;
+    const { provisionVatRate, provisionVatAmount, provisionGrossAmount } =
+      BillingReportAssembler.#calculateProvisionVat(provisionAmount, employeeDetails, entry.hasVAT, entry.vatRate);
 
     return new ReportLineItem({
       originalEntryId: entry.id,
@@ -65,6 +72,9 @@ export class BillingReportAssembler {
       grossAmount: entry.grossAmount || entry.provisionAmount || 0,
       provisionPercentage,
       provisionAmount,
+      provisionVatRate,
+      provisionVatAmount,
+      provisionGrossAmount,
       source: LINE_ITEM_SOURCES.HIERARCHY,
       subordinateName: hierarchicalEntry.owner?.name || '',
       subordinateId: hierarchicalEntry.owner?.id || '',
@@ -72,9 +82,17 @@ export class BillingReportAssembler {
     });
   }
 
-  static createTipProviderLineItem(entry, tipProviderId) {
-    const provisionPercentage = entry.tipProviderProvisionPercentage || 0;
-    const provisionAmount = entry.tipProviderProvisionAmount || 0;
+  static createTipProviderLineItem(entry, tipProviderId, employeeDetails) {
+    // Find this specific tip provider's allocation from the tipProviders array
+    const allocation = (entry.tipProviders || []).find((tp) => tp.id === tipProviderId);
+    const provisionPercentage = allocation
+      ? allocation.provisionPercentage
+      : (entry.tipProviderProvisionPercentage || 0);
+    const provisionAmount = allocation
+      ? allocation.calculateAmount(entry.grossAmount || entry.provisionAmount)
+      : (entry.tipProviderProvisionAmount || 0);
+    const { provisionVatRate, provisionVatAmount, provisionGrossAmount } =
+      BillingReportAssembler.#calculateProvisionVat(provisionAmount, employeeDetails, entry.hasVAT, entry.vatRate);
 
     const ownerName = entry.hierarchySnapshot?.ownerName ||
                      entry.employeeId ||
@@ -96,6 +114,9 @@ export class BillingReportAssembler {
       grossAmount: entry.grossAmount || entry.provisionAmount || 0,
       provisionPercentage,
       provisionAmount,
+      provisionVatRate,
+      provisionVatAmount,
+      provisionGrossAmount,
       source: LINE_ITEM_SOURCES.TIP_PROVIDER,
       subordinateName: ownerName,
       subordinateId: entry.employeeId,
@@ -130,11 +151,11 @@ export class BillingReportAssembler {
     );
 
     const hierarchyLineItems = activeHierarchyEntries.map(entry =>
-      BillingReportAssembler.createHierarchyLineItem(entry)
+      BillingReportAssembler.createHierarchyLineItem(entry, employeeDetails)
     );
 
     const tipProviderLineItems = activeTipProviderEntries.map(entry =>
-      BillingReportAssembler.createTipProviderLineItem(entry, employeeDetails.id)
+      BillingReportAssembler.createTipProviderLineItem(entry, employeeDetails.id, employeeDetails)
     );
 
     return BillingReport.create({
@@ -148,6 +169,22 @@ export class BillingReportAssembler {
     });
   }
 
+  static #calculateProvisionVat(provisionAmount, employeeDetails, revenueHasVat, revenueVatRate) {
+    const isSmallBusiness = employeeDetails?.isSmallBusiness ?? false;
+
+    // Only extract VAT if: revenue itself has VAT AND employee is not Kleinunternehmer
+    if (!revenueHasVat || isSmallBusiness) {
+      return { provisionVatRate: 0, provisionVatAmount: 0, provisionGrossAmount: provisionAmount };
+    }
+
+    // The provision was calculated from gross revenue (VAT already baked in) → extract it
+    const vatRate = revenueVatRate || 19;
+    const provisionNetAmount = Math.round((provisionAmount / (1 + vatRate / 100)) * 100) / 100;
+    const provisionVatAmount = Math.round((provisionAmount - provisionNetAmount) * 100) / 100;
+
+    return { provisionVatRate: vatRate, provisionVatAmount, provisionGrossAmount: provisionAmount };
+  }
+
   static #getEffectiveOwnerProvision(entry, employeeDetails) {
     let baseProvision = 0;
 
@@ -158,8 +195,8 @@ export class BillingReportAssembler {
       baseProvision = employeeDetails.getProvisionRate(provisionType);
     }
 
-    const tipProviderDeduction = entry.tipProviderProvisionPercentage || 0;
-    return Math.max(0, baseProvision - tipProviderDeduction);
+    const tipProviderDeduction = Math.min(entry.totalTipProviderPercentage || 0, baseProvision);
+    return baseProvision - tipProviderDeduction;
   }
 
   static #inferProvisionType(categoryType) {

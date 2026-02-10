@@ -458,6 +458,32 @@
   border-color: #cbd5e1 !important;
 }
 
+/* Employee selector for company mode - prominent first-choice styling */
+.dialog-form .employee-selector-wrapper {
+  padding: var(--spacing-4);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 1.5px solid rgba(42, 82, 152, 0.15);
+  margin-bottom: var(--spacing-5);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dialog-form .employee-selector-wrapper .input-label {
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.dialog-form .employee-selector-wrapper:hover {
+  border-color: rgba(42, 82, 152, 0.25);
+  box-shadow: 0 2px 8px rgba(42, 82, 152, 0.06);
+}
+
+.dialog-form .employee-selector-wrapper .input-field:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(42, 82, 152, 0.12);
+}
+
 /* Smooth dialog appearance */
 .dialog-content {
   animation: dialogContentAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -524,4 +550,151 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   font-weight: var(--font-weight-medium);
+}
+
+/* ========================================
+   TIP PROVIDER MULTI-ROW SECTION
+   ======================================== */
+
+/* Section wrapper: visually grouped like employee-selector-wrapper */
+.tip-provider-section {
+  padding: var(--spacing-4);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 1.5px solid rgba(16, 39, 76, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tip-provider-section:has(.tip-provider-row) {
+  border-color: rgba(16, 39, 76, 0.12);
+}
+
+/* Section header: label + "optional" hint on same line */
+.tip-provider-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+}
+
+.tip-provider-section-header .input-label {
+  margin-bottom: 0;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.tip-provider-section-hint {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-text-muted, #94a3b8);
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Rows container */
+.tip-provider-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+/* Individual row: reuses dialog-form-row layout */
+.tip-provider-row.dialog-form-row {
+  align-items: flex-start;
+  margin-bottom: 0 !important;
+  animation: tipProviderRowFadeIn 0.2s ease-out;
+}
+
+/* Remove bottom margin from input-wrappers inside tip provider rows */
+.tip-provider-row .tp-row-field {
+  margin-bottom: 0 !important;
+}
+
+/* Ensure fields inside rows match the standard 48px height */
+.tip-provider-row .input-field {
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+/* Action column: aligns remove button with the input fields */
+.tp-row-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  height: 48px; /* Match input-field height */
+}
+
+/* Remove button: subtle, circular, aligned */
+.btn-remove-tip-provider {
+  background: #ffffff;
+  border: 1.5px solid rgba(16, 39, 76, 0.12);
+  color: var(--color-text-muted, #94a3b8);
+  cursor: pointer;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.btn-remove-tip-provider:hover {
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.btn-remove-tip-provider:active {
+  background: rgba(239, 68, 68, 0.12);
+  transform: scale(0.95);
+}
+
+/* Add button: subtle dashed outline, full width */
+.btn-add-tip-provider {
+  width: 100%;
+  background: transparent;
+  border: 1.5px dashed rgba(16, 39, 76, 0.15);
+  color: var(--color-text-secondary, #64748b);
+  cursor: pointer;
+  border-radius: var(--radius-xl, 12px);
+  padding: var(--spacing-2) var(--spacing-3);
+  min-height: 40px;
+  font-family: var(--font-family-secondary, inherit);
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+  transition: all 0.2s ease;
+}
+
+.btn-add-tip-provider:hover {
+  background: rgba(16, 39, 76, 0.03);
+  border-color: rgba(16, 39, 76, 0.25);
+  color: var(--color-primary, #10274c);
+}
+
+.btn-add-tip-provider:active {
+  transform: scale(0.99);
+}
+
+.btn-add-tip-provider.hidden {
+  display: none;
+}
+
+/* Slide-in animation for new rows */
+@keyframes tipProviderRowFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

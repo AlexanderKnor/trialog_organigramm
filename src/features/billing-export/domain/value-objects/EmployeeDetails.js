@@ -150,7 +150,7 @@ export class EmployeeDetails {
     const careerLevel = user.careerLevel || {};
 
     return new EmployeeDetails({
-      id: user.uid || user.id,
+      id: user.linkedNodeId || hierarchyNode?.id || user.uid || user.id,
       name: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
       email: user.email || '',
       phone: user.phone || '',

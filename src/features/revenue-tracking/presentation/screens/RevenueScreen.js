@@ -36,6 +36,7 @@ const COMPANY_COLUMNS = [
   { key: 'revenue', label: 'Umsatz', sortable: true },
   { key: 'companyProvision', label: 'Unternehmen', sortable: true },
   { key: 'status', label: 'Status', sortable: true },
+  { key: 'actions', label: '', sortable: false, className: 'th-actions' },
 ];
 
 export class RevenueScreen {
@@ -209,13 +210,13 @@ createElement('svg', {
       rightGroup.push(wifoImportBtn);
     }
 
-    // Only show add button for non-company view AND if user can edit
-    if (!this.#isCompanyView && canEdit) {
+    // Add button: employee view -> direct add, company view -> add with employee selector
+    if (canEdit) {
       const addBtn = new Button({
         label: 'Neuer Umsatz',
         variant: 'primary',
         icon: new Icon({ name: 'plus', size: 16 }),
-        onClick: () => this.#showAddDialog(),
+        onClick: () => this.#isCompanyView ? this.#showCompanyAddDialog() : this.#showAddDialog(),
       });
       rightGroup.push(addBtn.element);
     }
@@ -846,8 +847,12 @@ createElement('svg', {
              e.status?.type !== REVENUE_STATUS_TYPES.CANCELLED,
     );
 
+    const employeeId = this.#employeeId;
     const totalTipProviderProvision = activeEntries.reduce(
-      (sum, entry) => sum + (entry.tipProviderProvisionAmount || 0),
+      (sum, entry) => {
+        const allocation = (entry.tipProviders || []).find((tp) => tp.id === employeeId);
+        return sum + (allocation ? allocation.calculateAmount(entry.grossAmount || entry.provisionAmount) : (entry.tipProviderProvisionAmount || 0));
+      },
       0
     );
 
@@ -1162,6 +1167,7 @@ createElement('svg', {
         this.#formatCurrency(entry.companyProvisionAmount),
       ]),
       createElement('td', { className: 'td-status' }, [statusDropdown]),
+      this.#renderCompanyActionsCell(entry),
     ]);
 
     // Cascade row (only if expanded)
@@ -1176,7 +1182,7 @@ createElement('svg', {
       if (isClosing) containerClasses.push('cascade-closing');
 
       cascadeRow = createElement('tr', { className: cascadeClasses.join(' ') }, [
-        createElement('td', { colspan: '8', className: 'cascade-cell' }, [
+        createElement('td', { colspan: '9', className: 'cascade-cell' }, [
           createElement('div', { className: containerClasses.join(' ') }, [
             cascade.element,
           ]),
@@ -1275,7 +1281,7 @@ createElement('svg', {
         if (isExcluded) cascadeClasses.push('cascade-rejected');
 
         const cascadeRow = createElement('tr', { className: cascadeClasses.join(' ') }, [
-          createElement('td', { colspan: '8', className: 'cascade-cell' }, [
+          createElement('td', { colspan: '9', className: 'cascade-cell' }, [
             createElement('div', { className: 'cascade-container' }, [
               cascade.element,
             ]),
@@ -1397,6 +1403,91 @@ createElement('svg', {
     menu.classList.remove('open');
   }
 
+  #renderCompanyActionsCell(companyEntry) {
+    const status = companyEntry.originalEntry.status;
+    const isEditable = status.type === REVENUE_STATUS_TYPES.SUBMITTED;
+
+    if (!isEditable) {
+      return createElement('td', { className: 'td-actions' }, [
+        createElement('div', { className: 'action-buttons' }, [
+          createElement('span', {
+            className: 'action-locked',
+            title: 'Dieser Eintrag wurde von Trialog bearbeitet und kann nicht mehr geändert werden',
+          }, ['\u{1F512}']),
+        ]),
+      ]);
+    }
+
+    const editIcon = new Icon({ name: 'edit', size: 16 });
+    const editBtn = createElement('button', {
+      className: 'action-btn action-btn-edit',
+      type: 'button',
+      title: 'Bearbeiten',
+    }, [editIcon.element]);
+
+    editBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.#handleCompanyEdit(companyEntry);
+    });
+
+    const deleteIcon = new Icon({ name: 'trash', size: 16 });
+    const deleteBtn = createElement('button', {
+      className: 'action-btn action-btn-delete',
+      type: 'button',
+      title: 'Löschen',
+    }, [deleteIcon.element]);
+
+    deleteBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.#handleCompanyDelete(companyEntry);
+    });
+
+    return createElement('td', { className: 'td-actions' }, [
+      createElement('div', { className: 'action-buttons' }, [editBtn, deleteBtn]),
+    ]);
+  }
+
+  async #handleCompanyEdit(companyEntry) {
+    const originalEntry = companyEntry.originalEntry;
+    const dialog = new AddRevenueDialog({
+      entry: originalEntry,
+      revenueService: this.#revenueService,
+      hierarchyService: this.#hierarchyService,
+      companyMode: true,
+      employeeId: this.#employeeId,
+      onSave: async (data) => {
+        try {
+          await this.#revenueService.updateEntry(data.id, data);
+          await this.#loadData();
+          dialog.remove();
+        } catch (error) {
+          Logger.error('Failed to update company entry:', error);
+        }
+      },
+      onCancel: () => dialog.remove(),
+    });
+
+    dialog.show();
+  }
+
+  async #handleCompanyDelete(companyEntry) {
+    const originalEntry = companyEntry.originalEntry;
+    const confirmed = window.confirm(
+      `Möchten Sie den Eintrag für "${originalEntry.customerName}" wirklich löschen?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await this.#revenueService.deleteEntry(originalEntry.id);
+      await this.#loadData();
+    } catch (error) {
+      Logger.error('Failed to delete company entry:', error);
+    }
+  }
+
   #renderCompanyRevenueAmountCell(entry, alignment = 'text-right') {
     if (entry.hasVAT) {
       // Show Netto + Brutto for accounting
@@ -1469,8 +1560,10 @@ createElement('svg', {
   }
 
   #renderTipProviderRow(entry) {
-    const tipProviderPercent = entry.tipProviderProvisionPercentage || 0;
-    const tipProviderAmount = entry.tipProviderProvisionAmount || 0;
+    // Find this employee's specific allocation from the tipProviders array
+    const allocation = (entry.tipProviders || []).find((tp) => tp.id === this.#employeeId);
+    const tipProviderPercent = allocation ? allocation.provisionPercentage : (entry.tipProviderProvisionPercentage || 0);
+    const tipProviderAmount = allocation ? allocation.calculateAmount(entry.grossAmount || entry.provisionAmount) : (entry.tipProviderProvisionAmount || 0);
     const ownerName = entry.hierarchySnapshot?.ownerName || 'Unbekannt';
     const status = entry.status;
     const statusClass = `status-${status.type}`;
@@ -1531,7 +1624,7 @@ createElement('svg', {
 
     return entries.reduce((sum, entry) => {
       const provision = this.#getProvisionForCategory(entry.category.type);
-      return sum + entry.provisionAmount * (provision / 100);
+      return sum + (entry.grossAmount || entry.provisionAmount) * (provision / 100);
     }, 0);
   }
 
@@ -1563,6 +1656,28 @@ createElement('svg', {
           dialog.remove();
         } catch (error) {
           Logger.error('Failed to add entry:', error);
+        }
+      },
+      onCancel: () => dialog.remove(),
+    });
+
+    dialog.show();
+  }
+
+  #showCompanyAddDialog() {
+    const dialog = new AddRevenueDialog({
+      revenueService: this.#revenueService,
+      hierarchyService: this.#hierarchyService,
+      companyMode: true,
+      employeeId: this.#employeeId,
+      onSave: async (data) => {
+        try {
+          const targetEmployeeId = data.employeeId || this.#employeeId;
+          await this.#revenueService.addEntry(targetEmployeeId, data);
+          await this.#loadData();
+          dialog.remove();
+        } catch (error) {
+          Logger.error('Failed to add company entry:', error);
         }
       },
       onCancel: () => dialog.remove(),

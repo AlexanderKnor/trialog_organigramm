@@ -83,6 +83,22 @@ export class BillingReport {
            this.#tipProviderSummary.totalProvision;
   }
 
+  get totalProvisionVat() {
+    return this.#ownSummary.totalProvisionVat +
+           this.#hierarchySummary.totalProvisionVat +
+           this.#tipProviderSummary.totalProvisionVat;
+  }
+
+  get totalProvisionGross() {
+    return this.#ownSummary.totalProvisionGross +
+           this.#hierarchySummary.totalProvisionGross +
+           this.#tipProviderSummary.totalProvisionGross;
+  }
+
+  get isSmallBusiness() {
+    return this.#employeeDetails?.isSmallBusiness ?? false;
+  }
+
   get hasOwnRevenue() {
     return this.#ownLineItems.length > 0;
   }

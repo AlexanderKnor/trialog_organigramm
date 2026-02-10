@@ -199,11 +199,11 @@ export class RevenueTable {
       case 'employeePercent':
         return this.#getEmployeeProvision(entry);
       case 'employeeProvision':
-        return entry.provisionAmount * (this.#getEmployeeProvision(entry) / 100);
+        return (entry.grossAmount || entry.provisionAmount) * (this.#getEmployeeProvision(entry) / 100);
       case 'tipProvider':
-        return entry.tipProviderName?.toLowerCase() || '';
+        return (entry.tipProviders || []).map((tp) => tp.name).join(', ').toLowerCase() || '';
       case 'tipProviderProvision':
-        return entry.tipProviderProvisionPercentage || 0;
+        return entry.totalTipProviderPercentage || 0;
       case 'status':
         return entry.status?.displayName?.toLowerCase() || '';
       default:
@@ -218,7 +218,7 @@ export class RevenueTable {
 
   #renderRow(entry) {
     const employeeProvision = this.#getEmployeeProvision(entry);
-    const provisionAmount = entry.provisionAmount * (employeeProvision / 100);
+    const provisionAmount = (entry.grossAmount || entry.provisionAmount) * (employeeProvision / 100);
     const isExcluded = entry.status?.type === REVENUE_STATUS_TYPES.REJECTED ||
                        entry.status?.type === REVENUE_STATUS_TYPES.CANCELLED;
 
@@ -346,24 +346,43 @@ export class RevenueTable {
   }
 
   #renderTipProviderCell(entry) {
-    const tipProviderName = entry.tipProviderName || '-';
+    const tipProviders = entry.tipProviders || [];
+    if (tipProviders.length === 0) {
+      return createElement('td', { className: 'revenue-table-td' }, [
+        createElement('span', { className: 'tip-provider-name' }, ['-']),
+      ]);
+    }
+
+    const names = tipProviders.map((tp) => tp.name).join(', ');
     return createElement('td', { className: 'revenue-table-td' }, [
-      createElement('span', { className: 'tip-provider-name' }, [tipProviderName]),
+      createElement('span', {
+        className: 'tip-provider-name',
+        title: names,
+      }, [names]),
     ]);
   }
 
   #renderTipProviderProvisionCell(entry) {
-    const tipProviderPercent = entry.tipProviderProvisionPercentage || 0;
+    const totalPercent = entry.totalTipProviderPercentage || 0;
 
-    if (tipProviderPercent === 0) {
+    if (totalPercent === 0) {
       return createElement('td', { className: 'revenue-table-td text-right' }, [
         createElement('span', { className: 'percent-value muted' }, ['-']),
       ]);
     }
 
+    // Build tooltip with per-provider breakdown
+    const tipProviders = entry.tipProviders || [];
+    const tooltip = tipProviders.length > 1
+      ? tipProviders.map((tp) => `${tp.name}: ${tp.provisionPercentage}%`).join('\n')
+      : '';
+
     return createElement('td', { className: 'revenue-table-td text-right' }, [
-      createElement('span', { className: 'percent-value tip-provider' }, [
-        `${tipProviderPercent.toFixed(1)}%`,
+      createElement('span', {
+        className: 'percent-value tip-provider',
+        title: tooltip,
+      }, [
+        `${totalPercent.toFixed(1)}%`,
       ]),
     ]);
   }
@@ -562,7 +581,7 @@ export class RevenueTable {
     }
 
     // Deduct tip provider provision if present
-    const tipProviderPercentage = entry.tipProviderProvisionPercentage || 0;
+    const tipProviderPercentage = entry.totalTipProviderPercentage || 0;
     return Math.max(0, baseProvision - tipProviderPercentage);
   }
 
