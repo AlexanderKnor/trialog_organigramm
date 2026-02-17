@@ -586,6 +586,7 @@ export class AddEmployeeWizard {
       { value: 'financial_broker', label: 'Finanzanlagenvermittler (§34f GewO)' },
       { value: 'real_estate_broker', label: 'Immobilienmakler (§34c GewO)' },
       { value: 'mortgage_broker', label: 'Darlehensvermittler (§34c GewO)' },
+      { value: 'real_estate_loan_broker', label: 'Immobiliardarlehensvermittler (§34i GewO)' },
     ];
 
     const qualCheckboxes = qualifications.map(qual =>

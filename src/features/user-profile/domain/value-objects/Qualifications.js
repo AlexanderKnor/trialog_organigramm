@@ -107,5 +107,6 @@ export const IHK_QUALIFICATIONS = {
   FINANCIAL_ADVISOR: 'Honorar-Finanzanlagenberater (§34h GewO)',
   REAL_ESTATE_BROKER: 'Immobilienmakler (§34c GewO)',
   MORTGAGE_BROKER: 'Darlehensvermittler (§34c GewO)',
+  REAL_ESTATE_LOAN_BROKER: 'Immobiliardarlehensvermittler (§34i GewO)',
   BUILDING_FINANCE_ADVISOR: 'Baufinanzierungsberater',
 };
