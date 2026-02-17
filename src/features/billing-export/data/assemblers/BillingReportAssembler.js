@@ -141,7 +141,7 @@ export class BillingReportAssembler {
         if (status === REVENUE_STATUS_TYPES.REJECTED || status === REVENUE_STATUS_TYPES.CANCELLED) {
           return false;
         }
-        return !BillingExclusionRule.shouldExcludeEntry(entry);
+        return !BillingExclusionRule.shouldExcludeEntry(entry, employeeDetails.hasDirectPaymentGewo);
       });
     };
 

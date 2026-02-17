@@ -4,6 +4,18 @@
  * Contains personal info, address, bank details, tax info, and career level
  */
 
+import { IHK_QUALIFICATIONS } from '../../../user-profile/domain/value-objects/Qualifications.js';
+
+/**
+ * IHK qualifications under §34c/§34i GewO where the product provider
+ * pays the partner directly (no system billing).
+ */
+const DIRECT_PAYMENT_QUALIFICATIONS = [
+  IHK_QUALIFICATIONS.REAL_ESTATE_BROKER,
+  IHK_QUALIFICATIONS.MORTGAGE_BROKER,
+  IHK_QUALIFICATIONS.REAL_ESTATE_LOAN_BROKER,
+];
+
 export class EmployeeDetails {
   #id;
   #name;
@@ -34,6 +46,9 @@ export class EmployeeDetails {
   #insuranceProvision;
   #realEstateProvision;
 
+  // GewO qualification flag
+  #hasDirectPaymentGewo;
+
   constructor({
     id,
     name,
@@ -55,6 +70,7 @@ export class EmployeeDetails {
     bankProvision = 0,
     insuranceProvision = 0,
     realEstateProvision = 0,
+    hasDirectPaymentGewo = false,
   }) {
     this.#id = id;
     this.#name = name;
@@ -76,6 +92,7 @@ export class EmployeeDetails {
     this.#bankProvision = bankProvision;
     this.#insuranceProvision = insuranceProvision;
     this.#realEstateProvision = realEstateProvision;
+    this.#hasDirectPaymentGewo = hasDirectPaymentGewo;
   }
 
   get id() { return this.#id; }
@@ -129,6 +146,7 @@ export class EmployeeDetails {
   get bankProvision() { return this.#bankProvision; }
   get insuranceProvision() { return this.#insuranceProvision; }
   get realEstateProvision() { return this.#realEstateProvision; }
+  get hasDirectPaymentGewo() { return this.#hasDirectPaymentGewo; }
 
   getProvisionRate(type) {
     switch (type) {
@@ -148,6 +166,10 @@ export class EmployeeDetails {
     const bankInfo = user.bankInfo || {};
     const taxInfo = user.taxInfo || {};
     const careerLevel = user.careerLevel || {};
+    const ihkQualifications = user.qualifications?.ihkQualifications || [];
+    const hasDirectPaymentGewo = ihkQualifications.some(
+      (q) => DIRECT_PAYMENT_QUALIFICATIONS.includes(q),
+    );
 
     return new EmployeeDetails({
       id: user.linkedNodeId || hierarchyNode?.id || user.uid || user.id,
@@ -170,6 +192,7 @@ export class EmployeeDetails {
       bankProvision: hierarchyNode?.bankProvision || careerLevel.bankProvision || 0,
       insuranceProvision: hierarchyNode?.insuranceProvision || careerLevel.insuranceProvision || 0,
       realEstateProvision: hierarchyNode?.realEstateProvision || careerLevel.realEstateProvision || 0,
+      hasDirectPaymentGewo,
     });
   }
 
@@ -220,6 +243,7 @@ export class EmployeeDetails {
       bankProvision: this.#bankProvision,
       insuranceProvision: this.#insuranceProvision,
       realEstateProvision: this.#realEstateProvision,
+      hasDirectPaymentGewo: this.#hasDirectPaymentGewo,
     };
   }
 

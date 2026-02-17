@@ -45,12 +45,15 @@ export class BillingExclusionRule {
 
   /**
    * Determine if a category+product combination should be excluded from billing.
+   * Exclusion only applies when the employee holds §34c or §34i GewO registrations.
    * @param {string} categoryType
    * @param {string} productName
+   * @param {boolean} hasDirectPaymentGewo - true if employee has §34c/§34i
    * @returns {boolean} true if the entry must be excluded
    */
-  static shouldExclude(categoryType, productName) {
+  static shouldExclude(categoryType, productName, hasDirectPaymentGewo = false) {
     if (!categoryType) return false;
+    if (!hasDirectPaymentGewo) return false;
 
     // Only whitelisted combinations pass through to billing
     return !BillingExclusionRule.isIncluded(categoryType, productName);
@@ -75,10 +78,11 @@ export class BillingExclusionRule {
    * Convenience method: determine if a full entry object should be excluded.
    * Works with RevenueEntry, HierarchicalRevenueEntry, and tip-provider entries.
    * @param {object} entry
+   * @param {boolean} hasDirectPaymentGewo - true if employee has §34c/§34i
    * @returns {boolean}
    */
-  static shouldExcludeEntry(entry) {
+  static shouldExcludeEntry(entry, hasDirectPaymentGewo = false) {
     const { categoryType, productName } = BillingExclusionRule.extractEntryData(entry);
-    return BillingExclusionRule.shouldExclude(categoryType, productName);
+    return BillingExclusionRule.shouldExclude(categoryType, productName, hasDirectPaymentGewo);
   }
 }
