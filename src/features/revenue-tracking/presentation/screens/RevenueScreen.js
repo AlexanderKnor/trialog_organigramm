@@ -221,17 +221,6 @@ createElement('svg', {
       rightGroup.push(addBtn.element);
     }
 
-    // Billing export button (for admins viewing any employee OR employee viewing own)
-    if (!this.#isCompanyView && (authService.isAdmin() || this.#canEditRevenue())) {
-      const exportBtn = new Button({
-        label: 'Abrechnung',
-        variant: 'secondary',
-        icon: new Icon({ name: 'download', size: 16 }),
-        onClick: () => this.#showBillingExportDialog(this.#employeeId, this.#employee?.name),
-      });
-      rightGroup.push(exportBtn.element);
-    }
-
     return createElement('div', { className: 'revenue-toolbar' }, [
       createElement('div', { className: 'toolbar-group' }, [dateRangePicker.element]),
       createElement('div', { className: 'toolbar-group' }, rightGroup),

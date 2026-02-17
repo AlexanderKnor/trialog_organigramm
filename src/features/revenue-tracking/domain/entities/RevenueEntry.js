@@ -39,6 +39,7 @@ export class RevenueEntry {
   #vatRate;
   #source;
   #sourceReference;
+  #manualBilling;
 
   constructor({
     id = null,
@@ -72,6 +73,7 @@ export class RevenueEntry {
     vatRate = 19,
     source = null,
     sourceReference = null,
+    manualBilling = false,
   }) {
     this.#id = id || generateUUID();
     this.#employeeId = employeeId;
@@ -125,6 +127,9 @@ export class RevenueEntry {
     // Source tracking for import duplicate detection
     this.#source = source ?? null;
     this.#sourceReference = sourceReference ?? null;
+
+    // Manual billing override (bypasses BillingExclusionRule)
+    this.#manualBilling = Boolean(manualBilling);
   }
 
   /**
@@ -325,6 +330,7 @@ export class RevenueEntry {
 
   get source() { return this.#source; }
   get sourceReference() { return this.#sourceReference; }
+  get manualBilling() { return this.#manualBilling; }
 
   // === Derived ===
 
@@ -434,6 +440,11 @@ export class RevenueEntry {
       this.#validateTipProviders(this.#tipProviders, this.#employeeId);
     }
 
+    // Manual billing override
+    if (updates.manualBilling !== undefined) {
+      this.#manualBilling = Boolean(updates.manualBilling);
+    }
+
     // VAT fields
     if (updates.hasVAT !== undefined) {
       this.#hasVAT = Boolean(updates.hasVAT);
@@ -488,6 +499,8 @@ export class RevenueEntry {
       // Source tracking for import duplicate detection
       source: this.#source,
       sourceReference: this.#sourceReference,
+      // Manual billing override
+      manualBilling: this.#manualBilling,
     };
   }
 
@@ -534,6 +547,8 @@ export class RevenueEntry {
       // Source tracking (may be null for legacy/manual entries)
       source: json.source ?? null,
       sourceReference: json.sourceReference ?? null,
+      // Manual billing override (default false for backward compatibility)
+      manualBilling: json.manualBilling ?? false,
     });
   }
 }

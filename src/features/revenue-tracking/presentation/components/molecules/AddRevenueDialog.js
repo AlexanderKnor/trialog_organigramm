@@ -40,6 +40,7 @@ export class AddRevenueDialog {
   #contractNumberInput;
   #provisionAmountInput;
   #vatCheckbox;
+  #manualBillingCheckbox;
   #notesInput;
   #trackingModeRadios; // Track revenue vs provision
   #employeeSelect; // Employee selector for company mode
@@ -217,6 +218,10 @@ export class AddRevenueDialog {
       this.#vatCheckbox.checked = this.#entry.hasVAT;
     }
 
+    if (this.#entry.manualBilling !== undefined) {
+      this.#manualBillingCheckbox.checked = this.#entry.manualBilling;
+    }
+
     this.#isPopulatingForm = false;
   }
 
@@ -362,6 +367,12 @@ export class AddRevenueDialog {
       onchange: (e) => this.#onVATChange(e.target.checked),
     });
 
+    this.#manualBillingCheckbox = createElement('input', {
+      type: 'checkbox',
+      id: 'revenue-manual-billing-checkbox',
+      className: 'vat-checkbox-input',
+    });
+
     this.#notesInput = new Input({ label: 'Notizen', placeholder: 'Optionale Notizen...' });
 
     this.#employeeSelect = createElement('select', {
@@ -435,6 +446,18 @@ export class AddRevenueDialog {
       ]),
     ]);
 
+    const manualBillingWrapper = createElement('div', { className: 'vat-checkbox-wrapper' }, [
+      createElement('label', {
+        className: 'vat-checkbox-label',
+        htmlFor: 'revenue-manual-billing-checkbox',
+      }, [
+        this.#manualBillingCheckbox,
+        createElement('span', { className: 'vat-checkbox-text' }, [
+          'Manuell abrechnen \u2014 Ausschluss von der Abrechnung aufheben',
+        ]),
+      ]),
+    ]);
+
     const employeeSelectorWrapper = createElement('div', {
       className: `input-wrapper employee-selector-wrapper ${this.#companyMode ? '' : 'hidden'}`,
     }, [
@@ -470,6 +493,7 @@ export class AddRevenueDialog {
         trackingModeWrapper,
         dateAndContractRow,
         vatCheckboxWrapper,
+        manualBillingWrapper,
         tipProviderSection,
         this.#notesInput.element,
       ]),
@@ -1153,6 +1177,7 @@ export class AddRevenueDialog {
       notes: this.#notesInput.value.trim(),
       hasVAT: this.#vatCheckbox.checked,
       vatRate: 19,
+      manualBilling: this.#manualBillingCheckbox.checked,
       // Multi-tip-provider
       tipProviders,
     };

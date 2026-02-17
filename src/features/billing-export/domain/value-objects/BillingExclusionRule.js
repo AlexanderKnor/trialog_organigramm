@@ -100,7 +100,8 @@ export class BillingExclusionRule {
     const categoryType = sourceEntry.category?.type || sourceEntry.category;
     const productName = sourceEntry.product?.name || sourceEntry.product;
     const entrySource = sourceEntry.source || null;
-    return { categoryType, productName, entrySource };
+    const manualBilling = sourceEntry.manualBilling || false;
+    return { categoryType, productName, entrySource, manualBilling };
   }
 
   /**
@@ -111,7 +112,11 @@ export class BillingExclusionRule {
    * @returns {boolean}
    */
   static shouldExcludeEntry(entry, hasDirectPaymentGewo = false) {
-    const { categoryType, productName, entrySource } = BillingExclusionRule.extractEntryData(entry);
-    return BillingExclusionRule.shouldExclude(categoryType, productName, hasDirectPaymentGewo, entrySource);
+    const { categoryType, productName, entrySource, manualBilling } =
+      BillingExclusionRule.extractEntryData(entry);
+    if (manualBilling) return false;
+    return BillingExclusionRule.shouldExclude(
+      categoryType, productName, hasDirectPaymentGewo, entrySource,
+    );
   }
 }
