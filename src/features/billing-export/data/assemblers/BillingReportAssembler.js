@@ -7,6 +7,7 @@ import { EmployeeDetails } from '../../domain/value-objects/EmployeeDetails.js';
 import { ReportLineItem, LINE_ITEM_SOURCES } from '../../domain/entities/ReportLineItem.js';
 import { BillingReport } from '../../domain/entities/BillingReport.js';
 import { REVENUE_STATUS_TYPES } from '../../../revenue-tracking/domain/value-objects/RevenueStatus.js';
+import { BillingExclusionRule } from '../../domain/value-objects/BillingExclusionRule.js';
 
 export class BillingReportAssembler {
   static createEmployeeDetails(user, hierarchyNode = null) {
@@ -133,18 +134,20 @@ export class BillingReportAssembler {
     generatedBy = null,
     generatedByName = null,
   }) {
-    const filterActiveEntries = (entries) => {
+    const filterBillableEntries = (entries) => {
       return entries.filter(entry => {
         const status = entry.status?.type || entry.status ||
                       entry.originalEntry?.status?.type || entry.originalEntry?.status;
-        return status !== REVENUE_STATUS_TYPES.REJECTED &&
-               status !== REVENUE_STATUS_TYPES.CANCELLED;
+        if (status === REVENUE_STATUS_TYPES.REJECTED || status === REVENUE_STATUS_TYPES.CANCELLED) {
+          return false;
+        }
+        return !BillingExclusionRule.shouldExcludeEntry(entry);
       });
     };
 
-    const activeOwnEntries = filterActiveEntries(ownEntries);
-    const activeHierarchyEntries = filterActiveEntries(hierarchyEntries);
-    const activeTipProviderEntries = filterActiveEntries(tipProviderEntries);
+    const activeOwnEntries = filterBillableEntries(ownEntries);
+    const activeHierarchyEntries = filterBillableEntries(hierarchyEntries);
+    const activeTipProviderEntries = filterBillableEntries(tipProviderEntries);
 
     const ownLineItems = activeOwnEntries.map(entry =>
       BillingReportAssembler.createOwnLineItem(entry, employeeDetails)

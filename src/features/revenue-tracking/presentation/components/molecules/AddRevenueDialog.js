@@ -54,6 +54,7 @@ export class AddRevenueDialog {
   #currentCategoryData;
   #allEmployees;
   #currentProducts; // Full product objects with isVatExempt
+  #isPopulatingForm = false; // Guard: prevents product default during initial edit population
 
   constructor(props = {}) {
     this.#entry = props.entry || null;
@@ -142,6 +143,7 @@ export class AddRevenueDialog {
   async #populateForm() {
     if (!this.#entry) return;
 
+    this.#isPopulatingForm = true;
     this.#customerNameInput.setValue(this.#entry.customerName || '');
 
     const addr = this.#entry.customerAddress || {};
@@ -154,8 +156,27 @@ export class AddRevenueDialog {
     this.#categorySelect.value = categoryType;
     await this.#onCategoryChange(categoryType);
 
-    if (this.#entry.product?.name) {
-      this.#productSelect.value = this.#entry.product.name;
+    if (this.#entry.product) {
+      const entryProductId = this.#entry.product.id;
+      const entryProductName = this.#entry.product.name;
+
+      // Match by ID first (catalog products), then fall back to name
+      const matchOption = Array.from(this.#productSelect.options).find(
+        (opt) => opt.dataset.productId === entryProductId || opt.dataset.productName === entryProductName,
+      );
+      if (matchOption) {
+        this.#productSelect.value = matchOption.value;
+        this.#formData.product = { id: matchOption.dataset.productId, name: matchOption.dataset.productName };
+
+        // Update providers for the selected product
+        const fullProduct = this.#currentProducts.find(
+          (p) => (p.id || p.name) === matchOption.dataset.productId,
+        );
+        this.#updateVATCheckboxState(fullProduct);
+        if (matchOption.dataset.productId && matchOption.dataset.productId !== matchOption.dataset.productName) {
+          await this.#updateProviderOptionsForProduct(matchOption.dataset.productId);
+        }
+      }
     }
 
     if (this.#entry.productProvider?.name) {
@@ -195,6 +216,8 @@ export class AddRevenueDialog {
     if (this.#entry.hasVAT !== undefined) {
       this.#vatCheckbox.checked = this.#entry.hasVAT;
     }
+
+    this.#isPopulatingForm = false;
   }
 
   #render() {
@@ -900,7 +923,8 @@ export class AddRevenueDialog {
       this.#productSelect.appendChild(option);
     });
 
-    if (products.length > 0) {
+    // During initial edit population, #populateForm() handles product/provider selection
+    if (products.length > 0 && !this.#isPopulatingForm) {
       this.#formData.product = products[0];
       this.#updateVATCheckboxState(products[0]);
       if (products[0].id) {

@@ -6,3 +6,4 @@ export { ReportPeriod } from './ReportPeriod.js';
 export { ReportMetadata } from './ReportMetadata.js';
 export { ProvisionSummary } from './ProvisionSummary.js';
 export { EmployeeDetails } from './EmployeeDetails.js';
+export { BillingExclusionRule } from './BillingExclusionRule.js';
