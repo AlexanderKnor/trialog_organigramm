@@ -9,6 +9,7 @@ import { Button } from '../../../../hierarchy-tracking/presentation/components/a
 import { PeriodSelector } from './PeriodSelector.js';
 import { BillingReportService } from '../../../domain/services/BillingReportService.js';
 import { PdfGeneratorService } from '../../../domain/services/PdfGeneratorService.js';
+import { BillingFinalizationService } from '../../../domain/services/BillingFinalizationService.js';
 
 export class BillingExportDialog {
   #element;
@@ -22,6 +23,7 @@ export class BillingExportDialog {
   #loadingOverlay;
   #billingReportService;
   #pdfGeneratorService;
+  #billingFinalizationService;
 
   constructor(props = {}) {
     this.#props = {
@@ -45,6 +47,7 @@ export class BillingExportDialog {
       this.#props.hierarchyService
     );
     this.#pdfGeneratorService = new PdfGeneratorService();
+    this.#billingFinalizationService = new BillingFinalizationService(this.#props.revenueService);
 
     this.#element = this.#render();
   }
@@ -214,7 +217,14 @@ export class BillingExportDialog {
 
       if (report.isEmpty) {
         this.#setLoading(false);
-        alert('Keine Umsätze im ausgewählten Zeitraum gefunden.');
+        if (report.hasExcludedEntries) {
+          alert(
+            `Es sind ${report.excludedEntryCount} Umsätze im Zeitraum vorhanden, ` +
+            'jedoch sind alle von der Abrechnung ausgeschlossen (Direktzahlung durch Produktgeber).',
+          );
+        } else {
+          alert('Keine Umsätze im ausgewählten Zeitraum gefunden.');
+        }
         return;
       }
 
@@ -224,6 +234,12 @@ export class BillingExportDialog {
 
       Logger.log('PDF created, downloading:', fileName);
       this.#pdfGeneratorService.downloadPdf(blob, fileName);
+
+      // Finalize: transition SUBMITTED -> PROVISIONED for own entries
+      const updatedCount = await this.#billingFinalizationService.finalizeReport(report);
+      if (updatedCount > 0) {
+        Logger.log(`${updatedCount} entries transitioned to PROVISIONED`);
+      }
 
       this.#setLoading(false);
 

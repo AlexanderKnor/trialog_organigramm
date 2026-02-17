@@ -50,6 +50,17 @@ export class LocalRevenueRepository extends IRevenueRepository {
     return data.map((item) => RevenueEntry.fromJSON(item));
   }
 
+  async batchUpdateStatus(updates) {
+    for (const { entryId, status } of updates) {
+      const data = await this.#dataSource.findById(entryId);
+      if (data) {
+        data.status = status;
+        data.updatedAt = new Date().toISOString();
+        await this.#dataSource.update(data);
+      }
+    }
+  }
+
   async getNextCustomerNumber(employeeId) {
     const maxNumber = await this.#dataSource.getMaxCustomerNumber(employeeId);
     return maxNumber + 1;

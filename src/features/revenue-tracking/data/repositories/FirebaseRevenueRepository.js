@@ -56,6 +56,10 @@ export class FirebaseRevenueRepository extends IRevenueRepository {
     return data.map((item) => RevenueEntry.fromJSON(item));
   }
 
+  async batchUpdateStatus(updates) {
+    await this.#dataSource.batchUpdateStatus(updates);
+  }
+
   async getNextCustomerNumber(employeeId) {
     const maxNumber = await this.#dataSource.getMaxCustomerNumber(employeeId);
     return maxNumber + 1;

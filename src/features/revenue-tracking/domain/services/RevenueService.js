@@ -61,6 +61,19 @@ export class RevenueService {
     return entry;
   }
 
+  async batchUpdateEntryStatus(entryIds, newStatus) {
+    if (!entryIds || entryIds.length === 0) return;
+
+    if (!Object.values(REVENUE_STATUS_TYPES).includes(newStatus)) {
+      throw new Error(`Invalid status: ${newStatus}`);
+    }
+
+    const updates = entryIds.map(entryId => ({ entryId, status: newStatus }));
+    await this.#revenueRepository.batchUpdateStatus(updates);
+
+    Logger.log(`Batch updated ${updates.length} entries to status: ${newStatus}`);
+  }
+
   async deleteEntry(entryId) {
     await this.#revenueRepository.delete(entryId);
   }

@@ -138,7 +138,7 @@ export class BillingReportAssembler {
       return entries.filter(entry => {
         const status = entry.status?.type || entry.status ||
                       entry.originalEntry?.status?.type || entry.originalEntry?.status;
-        if (status === REVENUE_STATUS_TYPES.REJECTED || status === REVENUE_STATUS_TYPES.CANCELLED) {
+        if (status !== REVENUE_STATUS_TYPES.SUBMITTED && status !== REVENUE_STATUS_TYPES.PROVISIONED) {
           return false;
         }
         return !BillingExclusionRule.shouldExcludeEntry(entry, employeeDetails.hasDirectPaymentGewo);
@@ -148,6 +148,10 @@ export class BillingReportAssembler {
     const activeOwnEntries = filterBillableEntries(ownEntries);
     const activeHierarchyEntries = filterBillableEntries(hierarchyEntries);
     const activeTipProviderEntries = filterBillableEntries(tipProviderEntries);
+
+    const totalInputCount = ownEntries.length + hierarchyEntries.length + tipProviderEntries.length;
+    const totalActiveCount = activeOwnEntries.length + activeHierarchyEntries.length + activeTipProviderEntries.length;
+    const excludedEntryCount = totalInputCount - totalActiveCount;
 
     const ownLineItems = activeOwnEntries.map(entry =>
       BillingReportAssembler.createOwnLineItem(entry, employeeDetails)
@@ -167,6 +171,7 @@ export class BillingReportAssembler {
       ownLineItems,
       hierarchyLineItems,
       tipProviderLineItems,
+      excludedEntryCount,
       generatedBy,
       generatedByName,
     });

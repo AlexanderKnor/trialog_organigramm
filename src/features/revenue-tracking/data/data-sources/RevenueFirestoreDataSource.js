@@ -256,6 +256,35 @@ export class RevenueFirestoreDataSource {
     }
   }
 
+  async batchUpdateStatus(updates) {
+    try {
+      if (!updates || updates.length === 0) return;
+
+      const firestore = this.#getFirestore();
+      const { doc, writeBatch, serverTimestamp } = await this.#importFirestoreHelpers();
+
+      const BATCH_LIMIT = 500;
+      for (let i = 0; i < updates.length; i += BATCH_LIMIT) {
+        const chunk = updates.slice(i, i + BATCH_LIMIT);
+        const batch = writeBatch(firestore);
+
+        for (const { entryId, status } of chunk) {
+          const docRef = doc(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES, entryId);
+          batch.update(docRef, {
+            status,
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        await batch.commit();
+      }
+
+      Logger.log(`Batch updated ${updates.length} revenue entry statuses`);
+    } catch (error) {
+      throw new StorageError(`Failed to batch update revenue entry statuses: ${error.message}`);
+    }
+  }
+
   async getMaxCustomerNumber(employeeId) {
     try {
       const entries = await this.findByEmployeeId(employeeId);
