@@ -5,6 +5,7 @@
  */
 
 import { ValidationError } from '../../../../core/errors/index.js';
+import { roundCurrency } from '../../../../core/utils/index.js';
 
 export class TipProviderAllocation {
   #id;
@@ -48,7 +49,7 @@ export class TipProviderAllocation {
    * Calculate the tip provider's absolute amount from a base revenue amount
    */
   calculateAmount(baseAmount) {
-    return Math.round(baseAmount * (this.#provisionPercentage / 100) * 100) / 100;
+    return roundCurrency(baseAmount * (this.#provisionPercentage / 100));
   }
 
   /**

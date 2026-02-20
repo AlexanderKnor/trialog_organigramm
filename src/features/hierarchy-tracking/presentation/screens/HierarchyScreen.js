@@ -6,6 +6,10 @@
 import { createElement, clearElement, getElement } from '../../../../core/utils/index.js';
 import { authService } from '../../../../core/auth/index.js';
 import { APP_CONFIG } from '../../../../core/config/app.config.js';
+import {
+  GESCHAEFTSFUEHRER_IDS,
+  getGeschaeftsfuehrerConfig,
+} from '../../../../core/config/geschaeftsfuehrer.config.js';
 import { HierarchyState } from '../state/HierarchyState.js';
 import { OrganigrammView } from '../components/organisms/OrganigrammView.js';
 import { Sidebar } from '../components/organisms/Sidebar.js';
@@ -1045,6 +1049,27 @@ async #deleteEmployeeRevenueEntries(employeeId) {
     input.click();
   }
 
+async #loadGeschaeftsfuehrerProfiles() {
+    if (!this.#profileService) return null;
+
+    const profiles = new Map();
+    for (const gfId of GESCHAEFTSFUEHRER_IDS) {
+      const config = getGeschaeftsfuehrerConfig(gfId);
+      if (!config?.email) continue;
+
+      try {
+        const user = await this.#profileService.getUserByEmail(config.email);
+        if (user) {
+          profiles.set(gfId, user);
+        }
+      } catch (error) {
+        Logger.warn(`Failed to load GF profile for ${gfId}:`, error);
+      }
+    }
+
+    return profiles.size > 0 ? profiles : null;
+  }
+
 async #refreshTree(forceResubscribe = false) {
     if (!this.#currentTreeId) return;
 
@@ -1136,8 +1161,14 @@ async #refreshTree(forceResubscribe = false) {
         );
       }
 
+      // Load GF profiles for organigramm enrichment
+      const gfProfiles = await this.#loadGeschaeftsfuehrerProfiles();
+
       this.#orgView.setState(this.#state);
       this.#orgView.setRevenueDataMap(revenueDataMap);
+      if (gfProfiles) {
+        this.#orgView.setGeschaeftsfuehrerProfiles(gfProfiles);
+      }
       this.#orgView.setTree(tree); // setTree already renders, no need for refresh()
       this.#sidebar.setTreeId(this.#currentTreeId);
       this.#sidebar.setTree(tree);
@@ -1236,6 +1267,12 @@ async #handleTreeUpdate(updatedTree) {
         // Reload revenue data (only if revenue service exists)
         if (this.#revenueService) {
           await this.#reloadRevenueData();
+        }
+
+        // Load GF profiles for organigramm enrichment
+        const gfProfiles = await this.#loadGeschaeftsfuehrerProfiles();
+        if (gfProfiles) {
+          this.#orgView.setGeschaeftsfuehrerProfiles(gfProfiles);
         }
 
         // Update UI with smooth transition

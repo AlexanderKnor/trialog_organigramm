@@ -387,6 +387,28 @@ async deleteEmployeeAccount(email) {
     }
   }
 
+  async resolveUserUid(email, displayName = null) {
+    try {
+      if (!this.isAdmin()) {
+        throw new Error('Only admins can resolve user UIDs');
+      }
+
+      const { getFunctions, httpsCallable } = await import(
+        'https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js'
+      );
+
+      const functions = getFunctions(firebaseApp.app);
+      const resolve = httpsCallable(functions, 'resolveUserUid');
+      const result = await resolve({ email, displayName });
+
+      Logger.log(`✓ Resolved UID for ${email}: ${result.data.uid}`);
+      return { success: true, uid: result.data.uid };
+    } catch (error) {
+      Logger.error(`Failed to resolve UID for ${email}:`, error);
+      return { success: false, error: error.message };
+    }
+  }
+
   async logout() {
     try {
       await this.signOut(this.#auth);

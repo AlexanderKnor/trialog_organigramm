@@ -4,7 +4,7 @@
  * Supports N tip providers per entry (multi-Tippgeber).
  */
 
-import { generateUUID } from '../../../../core/utils/index.js';
+import { generateUUID, roundCurrency } from '../../../../core/utils/index.js';
 import { ValidationError } from '../../../../core/errors/index.js';
 import { RevenueCategory } from '../value-objects/RevenueCategory.js';
 import { RevenueStatus, REVENUE_STATUS_TYPES } from '../value-objects/RevenueStatus.js';
@@ -318,12 +318,12 @@ export class RevenueEntry {
 
   get vatAmount() {
     if (!this.#hasVAT) return 0;
-    return Math.round(this.#provisionAmount * (this.#vatRate / 100) * 100) / 100;
+    return roundCurrency(this.#provisionAmount * (this.#vatRate / 100));
   }
 
   get grossAmount() {
     if (!this.#hasVAT) return this.#provisionAmount;
-    return Math.round((this.#provisionAmount + this.vatAmount) * 100) / 100;
+    return roundCurrency(this.#provisionAmount + this.vatAmount);
   }
 
   // === Source ===

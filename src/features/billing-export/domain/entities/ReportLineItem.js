@@ -3,7 +3,7 @@
  * Represents a single revenue line item in a billing report
  */
 
-import { generateUUID } from '../../../../core/utils/index.js';
+import { generateUUID, roundCurrency } from '../../../../core/utils/index.js';
 
 export const LINE_ITEM_SOURCES = {
   OWN: 'own',
@@ -71,17 +71,17 @@ export class ReportLineItem {
     this.#productName = productName;
     this.#providerName = providerName;
     this.#contractNumber = contractNumber;
-    this.#netAmount = Math.round((netAmount || 0) * 100) / 100;
+    this.#netAmount = roundCurrency(netAmount || 0);
     this.#vatRate = vatRate;
-    this.#vatAmount = Math.round((vatAmount || 0) * 100) / 100;
-    this.#grossAmount = Math.round((grossAmount || 0) * 100) / 100;
+    this.#vatAmount = roundCurrency(vatAmount || 0);
+    this.#grossAmount = roundCurrency(grossAmount || 0);
     this.#provisionPercentage = provisionPercentage;
-    this.#provisionAmount = Math.round((provisionAmount || 0) * 100) / 100;
+    this.#provisionAmount = roundCurrency(provisionAmount || 0);
     this.#provisionVatRate = provisionVatRate;
-    this.#provisionVatAmount = Math.round((provisionVatAmount || 0) * 100) / 100;
+    this.#provisionVatAmount = roundCurrency(provisionVatAmount || 0);
     // provisionAmount IS the gross provision (calculated from gross revenue)
     this.#provisionGrossAmount = provisionGrossAmount !== null
-      ? Math.round(provisionGrossAmount * 100) / 100
+      ? roundCurrency(provisionGrossAmount)
       : this.#provisionAmount;
     this.#source = source;
     this.#subordinateName = subordinateName;
@@ -108,7 +108,7 @@ export class ReportLineItem {
   get provisionVatRate() { return this.#provisionVatRate; }
   get provisionVatAmount() { return this.#provisionVatAmount; }
   get provisionGrossAmount() { return this.#provisionGrossAmount; }
-  get provisionNetAmount() { return Math.round((this.#provisionAmount - this.#provisionVatAmount) * 100) / 100; }
+  get provisionNetAmount() { return roundCurrency(this.#provisionAmount - this.#provisionVatAmount); }
   get source() { return this.#source; }
   get subordinateName() { return this.#subordinateName; }
   get subordinateId() { return this.#subordinateId; }

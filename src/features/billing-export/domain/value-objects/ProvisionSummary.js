@@ -3,6 +3,8 @@
  * Aggregated summary of provisions for a billing report section
  */
 
+import { roundCurrency } from '../../../../core/utils/index.js';
+
 export class ProvisionSummary {
   #entryCount;
   #totalNet;
@@ -62,7 +64,7 @@ export class ProvisionSummary {
   }
 
   get totalProvisionNet() {
-    return Math.round((this.#totalProvision - this.#totalProvisionVat) * 100) / 100;
+    return roundCurrency(this.#totalProvision - this.#totalProvisionVat);
   }
 
   get categoryBreakdown() {

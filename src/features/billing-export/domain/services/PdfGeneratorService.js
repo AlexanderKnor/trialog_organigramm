@@ -7,6 +7,7 @@
  */
 
 import { Logger } from '../../../../core/utils/logger.js';
+import { roundCurrency } from '../../../../core/utils/index.js';
 import { LINE_ITEM_SOURCES } from '../entities/ReportLineItem.js';
 
 const PDF_CONFIG = {
@@ -350,7 +351,7 @@ export class PdfGeneratorService {
     // Summary: Entries | Umsatz Brutto | Provision Netto/MwSt/Brutto
     const summaryY = this.#currentY + 1;
     const provVat = summary.totalProvisionVat || 0;
-    const provNetto = Math.round((summary.totalProvision - provVat) * 100) / 100;
+    const provNetto = roundCurrency(summary.totalProvision - provVat);
     this.#doc.text(`${summary.entryCount} Einträge`, margin.left + 3, summaryY);
     this.#doc.text(`Umsatz Brutto: ${this.#formatCurrency(summary.totalGross)}`, margin.left + 40, summaryY);
     this.#doc.text(`Prov. Netto: ${this.#formatCurrency(provNetto)}`, margin.left + 110, summaryY);
@@ -466,7 +467,7 @@ export class PdfGeneratorService {
     const totalProvVat = (report.ownSummary?.totalProvisionVat || 0)
       + (report.hierarchySummary?.totalProvisionVat || 0)
       + (report.tipProviderSummary?.totalProvisionVat || 0);
-    const totalProvNetto = Math.round((totalProv - totalProvVat) * 100) / 100;
+    const totalProvNetto = roundCurrency(totalProv - totalProvVat);
     const isSmallBusiness = report.employeeDetails?.isSmallBusiness ?? false;
 
     this.#doc.setFont('helvetica', 'bold');

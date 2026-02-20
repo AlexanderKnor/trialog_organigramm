@@ -49,10 +49,15 @@ export class TopRankingsView {
   #calculateRankings() {
     const activeEntries = this.#getActiveEntries();
 
+    // Exclude company's own entries (company should not appear in employee rankings)
+    const employeeEntries = activeEntries.filter(
+      (e) => e.entryOwner?.id !== e.company?.id,
+    );
+
     // Filter by category if selected
     const filteredEntries = this.#selectedCategory === 'all'
-      ? activeEntries
-      : activeEntries.filter(e => e.originalEntry?.category?.type === this.#selectedCategory);
+      ? employeeEntries
+      : employeeEntries.filter(e => e.originalEntry?.category?.type === this.#selectedCategory);
 
     // Aggregate by employee
     const employeeStats = {};

@@ -4,6 +4,7 @@
  */
 
 import { REVENUE_CATEGORY_TYPES } from '../value-objects/RevenueCategory.js';
+import { roundCurrency } from '../../../../core/utils/index.js';
 
 export class HierarchicalRevenueEntry {
   #originalEntry;
@@ -149,11 +150,11 @@ export class HierarchicalRevenueEntry {
     const baseAmount = entry.grossAmount || entry.provisionAmount;
     const managerAmount =
       provisionDifference > 0
-        ? Math.round(baseAmount * (provisionDifference / 100) * 100) / 100
+        ? roundCurrency(baseAmount * (provisionDifference / 100))
         : 0;
 
     // Owner gets their effective provision (after tip deduction)
-    const ownerAmount = Math.round(baseAmount * (ownerEffectiveProvision / 100) * 100) / 100;
+    const ownerAmount = roundCurrency(baseAmount * (ownerEffectiveProvision / 100));
 
     return new HierarchicalRevenueEntry({
       originalEntry: entry,

@@ -4,7 +4,7 @@
  * Supports multiple tip providers (Tippgeber) per entry.
  */
 
-import { createElement } from '../../../../../core/utils/index.js';
+import { createElement, roundCurrency } from '../../../../../core/utils/index.js';
 import { Input } from '../../../../hierarchy-tracking/presentation/components/atoms/Input.js';
 import { Button } from '../../../../hierarchy-tracking/presentation/components/atoms/Button.js';
 import {
@@ -14,6 +14,12 @@ import {
 import { Product } from '../../../domain/value-objects/Product.js';
 import { ProductProvider } from '../../../domain/value-objects/ProductProvider.js';
 import { Logger } from './../../../../../core/utils/logger.js';
+import {
+  GESCHAEFTSFUEHRER_IDS,
+  isGeschaeftsfuehrerId,
+  getGeschaeftsfuehrerConfig,
+  buildGeschaeftsfuehrerNode,
+} from '../../../../../core/config/geschaeftsfuehrer.config.js';
 
 export class AddRevenueDialog {
   #element;
@@ -197,7 +203,11 @@ export class AddRevenueDialog {
     }
 
     this.#contractNumberInput.setValue(this.#entry.contractNumber || '');
-    this.#provisionAmountInput.setValue(this.#entry.provisionAmount?.toString() || '');
+    this.#provisionAmountInput.setValue(
+      this.#entry.provisionAmount != null
+        ? roundCurrency(this.#entry.provisionAmount).toString()
+        : '',
+    );
     this.#notesInput.setValue(this.#entry.notes || '');
 
     // Populate tip providers (multi-provider)
@@ -715,15 +725,10 @@ export class AddRevenueDialog {
 
       let employees = allNodes.filter((node) => !node.isRoot && node.id !== this.#props.employeeId);
 
-      const geschaeftsfuehrerIds = ['marcel-liebetrau', 'daniel-lippa'];
-      const geschaeftsfuehrerData = {
-        'marcel-liebetrau': { id: 'marcel-liebetrau', name: 'Marcel Liebetrau' },
-        'daniel-lippa': { id: 'daniel-lippa', name: 'Daniel Lippa' },
-      };
-
-      for (const gfId of geschaeftsfuehrerIds) {
+      for (const gfId of GESCHAEFTSFUEHRER_IDS) {
         if (gfId !== this.#props.employeeId) {
-          employees.push(geschaeftsfuehrerData[gfId]);
+          const gfConfig = getGeschaeftsfuehrerConfig(gfId);
+          employees.push({ id: gfConfig.id, name: gfConfig.name });
         }
       }
 
@@ -771,15 +776,10 @@ export class AddRevenueDialog {
         this.#currentCategoryData?.provisionType ||
         this.#inferProvisionType(categoryType);
 
-      // Geschaeftsfuehrer are not in the tree but have fixed 90% provisions
-      const geschaeftsfuehrerProvisions = {
-        'marcel-liebetrau': { bank: 90, insurance: 90, realEstate: 90 },
-        'daniel-lippa': { bank: 90, insurance: 90, realEstate: 90 },
-      };
-
-      const gfData = geschaeftsfuehrerProvisions[employeeId];
-      if (gfData) {
-        return gfData[provisionType] || 90;
+      // Geschaeftsfuehrer are not in the tree but have configured provisions
+      if (isGeschaeftsfuehrerId(employeeId)) {
+        const gfConfig = getGeschaeftsfuehrerConfig(employeeId);
+        return gfConfig.defaultProvisions[provisionType] || 90;
       }
 
       const owner = tree.getNode(employeeId);
@@ -1132,7 +1132,7 @@ export class AddRevenueDialog {
         return;
       }
 
-      provisionAmount = enteredAmount / (ownerEffectiveProvision / 100);
+      provisionAmount = roundCurrency(enteredAmount / (ownerEffectiveProvision / 100));
     }
 
     const productValue = this.#productSelect.value;

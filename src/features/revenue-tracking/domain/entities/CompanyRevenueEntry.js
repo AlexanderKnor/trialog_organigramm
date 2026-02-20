@@ -4,7 +4,7 @@
  * Company gets the remainder: 100% - (highest provision % in hierarchy)
  */
 
-import { generateUUID } from '../../../../core/utils/index.js';
+import { generateUUID, roundCurrency } from '../../../../core/utils/index.js';
 
 export class CompanyRevenueEntry {
   #id;
@@ -61,7 +61,7 @@ export class CompanyRevenueEntry {
       const tipProviderPercentage = entry.totalTipProviderPercentage;
       const companyProvision = 100 - tipProviderPercentage;
       const baseAmount = entry.grossAmount || entry.provisionAmount;
-      const companyAmount = Math.round(baseAmount * (companyProvision / 100) * 100) / 100;
+      const companyAmount = roundCurrency(baseAmount * (companyProvision / 100));
 
       return new CompanyRevenueEntry({
         originalEntry: entry,
@@ -127,8 +127,8 @@ export class CompanyRevenueEntry {
     // Owner's effective provision = base provision - tip provider share
     const ownerEffectiveProvision = ownerProvision - tipProviderPercentage;
     const baseAmount = entry.grossAmount || entry.provisionAmount;
-    const companyAmount = Math.round(baseAmount * (companyProvision / 100) * 100) / 100;
-    const ownerAmount = Math.round(baseAmount * (ownerEffectiveProvision / 100) * 100) / 100;
+    const companyAmount = roundCurrency(baseAmount * (companyProvision / 100));
+    const ownerAmount = roundCurrency(baseAmount * (ownerEffectiveProvision / 100));
 
     return new CompanyRevenueEntry({
       originalEntry: entry,

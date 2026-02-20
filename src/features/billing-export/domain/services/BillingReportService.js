@@ -6,6 +6,7 @@
 import { Logger } from '../../../../core/utils/logger.js';
 import { ReportPeriod } from '../value-objects/ReportPeriod.js';
 import { BillingReportAssembler } from '../../data/assemblers/BillingReportAssembler.js';
+import { isGeschaeftsfuehrerId, buildGeschaeftsfuehrerNode } from '../../../../core/config/geschaeftsfuehrer.config.js';
 
 export class BillingReportService {
   #revenueService;
@@ -22,6 +23,7 @@ export class BillingReportService {
     const {
       includeHierarchy = true,
       includeTipProvider = true,
+      includeProvisioned = false,
       generatedBy = null,
       generatedByName = null,
     } = options;
@@ -60,6 +62,7 @@ export class BillingReportService {
         tipProviderEntries,
         generatedBy,
         generatedByName,
+        includeProvisioned,
       });
 
       Logger.log('Report generated successfully');
@@ -99,25 +102,8 @@ export class BillingReportService {
       }
     }
 
-    const geschaeftsfuehrerData = {
-      'marcel-liebetrau': {
-        id: 'marcel-liebetrau',
-        name: 'Marcel Liebetrau',
-        bankProvision: 90,
-        insuranceProvision: 90,
-        realEstateProvision: 90,
-      },
-      'daniel-lippa': {
-        id: 'daniel-lippa',
-        name: 'Daniel Lippa',
-        bankProvision: 90,
-        insuranceProvision: 90,
-        realEstateProvision: 90,
-      },
-    };
-
-    if (geschaeftsfuehrerData[employeeId]) {
-      const gfData = geschaeftsfuehrerData[employeeId];
+    if (isGeschaeftsfuehrerId(employeeId)) {
+      const gfData = buildGeschaeftsfuehrerNode(employeeId);
       if (user) {
         return BillingReportAssembler.createEmployeeDetails(user, gfData);
       }

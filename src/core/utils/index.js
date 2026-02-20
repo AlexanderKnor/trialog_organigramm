@@ -5,3 +5,4 @@
 export * from './uuid.js';
 export * from './date.js';
 export * from './dom.js';
+export * from './currency.js';

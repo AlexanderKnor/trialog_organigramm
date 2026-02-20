@@ -12,6 +12,37 @@ import {
 import { WIFOProvisionType } from '../value-objects/WIFOProvisionType.js';
 import { WIFOCategory } from '../value-objects/WIFOCategory.js';
 
+/**
+ * Parse a numeric value that may be in German format (comma as decimal separator)
+ * Handles: "159,33" → 159.33, "1.234,56" → 1234.56, 159.33 → 159.33
+ * Also correctly returns 0 for zero values (unlike parseFloat(x) || null)
+ * @param {*} value - The value to parse
+ * @returns {number|null}
+ */
+function parseGermanNumber(value) {
+  if (value === null || value === undefined) return null;
+
+  // Already a number (e.g., from Excel via SheetJS)
+  if (typeof value === 'number') {
+    return isNaN(value) ? null : value;
+  }
+
+  const str = String(value).trim();
+  if (str === '' || str === '-') return null;
+
+  // German format: dot is thousands separator, comma is decimal separator
+  // "1.234,56" → "1234.56", "159,33" → "159.33", "-42,50" → "-42.50"
+  if (str.includes(',')) {
+    const normalized = str.replace(/\./g, '').replace(',', '.');
+    const num = parseFloat(normalized);
+    return isNaN(num) ? null : num;
+  }
+
+  // Standard format (from Excel) or integer
+  const num = parseFloat(str);
+  return isNaN(num) ? null : num;
+}
+
 export class WIFOImportRecord {
   #id;
   #rowNumber;
@@ -402,12 +433,12 @@ export class WIFOImportRecord {
       art: getValue('Art'),
       gesellschaft: getValue('Gesellschaft'),
       tarif: getValue('Tarif'),
-      basis: parseFloat(getValue('Basis')) || null,
+      basis: parseGermanNumber(getValue('Basis')),
       satz: getValue('Satz'),
-      brutto: parseFloat(getValue('Brutto')) || null,
-      stornoreserve: parseFloat(getValue('Stornoreserve')) || null,
-      rb: parseFloat(getValue('RB')) || null,
-      netto: parseFloat(getValue('Netto')) || null,
+      brutto: parseGermanNumber(getValue('Brutto')),
+      stornoreserve: parseGermanNumber(getValue('Stornoreserve')),
+      rb: parseGermanNumber(getValue('RB')),
+      netto: parseGermanNumber(getValue('Netto')),
       vertragId: getValue('Vertrag ID')?.toString() ?? null,
       lauf: getValue('Lauf')?.toString() ?? null,
       erstelldatum: parseExcelDate(getValue('Erstelldatum')),

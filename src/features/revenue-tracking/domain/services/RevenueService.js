@@ -8,6 +8,12 @@ import { HierarchicalRevenueEntry } from '../entities/HierarchicalRevenueEntry.j
 import { CompanyRevenueEntry } from '../entities/CompanyRevenueEntry.js';
 import { REVENUE_STATUS_TYPES } from '../value-objects/RevenueStatus.js';
 import { Logger } from './../../../../core/utils/logger.js';
+import {
+  GESCHAEFTSFUEHRER_IDS,
+  isGeschaeftsfuehrerId,
+  getGeschaeftsfuehrerConfig,
+  buildGeschaeftsfuehrerNode,
+} from '../../../../core/config/geschaeftsfuehrer.config.js';
 
 export class RevenueService {
   #revenueRepository;
@@ -177,18 +183,13 @@ export class RevenueService {
     const allEmployees = this.#getAllEmployeesRecursive(tree, companyId);
 
     // Add Geschäftsführer to the list
-    const geschaeftsfuehrerIds = ['marcel-liebetrau', 'daniel-lippa'];
-    const geschaeftsfuehrerData = {
-      'marcel-liebetrau': { id: 'marcel-liebetrau', name: 'Marcel Liebetrau', bankProvision: 90, insuranceProvision: 90, realEstateProvision: 90 },
-      'daniel-lippa': { id: 'daniel-lippa', name: 'Daniel Lippa', bankProvision: 90, insuranceProvision: 90, realEstateProvision: 90 },
-    };
-    const geschaeftsfuehrer = geschaeftsfuehrerIds.map(id => geschaeftsfuehrerData[id]);
+    const geschaeftsfuehrer = GESCHAEFTSFUEHRER_IDS.map(id => buildGeschaeftsfuehrerNode(id));
 
     const allPersons = [...allEmployees, ...geschaeftsfuehrer];
 
     for (const employee of allPersons) {
       const entries = await this.#revenueRepository.findByEmployeeId(employee.id);
-      const isGeschaeftsfuehrer = geschaeftsfuehrerIds.includes(employee.id);
+      const isGeschaeftsfuehrer = isGeschaeftsfuehrerId(employee.id);
 
       for (const entry of entries) {
         let hierarchyPath;
@@ -238,38 +239,17 @@ export class RevenueService {
   }
 
   /**
-   * Geschäftsführer data - hardcoded as they are not in the hierarchy tree
-   * They report directly to the company with 90% provision across all types
-   */
-  static #GESCHAEFTSFUEHRER = {
-    'marcel-liebetrau': {
-      id: 'marcel-liebetrau',
-      name: 'Marcel Liebetrau',
-      bankProvision: 90,
-      insuranceProvision: 90,
-      realEstateProvision: 90,
-    },
-    'daniel-lippa': {
-      id: 'daniel-lippa',
-      name: 'Daniel Lippa',
-      bankProvision: 90,
-      insuranceProvision: 90,
-      realEstateProvision: 90,
-    },
-  };
-
-  /**
    * Check if an employee ID belongs to a Geschäftsführer
    */
   #isGeschaeftsfuehrer(employeeId) {
-    return employeeId in RevenueService.#GESCHAEFTSFUEHRER;
+    return isGeschaeftsfuehrerId(employeeId);
   }
 
   /**
-   * Get Geschäftsführer data by ID
+   * Get Geschäftsführer data by ID (as node-like object)
    */
   #getGeschaeftsfuehrerData(employeeId) {
-    return RevenueService.#GESCHAEFTSFUEHRER[employeeId] || null;
+    return buildGeschaeftsfuehrerNode(employeeId);
   }
 
   /**
@@ -461,15 +441,8 @@ export class RevenueService {
     // Get all employees (excluding root)
     const allEmployees = this.#getAllEmployeesRecursive(tree, tree.rootId);
 
-    // Fixed Geschäftsführer IDs
-    const geschaeftsfuehrerIds = ['marcel-liebetrau', 'daniel-lippa'];
-    const geschaeftsfuehrerData = {
-      'marcel-liebetrau': { name: 'Marcel Liebetrau', bankProvision: 90, insuranceProvision: 90, realEstateProvision: 90 },
-      'daniel-lippa': { name: 'Daniel Lippa', bankProvision: 90, insuranceProvision: 90, realEstateProvision: 90 },
-    };
-
     // Process all employees + Geschäftsführer
-    const allPersons = [...allEmployees, ...geschaeftsfuehrerIds.map(id => ({ id, ...geschaeftsfuehrerData[id] }))];
+    const allPersons = [...allEmployees, ...GESCHAEFTSFUEHRER_IDS.map(id => buildGeschaeftsfuehrerNode(id))];
 
     // OPTIMIZATION: Load ALL entries with ONE query instead of N queries
     // This reduces Firestore reads from 100+ to 1 for 50 employees

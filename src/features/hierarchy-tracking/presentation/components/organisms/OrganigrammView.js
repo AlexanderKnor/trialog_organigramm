@@ -8,6 +8,7 @@ import { OrgCard } from '../molecules/OrgCard.js';
 import { Icon } from '../atoms/Icon.js';
 import { Button } from '../atoms/Button.js';
 import { Logger } from './../../../../../core/utils/logger.js';
+import { getGeschaeftsfuehrerConfig, buildGeschaeftsfuehrerNode } from '../../../../../core/config/geschaeftsfuehrer.config.js';
 
 export class OrganigrammView {
   #element;
@@ -28,6 +29,7 @@ export class OrganigrammView {
       onAddChild: props.onAddChild || null,
       className: props.className || '',
       revenueDataMap: props.revenueDataMap || new Map(),
+      geschaeftsfuehrerProfiles: props.geschaeftsfuehrerProfiles || null,
     };
 
     this.#element = this.#render();
@@ -93,7 +95,7 @@ export class OrganigrammView {
       const topLevelContainer = createElement('div', { className: 'org-top-level' });
 
       // Left Geschäftsführer: Marcel Liebetrau
-      const marcelNode = this.#createGeschaeftsfuehrerNode('marcel-liebetrau', 'Marcel Liebetrau');
+      const marcelNode = this.#createGeschaeftsfuehrerNode('marcel-liebetrau');
       const marcelCard = this.#renderGeschaeftsfuehrerCard(marcelNode, 'left');
       topLevelContainer.appendChild(marcelCard);
 
@@ -102,7 +104,7 @@ export class OrganigrammView {
       topLevelContainer.appendChild(rootNode);
 
       // Right Geschäftsführer: Daniel Lippa
-      const danielNode = this.#createGeschaeftsfuehrerNode('daniel-lippa', 'Daniel Lippa');
+      const danielNode = this.#createGeschaeftsfuehrerNode('daniel-lippa');
       const danielCard = this.#renderGeschaeftsfuehrerCard(danielNode, 'right');
       topLevelContainer.appendChild(danielCard);
 
@@ -115,18 +117,23 @@ export class OrganigrammView {
     setTimeout(() => this.#centerOnRootCard(), 150);
   }
 
-  #createGeschaeftsfuehrerNode(id, name) {
+  #createGeschaeftsfuehrerNode(id) {
+    const config = getGeschaeftsfuehrerConfig(id);
+    const profile = this.#props.geschaeftsfuehrerProfiles?.get(id);
+
     const node = {
       id,
-      name,
+      name: profile?.firstName && profile?.lastName
+        ? `${profile.firstName} ${profile.lastName}`
+        : config.name,
       description: 'Geschäftsführer',
-      bankProvision: 90,
-      insuranceProvision: 90,
-      realEstateProvision: 90,
+      bankProvision: profile?.careerLevel?.bankProvisionRate ?? config.defaultProvisions.bank,
+      insuranceProvision: profile?.careerLevel?.insuranceProvisionRate ?? config.defaultProvisions.insurance,
+      realEstateProvision: profile?.careerLevel?.realEstateProvisionRate ?? config.defaultProvisions.realEstate,
       childCount: 0,
       isGeschaeftsfuehrer: true,
-      email: null,
-      phone: null,
+      email: profile?.email || config.email,
+      phone: profile?.phone || null,
       metadata: {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -464,6 +471,11 @@ export class OrganigrammView {
     this.#props.revenueDataMap = revenueDataMap || new Map();
     // Trigger re-render to show updated revenue values
     this.refresh();
+  }
+
+  setGeschaeftsfuehrerProfiles(profiles) {
+    this.#props.geschaeftsfuehrerProfiles = profiles || null;
+    // No auto-render — setTree() is called immediately after and triggers render
   }
 
   refresh() {

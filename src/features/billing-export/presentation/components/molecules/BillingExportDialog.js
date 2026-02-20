@@ -17,6 +17,7 @@ export class BillingExportDialog {
   #periodSelector;
   #includeHierarchyCheckbox;
   #includeTipProviderCheckbox;
+  #includeProvisionedCheckbox;
   #exportButton;
   #cancelButton;
   #isLoading;
@@ -143,8 +144,38 @@ export class BillingExportDialog {
     optionsSection.appendChild(checkboxesWrapper);
     optionsSection.appendChild(ownRevenueNote);
 
+    // Report mode section
+    const modeSection = createElement('div', { className: 'billing-export-section' });
+    const modeTitle = createElement('h3', { className: 'billing-export-section-title' }, [
+      'Abrechnungsmodus',
+    ]);
+
+    const modeCheckboxesWrapper = createElement('div', { className: 'billing-export-checkboxes' });
+
+    const provisionedLabel = createElement('label', { className: 'billing-export-checkbox-label' });
+    this.#includeProvisionedCheckbox = createElement('input', {
+      type: 'checkbox',
+      checked: false,
+      className: 'billing-export-checkbox',
+    });
+    provisionedLabel.appendChild(this.#includeProvisionedCheckbox);
+    provisionedLabel.appendChild(
+      createElement('span', {}, ['Bereits provisionierte Umsätze einschliessen']),
+    );
+
+    const modeNote = createElement('p', { className: 'billing-export-note' }, [
+      'Ohne: Nur neue Umsätze (Differenz-Abrechnung). ' +
+      'Mit: Vollständiger Reprint inkl. historischer Daten.',
+    ]);
+
+    modeCheckboxesWrapper.appendChild(provisionedLabel);
+    modeSection.appendChild(modeTitle);
+    modeSection.appendChild(modeCheckboxesWrapper);
+    modeSection.appendChild(modeNote);
+
     body.appendChild(periodSection);
     body.appendChild(optionsSection);
+    body.appendChild(modeSection);
 
     return body;
   }
@@ -197,12 +228,14 @@ export class BillingExportDialog {
       const period = this.#periodSelector.getPeriod();
       const includeHierarchy = this.#includeHierarchyCheckbox.checked;
       const includeTipProvider = this.#includeTipProviderCheckbox.checked;
+      const includeProvisioned = this.#includeProvisionedCheckbox.checked;
 
       Logger.log('Generating billing report...');
       Logger.log('Employee:', this.#props.employeeId);
       Logger.log('Period:', period.displayName);
       Logger.log('Include hierarchy:', includeHierarchy);
       Logger.log('Include tip provider:', includeTipProvider);
+      Logger.log('Include provisioned:', includeProvisioned);
 
       const report = await this.#billingReportService.generateReport(
         this.#props.employeeId,
@@ -210,6 +243,7 @@ export class BillingExportDialog {
         {
           includeHierarchy,
           includeTipProvider,
+          includeProvisioned,
           generatedBy: this.#props.generatedBy,
           generatedByName: this.#props.generatedByName,
         }

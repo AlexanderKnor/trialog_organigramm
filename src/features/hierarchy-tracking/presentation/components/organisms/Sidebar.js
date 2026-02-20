@@ -12,6 +12,7 @@ import { AddEmployeeWizard } from '../../../../user-profile/presentation/compone
 import { NODE_TYPES } from '../../../domain/value-objects/NodeType.js';
 import { formatDate } from '../../../../../core/utils/index.js';
 import { Logger } from './../../../../../core/utils/logger.js';
+import { isGeschaeftsfuehrerId, getGeschaeftsfuehrerConfig } from '../../../../../core/config/geschaeftsfuehrer.config.js';
 
 export class Sidebar {
   #element;
@@ -188,12 +189,11 @@ export class Sidebar {
       ]),
     ]) : null;
 
-    // Action buttons - different for Geschäftsführer
-    // Only admins can edit and add employees
+    // Action buttons - admins can edit employees and Geschäftsführer
     const isAdmin = authService.isAdmin();
     const actionButtons = [];
 
-    if (!isGeschaeftsfuehrer && isAdmin) {
+    if (isAdmin) {
       actionButtons.push(
         new Button({
           label: 'Bearbeiten',
@@ -202,18 +202,24 @@ export class Sidebar {
           icon: new Icon({ name: 'edit', size: 14 }),
           onClick: () => this.setMode('edit'),
         }).element,
-        new Button({
-          label: 'Mitarbeiter hinzufügen',
-          variant: 'ghost',
-          size: 'sm',
-          icon: new Icon({ name: 'plus', size: 14 }),
-          onClick: () => {
-            if (this.#props.onAddChild) {
-              this.#props.onAddChild(this.#node.id);
-            }
-          },
-        }).element
       );
+
+      // "Mitarbeiter hinzufügen" only for non-GF nodes
+      if (!isGeschaeftsfuehrer) {
+        actionButtons.push(
+          new Button({
+            label: 'Mitarbeiter hinzufügen',
+            variant: 'ghost',
+            size: 'sm',
+            icon: new Icon({ name: 'plus', size: 14 }),
+            onClick: () => {
+              if (this.#props.onAddChild) {
+                this.#props.onAddChild(this.#node.id);
+              }
+            },
+          }).element,
+        );
+      }
     }
 
     actionButtons.push(
@@ -326,12 +332,13 @@ export class Sidebar {
   async #renderEditMode() {
     clearElement(this.#contentContainer);
 
-    // Check if node is an employee
+    // Check if node is an employee or Geschäftsführer
     const isEmployee = this.#node.type?.value === 'person' ||
                        this.#node.type === 'person' ||
                        (this.#node.type && this.#node.type.toString().toLowerCase() === 'person');
+    const isGeschaeftsfuehrer = this.#node.isGeschaeftsfuehrer || false;
 
-    if (isEmployee && this.#profileService) {
+    if ((isEmployee || isGeschaeftsfuehrer) && this.#profileService) {
       // Show loading state
       this.#contentContainer.appendChild(
         createElement('div', { className: 'sidebar-loading' }, [
@@ -342,9 +349,24 @@ export class Sidebar {
 
       // Load user profile
       let userProfile = null;
+      let gfEmail = null;
       try {
-        if (this.#node.email) {
-          userProfile = await this.#profileService.getUserByEmail(this.#node.email);
+        // For Geschäftsführer, load email from central config
+        let email = this.#node.email;
+        if (!email && isGeschaeftsfuehrer) {
+          const gfConfig = getGeschaeftsfuehrerConfig(this.#node.id);
+          email = gfConfig?.email || null;
+        }
+        gfEmail = email;
+        if (email) {
+          userProfile = await this.#profileService.getUserByEmail(email);
+        }
+        // Fallback: case-insensitive search if exact match failed
+        if (!userProfile && email) {
+          const allUsers = await this.#profileService.getAllUsers();
+          userProfile = allUsers.find(
+            u => u.email?.toLowerCase() === email.toLowerCase()
+          ) || null;
         }
       } catch (error) {
         Logger.error('Failed to load user profile:', error);
@@ -354,10 +376,12 @@ export class Sidebar {
       clearElement(this.#contentContainer);
 
       // Show Wizard
-      Logger.log('Creating wizard with user:', userProfile);
+      Logger.log('Creating wizard with user:', userProfile, 'isGeschaeftsfuehrer:', isGeschaeftsfuehrer);
       const wizard = new AddEmployeeWizard({
         existingUser: userProfile,
         existingNode: this.#node,
+        isGeschaeftsfuehrer,
+        initialStep: isGeschaeftsfuehrer ? 2 : undefined,
         onComplete: async (formData) => {
           try {
             // Close wizard first
@@ -369,19 +393,40 @@ export class Sidebar {
 
             if (userProfile) {
               await this.#updateEmployeeProfile(userProfile.uid, formData);
+            } else if (isGeschaeftsfuehrer && gfEmail) {
+              // GF has no profile yet — resolve UID via Cloud Function (any admin can do this)
+              const gfConfig = getGeschaeftsfuehrerConfig(this.#node.id);
+              const resolveResult = await authService.resolveUserUid(gfEmail, gfConfig?.name);
+              if (!resolveResult.success) {
+                throw new Error(
+                  `Kein Account für ${gfEmail} gefunden: ${resolveResult.error}`
+                );
+              }
+
+              const gfUid = resolveResult.uid;
+
+              // Create full profile if only auth-stub exists, then update
+              const existingProfile = await this.#profileService.getUserProfile(gfUid);
+              if (!existingProfile) {
+                await this.#profileService.createUser(gfUid, gfEmail, 'admin');
+              }
+              await this.#updateEmployeeProfile(gfUid, formData);
             }
 
-            const nodeData = {
-              name: `${formData.firstName} ${formData.lastName}`,
-              email: formData.email,
-              phone: formData.phone,
-              bankProvision: parseFloat(formData.bankProvision) || 0,
-              insuranceProvision: parseFloat(formData.insuranceProvision) || 0,
-              realEstateProvision: parseFloat(formData.realEstateProvision) || 0,
-            };
+            // GF nodes are not in the hierarchy tree, skip node update
+            if (!isGeschaeftsfuehrer) {
+              const nodeData = {
+                name: `${formData.firstName} ${formData.lastName}`,
+                email: formData.email,
+                phone: formData.phone,
+                bankProvision: parseFloat(formData.bankProvision) || 0,
+                insuranceProvision: parseFloat(formData.insuranceProvision) || 0,
+                realEstateProvision: parseFloat(formData.realEstateProvision) || 0,
+              };
 
-            if (this.#props.onSave) {
-              this.#props.onSave(this.#node.id, nodeData);
+              if (this.#props.onSave) {
+                this.#props.onSave(this.#node.id, nodeData);
+              }
             }
 
             // Wait for real-time updates

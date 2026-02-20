@@ -9,6 +9,7 @@ import { TrackingEvent } from '../entities/TrackingEvent.js';
 import { NODE_TYPES } from '../value-objects/NodeType.js';
 import { APP_CONFIG } from '../../../../core/config/app.config.js';
 import { Logger } from './../../../../core/utils/logger.js';
+import { GESCHAEFTSFUEHRER_IDS, buildGeschaeftsfuehrerNode } from '../../../../core/config/geschaeftsfuehrer.config.js';
 
 export class HierarchyService {
   #hierarchyRepository;
@@ -324,28 +325,13 @@ export class HierarchyService {
     const employees = [];
 
     // Add Geschäftsführer (they are not in the tree but can have revenue entries)
-    const geschaeftsfuehrer = [
-      {
-        id: 'marcel-liebetrau',
-        name: 'Marcel Liebetrau',
-        firstName: 'Marcel',
-        lastName: 'Liebetrau',
-        email: '',
-        bankProvision: 90,
-        insuranceProvision: 90,
-        realEstateProvision: 90,
-      },
-      {
-        id: 'daniel-lippa',
-        name: 'Daniel Lippa',
-        firstName: 'Daniel',
-        lastName: 'Lippa',
-        email: '',
-        bankProvision: 90,
-        insuranceProvision: 90,
-        realEstateProvision: 90,
-      },
-    ];
+    const geschaeftsfuehrer = GESCHAEFTSFUEHRER_IDS.map(id => {
+      const node = buildGeschaeftsfuehrerNode(id);
+      return {
+        ...node,
+        email: node.email || '',
+      };
+    });
     employees.push(...geschaeftsfuehrer);
 
     if (tree && tree.rootId) {

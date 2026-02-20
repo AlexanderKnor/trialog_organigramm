@@ -8,6 +8,7 @@ import { ReportLineItem, LINE_ITEM_SOURCES } from '../../domain/entities/ReportL
 import { BillingReport } from '../../domain/entities/BillingReport.js';
 import { REVENUE_STATUS_TYPES } from '../../../revenue-tracking/domain/value-objects/RevenueStatus.js';
 import { BillingExclusionRule } from '../../domain/value-objects/BillingExclusionRule.js';
+import { roundCurrency } from '../../../../core/utils/index.js';
 
 export class BillingReportAssembler {
   static createEmployeeDetails(user, hierarchyNode = null) {
@@ -20,7 +21,7 @@ export class BillingReportAssembler {
 
   static createOwnLineItem(entry, employeeDetails) {
     const provisionPercentage = BillingReportAssembler.#getEffectiveOwnerProvision(entry, employeeDetails);
-    const provisionAmount = Math.round((entry.grossAmount || entry.provisionAmount || 0) * (provisionPercentage / 100) * 100) / 100;
+    const provisionAmount = roundCurrency((entry.grossAmount || entry.provisionAmount || 0) * (provisionPercentage / 100));
     const { provisionVatRate, provisionVatAmount, provisionGrossAmount } =
       BillingReportAssembler.#calculateProvisionVat(provisionAmount, employeeDetails, entry.hasVAT, entry.vatRate);
 
@@ -133,14 +134,24 @@ export class BillingReportAssembler {
     tipProviderEntries = [],
     generatedBy = null,
     generatedByName = null,
+    includeProvisioned = false,
   }) {
     const filterBillableEntries = (entries) => {
       return entries.filter(entry => {
         const status = entry.status?.type || entry.status ||
                       entry.originalEntry?.status?.type || entry.originalEntry?.status;
-        if (status !== REVENUE_STATUS_TYPES.SUBMITTED && status !== REVENUE_STATUS_TYPES.PROVISIONED) {
-          return false;
+
+        if (includeProvisioned) {
+          if (status !== REVENUE_STATUS_TYPES.SUBMITTED &&
+              status !== REVENUE_STATUS_TYPES.PROVISIONED) {
+            return false;
+          }
+        } else {
+          if (status !== REVENUE_STATUS_TYPES.SUBMITTED) {
+            return false;
+          }
         }
+
         return !BillingExclusionRule.shouldExcludeEntry(entry, employeeDetails.hasDirectPaymentGewo);
       });
     };
@@ -187,8 +198,8 @@ export class BillingReportAssembler {
 
     // The provision was calculated from gross revenue (VAT already baked in) → extract it
     const vatRate = revenueVatRate || 19;
-    const provisionNetAmount = Math.round((provisionAmount / (1 + vatRate / 100)) * 100) / 100;
-    const provisionVatAmount = Math.round((provisionAmount - provisionNetAmount) * 100) / 100;
+    const provisionNetAmount = roundCurrency(provisionAmount / (1 + vatRate / 100));
+    const provisionVatAmount = roundCurrency(provisionAmount - provisionNetAmount);
 
     return { provisionVatRate: vatRate, provisionVatAmount, provisionGrossAmount: provisionAmount };
   }

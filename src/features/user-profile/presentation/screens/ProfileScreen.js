@@ -7,6 +7,8 @@ import { createElement, clearElement } from '../../../../core/utils/index.js';
 import { Button } from '../../../hierarchy-tracking/presentation/components/atoms/Button.js';
 import { Logger } from './../../../../core/utils/logger.js';
 import { authService } from '../../../../core/auth/index.js';
+import { AddEmployeeWizard } from '../components/AddEmployeeWizard.js';
+import { isGeschaeftsfuehrerId } from '../../../../core/config/geschaeftsfuehrer.config.js';
 
 export class ProfileScreen {
   #element;
@@ -164,13 +166,6 @@ export class ProfileScreen {
         this.#renderField('Geburtsdatum', this.#user.birthDate ? new Date(this.#user.birthDate).toLocaleDateString('de-DE') : '-'),
         this.#renderField('Telefon', this.#user.phone || '-'),
         this.#renderField('Email', this.#user.email),
-      ]),
-      createElement('div', { className: 'section-actions' }, [
-        new Button({
-          label: 'Bearbeiten',
-          variant: 'primary',
-          onClick: () => this.#editSection('personal'),
-        }).element,
       ]),
     ]);
   }
@@ -494,8 +489,107 @@ export class ProfileScreen {
 
   #editSection(section) {
     Logger.log(`Editing section: ${section}`);
-    // TODO: Show edit form dialog for this section
-    alert(`Bearbeiten: ${section}\n\nFormular-Implementation folgt in nächster Phase.`);
+
+    if (!this.#user) {
+      Logger.warn('Cannot edit: user profile not loaded');
+      return;
+    }
+
+    // Map section to wizard initial step (step 1 = account creation, not editable here)
+    const sectionToStep = {
+      address: 2,
+      tax: 3,
+      bank: 4,
+      legal: 3,
+      qualifications: 5,
+      career: 6,
+    };
+
+    const initialStep = sectionToStep[section] || 2;
+    const isGF = isGeschaeftsfuehrerId(this.#user.linkedNodeId || '');
+
+    const wizard = new AddEmployeeWizard({
+      existingUser: this.#user,
+      initialStep,
+      isGeschaeftsfuehrer: isGF,
+      onComplete: async (formData) => {
+        try {
+          wizard.remove();
+          await this.#saveProfileData(this.#userId, formData);
+          // Reload profile and re-render
+          await this.mount();
+        } catch (error) {
+          Logger.error('Failed to save profile data:', error);
+          alert('Fehler beim Speichern: ' + error.message);
+        }
+      },
+      onCancel: () => {
+        wizard.remove();
+      },
+    });
+
+    wizard.show();
+  }
+
+  async #saveProfileData(uid, formData) {
+    const { Address } = await import('../../domain/value-objects/Address.js');
+    const { TaxInfo } = await import('../../domain/value-objects/TaxInfo.js');
+    const { BankInfo } = await import('../../domain/value-objects/BankInfo.js');
+    const { LegalInfo } = await import('../../domain/value-objects/LegalInfo.js');
+    const { Qualifications } = await import('../../domain/value-objects/Qualifications.js');
+    const { CareerLevel } = await import('../../domain/value-objects/CareerLevel.js');
+
+    const user = await this.#profileService.getUserProfile(uid);
+    if (!user) throw new Error('User not found');
+
+    user.updatePersonalInfo({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      birthDate: formData.birthDate,
+      phone: formData.phone,
+    });
+
+    user.updateAddress(new Address({
+      street: formData.street,
+      houseNumber: formData.houseNumber,
+      postalCode: formData.postalCode,
+      city: formData.city,
+    }));
+
+    user.updateTaxInfo(new TaxInfo({
+      taxNumber: formData.taxNumber,
+      vatNumber: formData.vatNumber,
+      taxOffice: formData.taxOffice,
+      isSmallBusiness: formData.isSmallBusiness,
+      isVatLiable: formData.isVatLiable,
+    }));
+
+    user.updateBankInfo(new BankInfo({
+      iban: formData.iban,
+      bic: formData.bic,
+      bankName: formData.bankName,
+      accountHolder: formData.accountHolder,
+    }));
+
+    user.updateLegalInfo(new LegalInfo({
+      legalForm: formData.legalForm,
+      registrationCourt: formData.registrationCourt,
+    }));
+
+    user.updateQualifications(new Qualifications({
+      ihkQualifications: formData.ihkQualifications,
+      ihkRegistrationNumber: formData.ihkRegistrationNumber,
+    }));
+
+    user.updateCareerLevel(new CareerLevel({
+      rankName: formData.rankName,
+      bankProvisionRate: parseFloat(formData.bankProvision) || 0,
+      insuranceProvisionRate: parseFloat(formData.insuranceProvision) || 0,
+      realEstateProvisionRate: parseFloat(formData.realEstateProvision) || 0,
+    }));
+
+    await this.#profileService.update(user);
+    Logger.log('Profile data saved successfully');
   }
 
   #navigateBack() {

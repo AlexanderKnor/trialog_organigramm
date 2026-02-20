@@ -7,6 +7,7 @@ import { createElement } from '../../../../core/utils/index.js';
 import { Input } from '../../../hierarchy-tracking/presentation/components/atoms/Input.js';
 import { Button } from '../../../hierarchy-tracking/presentation/components/atoms/Button.js';
 import { Logger } from './../../../../core/utils/logger.js';
+import { getGeschaeftsfuehrerConfig } from '../../../../core/config/geschaeftsfuehrer.config.js';
 
 const TOTAL_STEPS = 6;
 
@@ -16,11 +17,17 @@ export class AddEmployeeWizard {
   #formData = {};
   #props;
   #isEditMode = false;
+  #isGeschaeftsfuehrer = false;
   #existingUser = null;
   #isDeleting = false;
 
   // Form inputs (will be created per step)
   #inputs = {};
+
+  // GF mode: steps 2-6 displayed as 1-5
+  get #firstStep() { return this.#isGeschaeftsfuehrer ? 2 : 1; }
+  get #totalSteps() { return this.#isGeschaeftsfuehrer ? 5 : TOTAL_STEPS; }
+  get #displayStep() { return this.#currentStep - this.#firstStep + 1; }
 
   constructor(props = {}) {
     this.#props = {
@@ -31,21 +38,21 @@ export class AddEmployeeWizard {
       existingNode: props.existingNode || null,
     };
 
-    this.#isEditMode = !!props.existingUser;
+    this.#isGeschaeftsfuehrer = props.isGeschaeftsfuehrer || false;
+    this.#isEditMode = !!props.existingUser || this.#isGeschaeftsfuehrer;
     this.#existingUser = props.existingUser;
+    this.#currentStep = props.initialStep || this.#firstStep;
 
     this.#initializeFormData();
     this.#element = this.#render();
   }
 
   #initializeFormData() {
-    if (this.#isEditMode && this.#existingUser) {
-      // Edit mode: Pre-fill with existing data
-      const user = this.#existingUser;
-      const node = this.#props.existingNode;
+    const user = this.#existingUser;
+    const node = this.#props.existingNode;
 
-      // Extract firstName and lastName from node name if user profile is incomplete
-      // This handles migrated users who don't have full profile data
+    if (user) {
+      // Edit mode with existing profile: pre-fill from user + node fallback
       let firstName = user.firstName || '';
       let lastName = user.lastName || '';
 
@@ -60,7 +67,6 @@ export class AddEmployeeWizard {
       }
 
       this.#formData = {
-        // Step 1: Personal - Use node data as fallback for incomplete profiles
         firstName,
         lastName,
         birthDate: user.birthDate && user.birthDate !== 'Invalid Date'
@@ -68,16 +74,12 @@ export class AddEmployeeWizard {
           : '',
         email: user.email || node?.email || '',
         phone: user.phone || node?.phone || '',
-        password: '', // Never pre-fill password
+        password: '',
         passwordConfirm: '',
-
-        // Step 2: Address
         street: user.address?.street || '',
         houseNumber: user.address?.houseNumber || '',
         postalCode: user.address?.postalCode || '',
         city: user.address?.city || '',
-
-        // Step 3: Tax & Legal
         taxNumber: user.taxInfo?.taxNumber || '',
         vatNumber: user.taxInfo?.vatNumber || '',
         taxOffice: user.taxInfo?.taxOffice || '',
@@ -85,42 +87,46 @@ export class AddEmployeeWizard {
         isVatLiable: user.taxInfo?.isVatLiable !== false,
         legalForm: user.legalInfo?.legalForm || 'Einzelunternehmer',
         registrationCourt: user.legalInfo?.registrationCourt || '',
-
-        // Step 4: Bank
         iban: user.bankInfo?.iban || '',
         bic: user.bankInfo?.bic || '',
         bankName: user.bankInfo?.bankName || '',
         accountHolder: user.bankInfo?.accountHolder || '',
-
-        // Step 5: Qualifications
         ihkQualifications: user.qualifications?.ihkQualifications || [],
         ihkRegistrationNumber: user.qualifications?.ihkRegistrationNumber || '',
-
-        // Step 6: Provisions & Career (from node or user)
-        rankName: user.careerLevel?.rankName || 'Berater',
-        bankProvision: node?.bankProvision || user.careerLevel?.bankProvisionRate || 0,
-        insuranceProvision: node?.insuranceProvision || user.careerLevel?.insuranceProvisionRate || 0,
-        realEstateProvision: node?.realEstateProvision || user.careerLevel?.realEstateProvisionRate || 0,
+        rankName: user.careerLevel?.rankName || (this.#isGeschaeftsfuehrer ? 'Geschäftsführer' : 'Berater'),
+        bankProvision: node?.bankProvision || user.careerLevel?.bankProvisionRate
+          || (this.#isGeschaeftsfuehrer ? this.#getGfDefaultProvision('bank') : 0),
+        insuranceProvision: node?.insuranceProvision || user.careerLevel?.insuranceProvisionRate
+          || (this.#isGeschaeftsfuehrer ? this.#getGfDefaultProvision('insurance') : 0),
+        realEstateProvision: node?.realEstateProvision || user.careerLevel?.realEstateProvisionRate
+          || (this.#isGeschaeftsfuehrer ? this.#getGfDefaultProvision('realEstate') : 0),
       };
-    } else {
-      // Create mode: Empty form
+    } else if (this.#isGeschaeftsfuehrer && node) {
+      // GF without profile: pre-fill from node data and config defaults
+      let firstName = '';
+      let lastName = '';
+      if (node.name) {
+        const nameParts = node.name.trim().split(' ');
+        if (nameParts.length >= 2) {
+          firstName = nameParts[0];
+          lastName = nameParts.slice(1).join(' ');
+        } else if (nameParts.length === 1) {
+          firstName = nameParts[0];
+        }
+      }
+
       this.#formData = {
-        // Step 1: Personal
-        firstName: '',
-        lastName: '',
+        firstName,
+        lastName,
         birthDate: '',
-        email: '',
-        phone: '',
+        email: node.email || '',
+        phone: node.phone || '',
         password: '',
         passwordConfirm: '',
-
-        // Step 2: Address
         street: '',
         houseNumber: '',
         postalCode: '',
         city: '',
-
-        // Step 3: Tax & Legal
         taxNumber: '',
         vatNumber: '',
         taxOffice: '',
@@ -128,18 +134,44 @@ export class AddEmployeeWizard {
         isVatLiable: true,
         legalForm: 'Einzelunternehmer',
         registrationCourt: '',
-
-        // Step 4: Bank
         iban: '',
         bic: '',
         bankName: '',
         accountHolder: '',
-
-        // Step 5: Qualifications
         ihkQualifications: [],
         ihkRegistrationNumber: '',
-
-        // Step 6: Provisions & Career
+        rankName: 'Geschäftsführer',
+        bankProvision: node.bankProvision || this.#getGfDefaultProvision('bank'),
+        insuranceProvision: node.insuranceProvision || this.#getGfDefaultProvision('insurance'),
+        realEstateProvision: node.realEstateProvision || this.#getGfDefaultProvision('realEstate'),
+      };
+    } else {
+      // Create mode: empty form for new employee
+      this.#formData = {
+        firstName: '',
+        lastName: '',
+        birthDate: '',
+        email: '',
+        phone: '',
+        password: '',
+        passwordConfirm: '',
+        street: '',
+        houseNumber: '',
+        postalCode: '',
+        city: '',
+        taxNumber: '',
+        vatNumber: '',
+        taxOffice: '',
+        isSmallBusiness: false,
+        isVatLiable: true,
+        legalForm: 'Einzelunternehmer',
+        registrationCourt: '',
+        iban: '',
+        bic: '',
+        bankName: '',
+        accountHolder: '',
+        ihkQualifications: [],
+        ihkRegistrationNumber: '',
         rankName: 'Berater',
         bankProvision: 0,
         insuranceProvision: 0,
@@ -155,7 +187,9 @@ export class AddEmployeeWizard {
     const stepContent = this.#renderCurrentStep();
     const navigation = this.#renderNavigation();
 
-    const dialogTitle = this.#isEditMode ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter';
+    const dialogTitle = this.#isGeschaeftsfuehrer
+      ? 'Profil bearbeiten'
+      : (this.#isEditMode ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter');
     const content = createElement('div', { className: 'dialog-content dialog-wizard' }, [
       createElement('h2', { className: 'dialog-title' }, [dialogTitle]),
       progress,
@@ -177,8 +211,8 @@ export class AddEmployeeWizard {
 
   #renderProgress() {
     const steps = [];
-    for (let i = 1; i <= TOTAL_STEPS; i++) {
-      const stepClass = i === this.#currentStep ? 'active' : i < this.#currentStep ? 'completed' : '';
+    for (let i = 1; i <= this.#totalSteps; i++) {
+      const stepClass = i === this.#displayStep ? 'active' : i < this.#displayStep ? 'completed' : '';
       steps.push(
         createElement('div', { className: `wizard-step ${stepClass}` }, [
           createElement('span', { className: 'step-number' }, [i.toString()]),
@@ -189,7 +223,7 @@ export class AddEmployeeWizard {
     return createElement('div', { className: 'wizard-progress' }, [
       createElement('div', { className: 'wizard-steps' }, steps),
       createElement('div', { className: 'wizard-step-label' }, [
-        `Schritt ${this.#currentStep} von ${TOTAL_STEPS}: ${this.#getStepTitle()}`
+        `Schritt ${this.#displayStep} von ${this.#totalSteps}: ${this.#getStepTitle()}`
       ]),
     ]);
   }
@@ -333,9 +367,20 @@ export class AddEmployeeWizard {
           createElement('div', { className: 'form-col-2' }, [this.#inputs.birthDate.element]),
           createElement('div', { className: 'form-col-2' }, [this.#inputs.phone.element]),
         ]),
-        // Row 3: Email (full width, disabled in edit mode)
+        // Row 3: Email (full width, readonly in edit mode)
         createElement('div', { className: 'form-row' }, [
-          createElement('div', { className: 'form-col-1' }, [this.#inputs.email.element]),
+          createElement('div', { className: 'form-col-1' }, [(() => {
+            const emailEl = this.#inputs.email.element;
+            if (this.#isEditMode) {
+              const input = emailEl.querySelector('input');
+              if (input) {
+                input.readOnly = true;
+                input.style.opacity = '0.6';
+                input.style.cursor = 'not-allowed';
+              }
+            }
+            return emailEl;
+          })()]),
         ]),
         // Row 4: Passwords (only in create mode!)
         ...passwordFields,
@@ -694,8 +739,8 @@ export class AddEmployeeWizard {
 
     Logger.log('Navigation render - Edit Mode:', this.#isEditMode, 'Step:', this.#currentStep);
 
-    // Delete button (always visible in edit mode)
-    if (this.#isEditMode) {
+    // Delete button (visible in edit mode, but NOT for Geschäftsführer)
+    if (this.#isEditMode && !this.#isGeschaeftsfuehrer) {
       Logger.log('✓ Showing delete button');
       const deleteBtn = new Button({
         label: 'Account löschen',
@@ -736,8 +781,8 @@ export class AddEmployeeWizard {
       }).element
     );
 
-    // Back button (visible from step 2 onwards)
-    if (this.#currentStep > 1) {
+    // Back button (visible from second step onwards)
+    if (this.#currentStep > this.#firstStep) {
       buttons.push(
         new Button({
           label: 'Zurück',
@@ -845,7 +890,7 @@ export class AddEmployeeWizard {
   }
 
   #goToPreviousStep() {
-    if (this.#currentStep > 1) {
+    if (this.#currentStep > this.#firstStep) {
       this.#animateStepTransition('backward', () => {
         this.#currentStep--;
         this.#refresh();
@@ -976,6 +1021,18 @@ export class AddEmployeeWizard {
 
   get element() {
     return this.#element;
+  }
+
+  /**
+   * Get default provision for GF from config by type
+   */
+  #getGfDefaultProvision(type) {
+    const node = this.#props.existingNode;
+    if (node?.id) {
+      const gfConfig = getGeschaeftsfuehrerConfig(node.id);
+      if (gfConfig) return gfConfig.defaultProvisions[type] || 90;
+    }
+    return 90;
   }
 
   // ========================================

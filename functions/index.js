@@ -352,3 +352,82 @@ exports.migrateUsersToCustomClaims = onCall({
     throw new HttpsError('internal', 'Fehler bei der Migration: ' + error.message);
   }
 });
+
+/**
+ * Resolve User UID by Email
+ * Returns the Firebase Auth UID for a given email and ensures Firestore document exists.
+ * Used by admins to configure profiles for users who haven't completed onboarding.
+ */
+exports.resolveUserUid = onCall({
+  cors: true,
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be authenticated');
+  }
+
+  if (!isUserAdmin(request.auth.token) && !isAdminEmail(request.auth.token.email)) {
+    throw new HttpsError('permission-denied', 'Only admins can resolve user UIDs');
+  }
+
+  const { email } = request.data;
+
+  if (!email) {
+    throw new HttpsError('invalid-argument', 'Email is required');
+  }
+
+  const { displayName } = request.data;
+
+  try {
+    let userRecord;
+
+    // Try to find existing Auth account
+    try {
+      userRecord = await auth.getUserByEmail(email);
+      Logger.log(`✓ Found existing Auth account for ${email}: ${userRecord.uid}`);
+    } catch (lookupError) {
+      if (lookupError.code !== 'auth/user-not-found') {
+        throw lookupError;
+      }
+
+      // Account doesn't exist — create it with a temporary password
+      const tempPassword = `Temp${Date.now()}!${Math.random().toString(36).slice(2, 8)}`;
+      const role = isAdminEmail(email) ? 'admin' : 'employee';
+
+      userRecord = await auth.createUser({
+        email: email,
+        password: tempPassword,
+        displayName: displayName || email.split('@')[0],
+        emailVerified: false,
+      });
+
+      await auth.setCustomUserClaims(userRecord.uid, { role });
+
+      Logger.log(`✓ Created new Auth account for ${email}: ${userRecord.uid} (${role})`);
+      Logger.log(`⚠️ Temporary password set — user must reset via password reset flow`);
+    }
+
+    // Ensure Firestore user document exists
+    const userDoc = await db.collection('users').doc(userRecord.uid).get();
+    if (!userDoc.exists) {
+      const role = isAdminEmail(email) ? 'admin' : 'employee';
+      await db.collection('users').doc(userRecord.uid).set({
+        uid: userRecord.uid,
+        email: userRecord.email,
+        displayName: userRecord.displayName || email.split('@')[0],
+        role,
+        createdAt: FieldValue.serverTimestamp(),
+        createdBy: request.auth.uid,
+      });
+      Logger.log(`✓ Created Firestore document for ${email}`);
+    }
+
+    return {
+      success: true,
+      uid: userRecord.uid,
+      email: userRecord.email,
+    };
+  } catch (error) {
+    Logger.error('Error resolving user UID:', error);
+    throw new HttpsError('internal', 'Fehler beim Auflösen: ' + error.message);
+  }
+});

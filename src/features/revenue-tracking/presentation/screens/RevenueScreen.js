@@ -20,6 +20,7 @@ import { REVENUE_STATUS_TYPES } from '../../domain/value-objects/RevenueStatus.j
 import { Logger } from './../../../../core/utils/logger.js';
 import { createWIFOImportButton } from '../../../wifo-import/WIFOImportIntegration.js';
 import { BillingExportDialog } from '../../../billing-export/presentation/index.js';
+import { isGeschaeftsfuehrerId, buildGeschaeftsfuehrerNode } from '../../../../core/config/geschaeftsfuehrer.config.js';
 
 const MONTH_NAMES = [
   'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
@@ -96,15 +97,15 @@ export class RevenueScreen {
         return;
       }
 
-      // Might be a Geschäftsführer (admin only) - create a mock employee object
-      // The actual data will come from the revenue service
-      this.#employee = {
+      // Might be a Geschäftsführer (admin only) - create employee object from config
+      const gfNode = buildGeschaeftsfuehrerNode(this.#employeeId);
+      this.#employee = gfNode || {
         id: this.#employeeId,
-        name: this.#employeeId === 'marcel-liebetrau' ? 'Marcel Liebetrau' : 'Daniel Lippa',
+        name: this.#employeeId,
         isGeschaeftsfuehrer: true,
-        bankProvision: 90,
-        insuranceProvision: 90,
-        realEstateProvision: 90,
+        bankProvision: 0,
+        insuranceProvision: 0,
+        realEstateProvision: 0,
       };
       this.#isCompanyView = false;
       this.#activeTab = 'own';

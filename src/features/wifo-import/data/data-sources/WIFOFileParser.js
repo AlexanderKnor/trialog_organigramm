@@ -83,6 +83,13 @@ export class WIFOFileParser {
       );
     }
 
+    // CSV: parse raw text to preserve German number format
+    // SheetJS auto-detection mangles German decimals (e.g., "159,33" → 15933)
+    if (extension === 'csv') {
+      return this.#parseCSVFile(file, onProgress);
+    }
+
+    // Excel (.xlsx/.xls): use SheetJS which handles numeric cells correctly
     const XLSX = await this.#loadXLSX();
 
     // Read file content
@@ -235,6 +242,157 @@ export class WIFOFileParser {
       reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden'));
       reader.readAsArrayBuffer(file);
     });
+  }
+
+  /**
+   * Read file as text for CSV parsing
+   * @param {File} file - The file to read
+   * @returns {Promise<string>}
+   */
+  #readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden'));
+      reader.readAsText(file, 'utf-8');
+    });
+  }
+
+  /**
+   * Parse CSV file with raw text to preserve German number format
+   * @param {File} file - The CSV file
+   * @param {Function} onProgress - Progress callback
+   * @returns {Promise<WIFOImportRecord[]>}
+   */
+  async #parseCSVFile(file, onProgress) {
+    if (onProgress) {
+      onProgress(10, 100, 'CSV-Datei wird gelesen...');
+    }
+
+    const text = await this.#readFileAsText(file);
+
+    if (onProgress) {
+      onProgress(30, 100, 'Daten werden extrahiert...');
+    }
+
+    const delimiter = this.#detectCSVDelimiter(text);
+    const rows = this.#parseCSVText(text, delimiter);
+
+    if (rows.length < 2) {
+      throw new WIFOFileFormatError('Die Datei enthält keine Daten (nur Header oder leer)');
+    }
+
+    if (onProgress) {
+      onProgress(50, 100, 'Spalten werden zugeordnet...');
+    }
+
+    const headerRow = rows[0];
+    const columnMap = this.#buildColumnMap(headerRow);
+    this.#validateColumns(columnMap);
+
+    if (onProgress) {
+      onProgress(60, 100, 'Datensätze werden verarbeitet...');
+    }
+
+    const records = [];
+    const totalRows = rows.length - 1;
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (this.#isEmptyRow(row)) {
+        continue;
+      }
+
+      const record = WIFOImportRecord.fromWIFORow(i, row, columnMap);
+      records.push(record);
+
+      if (onProgress && i % 50 === 0) {
+        const progress = 60 + Math.floor((i / totalRows) * 40);
+        onProgress(progress, 100, `Zeile ${i} von ${totalRows}...`);
+      }
+    }
+
+    if (onProgress) {
+      onProgress(100, 100, 'Fertig');
+    }
+
+    return records;
+  }
+
+  /**
+   * Auto-detect CSV delimiter (semicolon for German CSV, comma otherwise)
+   * @param {string} text - CSV text content
+   * @returns {string}
+   */
+  #detectCSVDelimiter(text) {
+    const firstLine = text.split(/\r?\n/)[0] || '';
+    const semicolons = (firstLine.match(/;/g) || []).length;
+    const commas = (firstLine.match(/,/g) || []).length;
+    // German CSVs typically use semicolons since comma is the decimal separator
+    return semicolons >= commas ? ';' : ',';
+  }
+
+  /**
+   * Parse CSV text into array of row arrays (preserves raw text values)
+   * @param {string} text - CSV text content
+   * @param {string} delimiter - Field delimiter
+   * @returns {Array<Array<string>>}
+   */
+  #parseCSVText(text, delimiter) {
+    const rows = [];
+    let currentRow = [];
+    let currentField = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+
+      if (inQuotes) {
+        if (char === '"') {
+          if (nextChar === '"') {
+            currentField += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          currentField += char;
+        }
+      } else if (char === '"') {
+        inQuotes = true;
+      } else if (char === delimiter) {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if (char === '\n' || (char === '\r' && nextChar === '\n')) {
+        currentRow.push(currentField.trim());
+        if (currentRow.length > 0) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentField = '';
+        if (char === '\r') i++;
+      } else if (char === '\r') {
+        currentRow.push(currentField.trim());
+        if (currentRow.length > 0) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+
+    // Handle last row (file may not end with newline)
+    if (currentField || currentRow.length > 0) {
+      currentRow.push(currentField.trim());
+      if (currentRow.some((cell) => cell !== '')) {
+        rows.push(currentRow);
+      }
+    }
+
+    return rows;
   }
 
   /**
