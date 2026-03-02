@@ -38,6 +38,7 @@ export class Sidebar {
       onSave: props.onSave || null,
       onDelete: props.onDelete || null,
       onAddChild: props.onAddChild || null,
+      onMove: props.onMove || null,
       onRevenueTracking: props.onRevenueTracking || null,
       profileService: props.profileService || null,
       className: props.className || '',
@@ -219,6 +220,23 @@ export class Sidebar {
             },
           }).element,
         );
+
+        // "Versetzen" only for non-root, non-GF nodes
+        if (!this.#node.isRoot) {
+          actionButtons.push(
+            new Button({
+              label: 'Versetzen',
+              variant: 'ghost',
+              size: 'sm',
+              icon: new Icon({ name: 'move', size: 14 }),
+              onClick: () => {
+                if (this.#props.onMove) {
+                  this.#props.onMove(this.#node.id);
+                }
+              },
+            }).element,
+          );
+        }
       }
     }
 

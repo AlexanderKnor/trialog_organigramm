@@ -17,6 +17,7 @@ import { NodeEditor } from '../components/molecules/NodeEditor.js';
 import { HierarchyNode } from '../../domain/entities/HierarchyNode.js';
 import { NODE_TYPES } from '../../domain/value-objects/NodeType.js';
 import { AddEmployeeWizard } from '../../../user-profile/presentation/components/AddEmployeeWizard.js';
+import { MoveEmployeeDialog } from '../components/molecules/MoveEmployeeDialog.js';
 import { Logger } from './../../../../core/utils/logger.js';
 
 export class HierarchyScreen {
@@ -70,6 +71,7 @@ export class HierarchyScreen {
       onSave: (nodeId, data) => this.#handleNodeSave(nodeId, data),
       onDelete: (nodeId, skipConfirmation) => this.#handleNodeDelete(nodeId, skipConfirmation),
       onAddChild: (parentId) => this.#handleAddNode(parentId),
+      onMove: (nodeId) => this.#openMoveDialog(nodeId),
       profileService: this.#profileService,
     });
 
@@ -581,6 +583,24 @@ async #deleteEmployeeRevenueEntries(employeeId) {
       Logger.error('Failed to move node:', error);
       this.#state.setError(error.message);
     }
+  }
+
+  #openMoveDialog(nodeId) {
+    const tree = this.#state.currentTree;
+    if (!tree || !tree.hasNode(nodeId)) return;
+
+    const node = tree.getNode(nodeId);
+    const currentParent = node.parentId ? tree.getNode(node.parentId) : null;
+    if (!currentParent) return; // Root cannot be moved
+
+    const dialog = new MoveEmployeeDialog({
+      node,
+      tree,
+      currentParent,
+      onConfirm: (newParentId) => this.#handleNodeMove(nodeId, newParentId),
+    });
+
+    dialog.show();
   }
 
   async #handleAddNode(parentId = null) {

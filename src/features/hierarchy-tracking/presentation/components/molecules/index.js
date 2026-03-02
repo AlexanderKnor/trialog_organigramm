@@ -5,3 +5,4 @@
 export * from './SearchBar.js';
 export * from './TreeNodeItem.js';
 export * from './NodeEditor.js';
+export * from './MoveEmployeeDialog.js';
