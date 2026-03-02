@@ -2243,7 +2243,8 @@
 .revenue-own,
 .revenue-team,
 .revenue-company,
-.revenue-tip-provider {
+.revenue-tip-provider,
+.revenue-extraordinary {
   display: flex;
   flex-direction: column;
   padding: var(--spacing-6);
@@ -2253,7 +2254,8 @@
 .revenue-own.view-exit,
 .revenue-team.view-exit,
 .revenue-company.view-exit,
-.revenue-tip-provider.view-exit {
+.revenue-tip-provider.view-exit,
+.revenue-extraordinary.view-exit {
   animation: viewFadeOut 0.2s ease-out forwards;
 }
 
@@ -2265,6 +2267,24 @@
 @keyframes viewFadeOut {
   from { opacity: 1; transform: translateY(0); }
   to { opacity: 0; transform: translateY(-8px); }
+}
+
+/* Extraordinary tab — top bar with stats + export button */
+.extraordinary-top-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-5);
+}
+
+.extraordinary-top-bar .revenue-stats-bar {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.extraordinary-top-bar .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* ========================================

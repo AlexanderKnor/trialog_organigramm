@@ -440,9 +440,14 @@ createElement('svg', {
       onclick: () => this.#switchTab('tipProvider'),
     }, ['Tippgeber-Umsätze']);
 
-    // Geschäftsführer: only "Eigene" + "Tippgeber" tabs (no team)
+    // Geschäftsführer: "Eigene" + "Tippgeber" + "Durchlaufposten" tabs (no team)
     if (isGeschaeftsfuehrer) {
-      return createElement('div', { className: 'revenue-tabs' }, [ownTab, tipProviderTab]);
+      const extraordinaryTab = createElement('button', {
+        className: `revenue-tab ${this.#activeTab === 'extraordinary' ? 'active' : ''}`,
+        onclick: () => this.#switchTab('extraordinary'),
+      }, ['Durchlaufposten']);
+
+      return createElement('div', { className: 'revenue-tabs' }, [ownTab, tipProviderTab, extraordinaryTab]);
     }
 
     // Regular employees: all three tabs
@@ -470,10 +475,11 @@ createElement('svg', {
       if (this.#isCompanyView) {
         t.classList.toggle('active', i === 0 && tab === 'company');
       } else if (isGeschaeftsfuehrer) {
-        // Geschäftsführer: only 2 tabs (own, tipProvider)
+        // Geschäftsführer: 3 tabs (own, tipProvider, extraordinary)
         t.classList.toggle('active',
           (i === 0 && tab === 'own') ||
-          (i === 1 && tab === 'tipProvider')
+          (i === 1 && tab === 'tipProvider') ||
+          (i === 2 && tab === 'extraordinary')
         );
       } else {
         // Regular employees: 3 tabs (own, team, tipProvider)
@@ -506,6 +512,8 @@ createElement('svg', {
           newContent = this.#renderTeamRevenues();
         } else if (this.#activeTab === 'tipProvider') {
           newContent = this.#renderTipProviderRevenues();
+        } else if (this.#activeTab === 'extraordinary') {
+          newContent = this.#renderExtraordinaryRevenues();
         }
 
         content.appendChild(newContent);
@@ -569,6 +577,12 @@ createElement('svg', {
         // Load tip provider revenues (entries where this employee is tip provider)
         const tipProviderEntries = await this.#revenueService.getEntriesByTipProvider(this.#employeeId);
         this.#state.setTipProviderEntries(tipProviderEntries);
+
+        // Load extraordinary entries (Durchlaufposten) for Geschaeftsfuehrer
+        if (isGeschaeftsfuehrerId(this.#employeeId)) {
+          const extraordinaryEntries = await this.#revenueService.getExtraordinaryEntriesByGf(this.#employeeId);
+          this.#state.setExtraordinaryEntries(extraordinaryEntries);
+        }
       }
     } catch (error) {
       Logger.error('Failed to load revenue data:', error);
@@ -609,6 +623,8 @@ createElement('svg', {
       content.appendChild(this.#renderTeamRevenues());
     } else if (this.#activeTab === 'tipProvider') {
       content.appendChild(this.#renderTipProviderRevenues());
+    } else if (this.#activeTab === 'extraordinary') {
+      content.appendChild(this.#renderExtraordinaryRevenues());
     }
   }
 
@@ -880,6 +896,220 @@ createElement('svg', {
       statsBar,
       createElement('div', { className: 'revenue-table-container' }, [table]),
     ]);
+  }
+
+  #renderExtraordinaryRevenues() {
+    const state = this.#state.getState();
+    let entries = state.extraordinaryEntries || [];
+
+    // Apply date range filter
+    entries = this.#filterEntriesByDateRange(entries);
+
+    // Period header
+    const periodHeader = createElement('div', { className: 'period-header' }, [
+      createElement('h2', { className: 'period-title' }, [
+        this.#formatDateRangeDisplay(),
+      ]),
+    ]);
+
+    if (entries.length === 0) {
+      return createElement('div', { className: 'revenue-extraordinary' }, [
+        periodHeader,
+        createElement('div', { className: 'revenue-empty-state' }, [
+          createElement('h3', { className: 'empty-state-title' }, [
+            'Keine Durchlaufposten in diesem Zeitraum',
+          ]),
+          createElement('p', { className: 'empty-state-text' }, [
+            'Ausserordentliche Umsätze, die einem anderen Mitarbeiter zugeordnet wurden, erscheinen hier',
+          ]),
+        ]),
+      ]);
+    }
+
+    // Filter out rejected and cancelled entries for calculations
+    const activeEntries = entries.filter(
+      (e) => e.status?.type !== REVENUE_STATUS_TYPES.REJECTED &&
+             e.status?.type !== REVENUE_STATUS_TYPES.CANCELLED,
+    );
+
+    const totalAmount = activeEntries.reduce(
+      (sum, e) => sum + (e.grossAmount || e.provisionAmount || 0), 0,
+    );
+
+    const statsBar = createElement('div', { className: 'revenue-stats-bar' }, [
+      createElement('div', { className: 'stat-item' }, [
+        createElement('span', { className: 'stat-label' }, ['Durchlaufposten:']),
+        createElement('span', { className: 'stat-value' }, [activeEntries.length.toString()]),
+      ]),
+      createElement('div', { className: 'stat-item highlight' }, [
+        createElement('span', { className: 'stat-label' }, ['Gesamtbetrag:']),
+        createElement('span', { className: 'stat-value' }, [`${totalAmount.toFixed(2)} EUR`]),
+      ]),
+    ]);
+
+    const canEdit = this.#canEditRevenue();
+
+    const tableRows = entries.map((entry) => {
+      const targetEmployee = entry.hierarchySnapshot?.ownerName || entry.employeeId || 'Unbekannt';
+      const entryDate = entry.entryDate || entry.createdAt;
+      const formattedDate = entryDate
+        ? new Date(entryDate).toLocaleDateString('de-DE')
+        : '';
+      const amount = entry.grossAmount || entry.provisionAmount || 0;
+      const statusType = entry.status?.type || entry.status || '';
+      const STATUS_LABELS = {
+        [REVENUE_STATUS_TYPES.SUBMITTED]: 'Eingereicht',
+        [REVENUE_STATUS_TYPES.PROVISIONED]: 'Provisioniert',
+        [REVENUE_STATUS_TYPES.REJECTED]: 'Abgelehnt',
+        [REVENUE_STATUS_TYPES.CANCELLED]: 'Storniert',
+      };
+      const statusLabel = STATUS_LABELS[statusType] || statusType;
+      const statusClass = `status-badge status-${statusType}`;
+
+      // Action cell — editable only when SUBMITTED
+      const isEditable = statusType === REVENUE_STATUS_TYPES.SUBMITTED;
+      const actionCell = this.#renderExtraordinaryActionCell(entry, canEdit && isEditable);
+
+      return createElement('tr', {}, [
+        createElement('td', {}, [formattedDate]),
+        createElement('td', {}, [targetEmployee]),
+        createElement('td', {}, [entry.customerName || '']),
+        createElement('td', {}, [entry.category?.displayName || entry.category?.toString() || '']),
+        createElement('td', {}, [entry.product?.name || '']),
+        createElement('td', { className: 'text-right' }, [`${amount.toFixed(2)} EUR`]),
+        createElement('td', {}, [createElement('span', { className: statusClass }, [statusLabel])]),
+        actionCell,
+      ]);
+    });
+
+    const table = createElement('table', { className: 'revenue-table extraordinary-table' }, [
+      createElement('thead', {}, [
+        createElement('tr', {}, [
+          createElement('th', {}, ['Datum']),
+          createElement('th', {}, ['Ziel-Mitarbeiter']),
+          createElement('th', {}, ['Kunde']),
+          createElement('th', {}, ['Kategorie']),
+          createElement('th', {}, ['Produkt']),
+          createElement('th', { className: 'text-right' }, ['Brutto-Betrag']),
+          createElement('th', {}, ['Status']),
+          createElement('th', {}, ['Aktionen']),
+        ]),
+      ]),
+      createElement('tbody', {}, tableRows),
+    ]);
+
+    // Export button — placed next to stats bar for immediate access
+    const exportBtn = new Button({
+      label: 'Abrechnung exportieren',
+      variant: 'outline',
+      onClick: () => this.#openExtraordinaryExportDialog(),
+    });
+
+    const topBar = createElement('div', { className: 'extraordinary-top-bar' }, [
+      statsBar,
+      exportBtn.element,
+    ]);
+
+    return createElement('div', { className: 'revenue-extraordinary' }, [
+      periodHeader,
+      topBar,
+      createElement('div', { className: 'revenue-table-container' }, [table]),
+    ]);
+  }
+
+  #openExtraordinaryExportDialog() {
+    const dialog = new BillingExportDialog({
+      employeeId: this.#employeeId,
+      employeeName: this.#employee?.name || 'Geschäftsführer',
+      revenueService: this.#revenueService,
+      profileService: this.#profileService,
+      hierarchyService: this.#hierarchyService,
+      isExtraordinary: true,
+      onExportComplete: () => {
+        this.#loadData();
+      },
+    });
+    dialog.show();
+  }
+
+  #renderExtraordinaryActionCell(entry, isEditable) {
+    if (!isEditable) {
+      return createElement('td', { className: 'revenue-table-td' }, [
+        createElement('div', { className: 'action-buttons' }, [
+          createElement('span', {
+            className: 'action-locked',
+            title: 'Dieser Eintrag wurde bereits abgerechnet und kann nicht mehr geändert werden',
+          }, ['\uD83D\uDD12']),
+        ]),
+      ]);
+    }
+
+    const editIcon = new Icon({ name: 'edit', size: 16 });
+    const editBtn = createElement('button', {
+      className: 'action-btn action-btn-edit',
+      type: 'button',
+      title: 'Bearbeiten',
+    }, [editIcon.element]);
+
+    editBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.#handleExtraordinaryEdit(entry);
+    });
+
+    const deleteIcon = new Icon({ name: 'trash', size: 16 });
+    const deleteBtn = createElement('button', {
+      className: 'action-btn action-btn-delete',
+      type: 'button',
+      title: 'Löschen',
+    }, [deleteIcon.element]);
+
+    deleteBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.#handleExtraordinaryDelete(entry);
+    });
+
+    return createElement('td', { className: 'revenue-table-td' }, [
+      createElement('div', { className: 'action-buttons' }, [editBtn, deleteBtn]),
+    ]);
+  }
+
+  async #handleExtraordinaryEdit(entry) {
+    const dialog = new AddRevenueDialog({
+      entry,
+      revenueService: this.#revenueService,
+      hierarchyService: this.#hierarchyService,
+      employeeId: this.#employeeId,
+      onSave: async (data) => {
+        try {
+          await this.#revenueService.updateEntry(data.id, data);
+          await this.#loadData();
+          dialog.remove();
+        } catch (error) {
+          Logger.error('Failed to update extraordinary entry:', error);
+        }
+      },
+      onCancel: () => dialog.remove(),
+    });
+
+    dialog.show();
+  }
+
+  async #handleExtraordinaryDelete(entry) {
+    const targetName = entry.hierarchySnapshot?.ownerName || entry.employeeId || 'Unbekannt';
+    const confirmed = window.confirm(
+      `Möchten Sie den Durchlaufposten für "${entry.customerName}" (Ziel: ${targetName}) wirklich löschen?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await this.#revenueService.deleteEntry(entry.id);
+      await this.#loadData();
+    } catch (error) {
+      Logger.error('Failed to delete extraordinary entry:', error);
+    }
   }
 
   #renderCompanyRevenues() {
@@ -1641,9 +1871,17 @@ createElement('svg', {
       employeeId: this.#employeeId,
       onSave: async (data) => {
         try {
-          const entry = await this.#revenueService.addEntry(this.#employeeId, data);
-          this.#state.addEntry(entry);
+          // For extraordinary entries, employeeId is the target employee (not the GF)
+          const effectiveEmployeeId = data.employeeId || this.#employeeId;
+          const entry = await this.#revenueService.addEntry(effectiveEmployeeId, data);
+          if (effectiveEmployeeId === this.#employeeId) {
+            this.#state.addEntry(entry);
+          }
           dialog.remove();
+          // Reload to reflect extraordinary entries in the correct tab
+          if (data.isExtraordinary) {
+            await this.#loadData();
+          }
         } catch (error) {
           Logger.error('Failed to add entry:', error);
         }

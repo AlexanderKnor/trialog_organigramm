@@ -175,6 +175,46 @@ export class BillingReportService {
     });
   }
 
+  /**
+   * Generate extraordinary report (Durchlaufposten) for a Geschaeftsfuehrer.
+   * No status transition — finalization happens in the target employee's billing.
+   */
+  async generateExtraordinaryReport(gfId, period, options = {}) {
+    const {
+      generatedBy = null,
+      generatedByName = null,
+    } = options;
+
+    Logger.log('Generating extraordinary report for GF:', gfId);
+    Logger.log('Period:', period.displayName);
+
+    try {
+      const gfDetails = await this.#loadEmployeeDetails(gfId);
+      if (!gfDetails) {
+        throw new Error(`Geschaeftsfuehrer ${gfId} not found`);
+      }
+
+      const allEntries = await this.#revenueService.getExtraordinaryEntriesByGf(gfId);
+      const periodEntries = this.#filterEntriesByPeriod(allEntries, period);
+
+      Logger.log('Extraordinary entries in period:', periodEntries.length);
+
+      const report = BillingReportAssembler.assembleExtraordinaryReport({
+        gfDetails,
+        period,
+        entries: periodEntries,
+        generatedBy,
+        generatedByName,
+      });
+
+      Logger.log('Extraordinary report generated successfully');
+      return report;
+    } catch (error) {
+      Logger.error('Failed to generate extraordinary report:', error);
+      throw error;
+    }
+  }
+
   static createPeriod(year, month) {
     return ReportPeriod.forMonth(year, month);
   }

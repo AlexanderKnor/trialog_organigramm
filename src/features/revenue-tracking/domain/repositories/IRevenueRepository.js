@@ -43,4 +43,8 @@ export class IRevenueRepository {
   async getNextCustomerNumber(employeeId) {
     throw new Error('Method not implemented');
   }
+
+  async findByExtraordinaryGfId(gfId) {
+    throw new Error('Method not implemented');
+  }
 }

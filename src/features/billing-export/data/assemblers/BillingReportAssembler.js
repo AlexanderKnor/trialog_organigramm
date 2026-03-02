@@ -188,6 +188,80 @@ export class BillingReportAssembler {
     });
   }
 
+  /**
+   * Create a line item for an extraordinary entry (Durchlaufposten).
+   * 100% of the gross amount flows through — no provision percentage applied.
+   */
+  static createExtraordinaryLineItem(entry, gfDetails) {
+    const grossAmount = entry.grossAmount || entry.provisionAmount || 0;
+    const { provisionVatRate, provisionVatAmount, provisionGrossAmount } =
+      BillingReportAssembler.#calculateProvisionVat(grossAmount, gfDetails, entry.hasVAT, entry.vatRate);
+
+    // Target employee name from hierarchy snapshot
+    const targetEmployeeName = entry.hierarchySnapshot?.ownerName || entry.employeeId || 'Unbekannt';
+
+    return new ReportLineItem({
+      originalEntryId: entry.id,
+      date: entry.entryDate || entry.createdAt,
+      customerName: entry.customerName,
+      customerAddress: BillingReportAssembler.#formatCustomerAddress(entry.customerAddress),
+      categoryType: entry.category?.type || entry.category,
+      categoryDisplayName: entry.category?.displayName || entry.category?.toString() || '',
+      productName: entry.product?.name || '',
+      providerName: entry.productProvider?.name || entry.propertyAddress || '',
+      contractNumber: entry.contractNumber || '',
+      netAmount: entry.netAmount || entry.provisionAmount || 0,
+      vatRate: entry.hasVAT ? (entry.vatRate || 19) : 0,
+      vatAmount: entry.vatAmount || 0,
+      grossAmount,
+      provisionPercentage: 100,
+      provisionAmount: grossAmount,
+      provisionVatRate,
+      provisionVatAmount,
+      provisionGrossAmount,
+      source: LINE_ITEM_SOURCES.EXTRAORDINARY,
+      subordinateName: targetEmployeeName,
+      subordinateId: entry.employeeId,
+      status: entry.status?.type || entry.status,
+    });
+  }
+
+  /**
+   * Assemble a complete extraordinary report (Durchlaufposten-Abrechnung).
+   * Only includes SUBMITTED entries. No status change on finalization.
+   */
+  static assembleExtraordinaryReport({
+    gfDetails,
+    period,
+    entries = [],
+    generatedBy = null,
+    generatedByName = null,
+  }) {
+    // Filter to billable status only
+    const activeEntries = entries.filter(entry => {
+      const status = entry.status?.type || entry.status;
+      return status === REVENUE_STATUS_TYPES.SUBMITTED;
+    });
+
+    const excludedEntryCount = entries.length - activeEntries.length;
+
+    const extraordinaryLineItems = activeEntries.map(entry =>
+      BillingReportAssembler.createExtraordinaryLineItem(entry, gfDetails),
+    );
+
+    return BillingReport.create({
+      employeeDetails: gfDetails,
+      period,
+      ownLineItems: extraordinaryLineItems,
+      hierarchyLineItems: [],
+      tipProviderLineItems: [],
+      excludedEntryCount,
+      generatedBy,
+      generatedByName,
+      reportType: 'extraordinary',
+    });
+  }
+
   static #calculateProvisionVat(provisionAmount, employeeDetails, revenueHasVat, revenueVatRate) {
     const isSmallBusiness = employeeDetails?.isSmallBusiness ?? false;
 

@@ -89,6 +89,13 @@ export class RevenueService {
   }
 
   /**
+   * Get all extraordinary entries (Durchlaufposten) for a Geschaeftsfuehrer
+   */
+  async getExtraordinaryEntriesByGf(gfId) {
+    return await this.#revenueRepository.findByExtraordinaryGfId(gfId);
+  }
+
+  /**
    * Get all entries where the given employee is the tip provider
    */
   async getEntriesByTipProvider(tipProviderId) {

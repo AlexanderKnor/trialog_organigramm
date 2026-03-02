@@ -9,6 +9,7 @@ export const LINE_ITEM_SOURCES = {
   OWN: 'own',
   HIERARCHY: 'hierarchy',
   TIP_PROVIDER: 'tipProvider',
+  EXTRAORDINARY: 'extraordinary',
 };
 
 export class ReportLineItem {
@@ -150,6 +151,8 @@ export class ReportLineItem {
         return 'Team-Umsätze';
       case LINE_ITEM_SOURCES.TIP_PROVIDER:
         return 'Tippgeber-Umsätze';
+      case LINE_ITEM_SOURCES.EXTRAORDINARY:
+        return 'Durchlaufposten';
       default:
         return 'Sonstige';
     }

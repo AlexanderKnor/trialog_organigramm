@@ -256,6 +256,26 @@ export class RevenueFirestoreDataSource {
     }
   }
 
+  async findByExtraordinaryGfId(gfId) {
+    try {
+      const firestore = this.#getFirestore();
+      const { collection, query, where, getDocs } = await this.#importFirestoreHelpers();
+
+      const q = query(
+        collection(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES),
+        where('extraordinaryGfId', '==', gfId),
+      );
+
+      const querySnapshot = await getDocs(q);
+      const entries = querySnapshot.docs.map((doc) => doc.data());
+
+      Logger.log(`✓ Loaded ${entries.length} extraordinary entries for GF ${gfId}`);
+      return entries;
+    } catch (error) {
+      throw new StorageError(`Failed to load extraordinary entries: ${error.message}`);
+    }
+  }
+
   async batchUpdateStatus(updates) {
     try {
       if (!updates || updates.length === 0) return;

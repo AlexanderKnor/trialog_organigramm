@@ -51,6 +51,11 @@ export class AddRevenueDialog {
   #trackingModeRadios; // Track revenue vs provision
   #employeeSelect; // Employee selector for company mode
 
+  // Extraordinary revenue (Durchlaufposten) — GF only
+  #extraordinaryCheckbox;
+  #extraordinaryEmployeeSelect;
+  #extraordinarySection;
+
   // Multi-tip-provider state
   #tipProviderRows = []; // Array of { id, selectEl, provisionInput, removeBtn }
   #tipProviderContainer; // DOM container for tip provider rows
@@ -383,6 +388,18 @@ export class AddRevenueDialog {
       className: 'vat-checkbox-input',
     });
 
+    // Extraordinary checkbox (only visible for GF, not in company mode)
+    this.#extraordinaryCheckbox = createElement('input', {
+      type: 'checkbox',
+      id: 'revenue-extraordinary-checkbox',
+      className: 'vat-checkbox-input',
+      onchange: (e) => this.#onExtraordinaryChange(e.target.checked),
+    });
+
+    this.#extraordinaryEmployeeSelect = createElement('select', {
+      className: 'input-field',
+    }, [createElement('option', { value: '' }, ['Ziel-Mitarbeiter auswählen...'])]);
+
     this.#notesInput = new Input({ label: 'Notizen', placeholder: 'Optionale Notizen...' });
 
     this.#employeeSelect = createElement('select', {
@@ -468,6 +485,36 @@ export class AddRevenueDialog {
       ]),
     ]);
 
+    // Extraordinary section — visible only for GF in non-company mode
+    const isGfUser = isGeschaeftsfuehrerId(this.#props.employeeId);
+    const showExtraordinary = isGfUser && !this.#companyMode && !this.#isEditMode;
+
+    const extraordinaryCheckboxWrapper = createElement('div', { className: 'vat-checkbox-wrapper' }, [
+      createElement('label', {
+        className: 'vat-checkbox-label',
+        htmlFor: 'revenue-extraordinary-checkbox',
+      }, [
+        this.#extraordinaryCheckbox,
+        createElement('span', { className: 'vat-checkbox-text' }, [
+          'Ausserordentlicher Umsatz (Durchlaufposten)',
+        ]),
+      ]),
+    ]);
+
+    const extraordinaryEmployeeWrapper = createElement('div', {
+      className: 'input-wrapper extraordinary-employee-wrapper hidden',
+    }, [
+      createElement('label', { className: 'input-label' }, ['Ziel-Mitarbeiter']),
+      this.#extraordinaryEmployeeSelect,
+    ]);
+
+    this.#extraordinarySection = createElement('div', {
+      className: `extraordinary-section ${showExtraordinary ? '' : 'hidden'}`,
+    }, [
+      extraordinaryCheckboxWrapper,
+      extraordinaryEmployeeWrapper,
+    ]);
+
     const employeeSelectorWrapper = createElement('div', {
       className: `input-wrapper employee-selector-wrapper ${this.#companyMode ? '' : 'hidden'}`,
     }, [
@@ -504,6 +551,7 @@ export class AddRevenueDialog {
         dateAndContractRow,
         vatCheckboxWrapper,
         manualBillingWrapper,
+        this.#extraordinarySection,
         tipProviderSection,
         this.#notesInput.element,
       ]),
@@ -759,6 +807,33 @@ export class AddRevenueDialog {
     this.#allEmployees.forEach((employee) => {
       const option = createElement('option', { value: employee.id }, [employee.name]);
       this.#employeeSelect.appendChild(option);
+    });
+  }
+
+  #onExtraordinaryChange(checked) {
+    const employeeWrapper = this.#extraordinarySection.querySelector('.extraordinary-employee-wrapper');
+    if (checked) {
+      employeeWrapper.classList.remove('hidden');
+      this.#populateExtraordinaryEmployeeSelect();
+    } else {
+      employeeWrapper.classList.add('hidden');
+      this.#extraordinaryEmployeeSelect.value = '';
+    }
+  }
+
+  #populateExtraordinaryEmployeeSelect() {
+    this.#extraordinaryEmployeeSelect.innerHTML = '';
+    const defaultOption = createElement('option', { value: '' }, ['Ziel-Mitarbeiter auswählen...']);
+    this.#extraordinaryEmployeeSelect.appendChild(defaultOption);
+
+    // Show all employees except GFs and root
+    const eligibleEmployees = this.#allEmployees.filter(
+      (emp) => !isGeschaeftsfuehrerId(emp.id),
+    );
+
+    eligibleEmployees.forEach((employee) => {
+      const option = createElement('option', { value: employee.id }, [employee.name]);
+      this.#extraordinaryEmployeeSelect.appendChild(option);
     });
   }
 
@@ -1063,6 +1138,14 @@ export class AddRevenueDialog {
       }
     }
 
+    // Validate extraordinary employee selection
+    const isExtraordinaryActive = this.#extraordinaryCheckbox.checked &&
+      !this.#extraordinarySection.classList.contains('hidden');
+    if (isExtraordinaryActive && !this.#extraordinaryEmployeeSelect.value) {
+      this.#extraordinaryEmployeeSelect.style.borderColor = 'var(--color-error, #e53935)';
+      return;
+    }
+
     const categoryType = this.#categorySelect.value;
 
     // Collect tip providers from all rows
@@ -1189,6 +1272,16 @@ export class AddRevenueDialog {
     // Include selected employee ID for company mode
     if (this.#companyMode) {
       data.employeeId = this.#employeeSelect?.value || this.#props.employeeId;
+    }
+
+    // Extraordinary (Durchlaufposten) — override employeeId to target employee
+    if (isExtraordinaryActive) {
+      const targetEmployeeId = this.#extraordinaryEmployeeSelect.value;
+      const gfConfig = getGeschaeftsfuehrerConfig(this.#props.employeeId);
+      data.isExtraordinary = true;
+      data.extraordinaryGfId = gfConfig.id;
+      data.extraordinaryGfName = gfConfig.name;
+      data.employeeId = targetEmployeeId;
     }
 
     this.#props.onSave?.(data);

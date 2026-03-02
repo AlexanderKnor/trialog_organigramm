@@ -8,6 +8,7 @@ export class RevenueState {
   #hierarchicalEntries = [];
   #companyEntries = [];
   #tipProviderEntries = [];
+  #extraordinaryEntries = [];
   #selectedEmployeeId = null;
   #searchQuery = '';
   #isLoading = false;
@@ -19,6 +20,7 @@ export class RevenueState {
     this.#hierarchicalEntries = [];
     this.#companyEntries = [];
     this.#tipProviderEntries = [];
+    this.#extraordinaryEntries = [];
   }
 
   get entries() {
@@ -35,6 +37,10 @@ export class RevenueState {
 
   get tipProviderEntries() {
     return [...this.#tipProviderEntries];
+  }
+
+  get extraordinaryEntries() {
+    return [...this.#extraordinaryEntries];
   }
 
   get selectedEmployeeId() {
@@ -112,6 +118,11 @@ export class RevenueState {
     this.#notify();
   }
 
+  setExtraordinaryEntries(entries) {
+    this.#extraordinaryEntries = entries;
+    this.#notify();
+  }
+
   setSearchQuery(query) {
     this.#searchQuery = query;
     this.#notify();
@@ -172,6 +183,7 @@ export class RevenueState {
       hierarchicalEntries: this.#hierarchicalEntries,
       companyEntries: this.#companyEntries,
       tipProviderEntries: this.#tipProviderEntries,
+      extraordinaryEntries: this.#extraordinaryEntries,
       selectedEmployeeId: this.#selectedEmployeeId,
       searchQuery: this.#searchQuery,
       isLoading: this.#isLoading,
@@ -187,6 +199,7 @@ export class RevenueState {
       hierarchicalEntries: this.#hierarchicalEntries,
       companyEntries: this.#companyEntries,
       tipProviderEntries: this.#tipProviderEntries,
+      extraordinaryEntries: this.#extraordinaryEntries,
       selectedEmployeeId: this.#selectedEmployeeId,
       searchQuery: this.#searchQuery,
       isLoading: this.#isLoading,

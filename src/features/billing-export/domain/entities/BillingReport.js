@@ -20,6 +20,7 @@ export class BillingReport {
   #hierarchySummary;
   #tipProviderSummary;
   #excludedEntryCount;
+  #reportType;
 
   constructor({
     id = null,
@@ -30,6 +31,7 @@ export class BillingReport {
     hierarchyLineItems = [],
     tipProviderLineItems = [],
     excludedEntryCount = 0,
+    reportType = 'standard',
   }) {
     this.#id = id || generateUUID();
     this.#employeeDetails = employeeDetails;
@@ -45,12 +47,16 @@ export class BillingReport {
     this.#hierarchySummary = ProvisionSummary.fromLineItems(hierarchyLineItems);
     this.#tipProviderSummary = ProvisionSummary.fromLineItems(tipProviderLineItems);
     this.#excludedEntryCount = excludedEntryCount;
+    this.#reportType = reportType;
   }
 
   get id() { return this.#id; }
   get employeeDetails() { return this.#employeeDetails; }
   get period() { return this.#period; }
   get metadata() { return this.#metadata; }
+
+  get reportType() { return this.#reportType; }
+  get isExtraordinary() { return this.#reportType === 'extraordinary'; }
 
   get ownLineItems() { return [...this.#ownLineItems]; }
   get hierarchyLineItems() { return [...this.#hierarchyLineItems]; }
@@ -180,6 +186,7 @@ export class BillingReport {
       tipProviderSummary: this.#tipProviderSummary.toJSON(),
       totalProvision: this.totalProvision,
       excludedEntryCount: this.#excludedEntryCount,
+      reportType: this.#reportType,
     };
   }
 
@@ -199,6 +206,7 @@ export class BillingReport {
       hierarchyLineItems: (json.hierarchyLineItems || []).map(item => ReportLineItem.fromJSON(item)),
       tipProviderLineItems: (json.tipProviderLineItems || []).map(item => ReportLineItem.fromJSON(item)),
       excludedEntryCount: json.excludedEntryCount || 0,
+      reportType: json.reportType || 'standard',
     });
   }
 
@@ -211,6 +219,7 @@ export class BillingReport {
     excludedEntryCount = 0,
     generatedBy = null,
     generatedByName = null,
+    reportType = 'standard',
   }) {
     return new BillingReport({
       employeeDetails,
@@ -220,6 +229,7 @@ export class BillingReport {
       hierarchyLineItems,
       tipProviderLineItems,
       excludedEntryCount,
+      reportType,
     });
   }
 }

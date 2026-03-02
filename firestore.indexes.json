@@ -130,6 +130,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "entryDate", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "revenue_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "extraordinaryGfId", "order": "ASCENDING" },
+        { "fieldPath": "entryDate", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

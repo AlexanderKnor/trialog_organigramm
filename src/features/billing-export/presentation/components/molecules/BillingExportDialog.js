@@ -38,6 +38,7 @@ export class BillingExportDialog {
       onExportComplete: props.onExportComplete || null,
       onCancel: props.onCancel || null,
       className: props.className || '',
+      isExtraordinary: props.isExtraordinary || false,
     };
 
     this.#isLoading = false;
@@ -85,11 +86,16 @@ export class BillingExportDialog {
   }
 
   #renderHeader() {
+    const title = this.#props.isExtraordinary
+      ? 'Durchlaufposten-Abrechnung exportieren'
+      : 'Abrechnung exportieren';
+    const subtitle = this.#props.isExtraordinary
+      ? `Geschäftsführer: ${this.#props.employeeName}`
+      : `Begünstigter: ${this.#props.employeeName}`;
+
     return createElement('div', { className: 'dialog-header-fixed' }, [
-      createElement('h2', { className: 'dialog-title' }, ['Abrechnung exportieren']),
-      createElement('p', { className: 'dialog-subtitle' }, [
-        `Begünstigter: ${this.#props.employeeName}`,
-      ]),
+      createElement('h2', { className: 'dialog-title' }, [title]),
+      createElement('p', { className: 'dialog-subtitle' }, [subtitle]),
     ]);
   }
 
@@ -174,8 +180,12 @@ export class BillingExportDialog {
     modeSection.appendChild(modeNote);
 
     body.appendChild(periodSection);
-    body.appendChild(optionsSection);
-    body.appendChild(modeSection);
+
+    // Hide revenue source options and mode for extraordinary (not relevant)
+    if (!this.#props.isExtraordinary) {
+      body.appendChild(optionsSection);
+      body.appendChild(modeSection);
+    }
 
     return body;
   }
@@ -230,24 +240,41 @@ export class BillingExportDialog {
       const includeTipProvider = this.#includeTipProviderCheckbox.checked;
       const includeProvisioned = this.#includeProvisionedCheckbox.checked;
 
-      Logger.log('Generating billing report...');
-      Logger.log('Employee:', this.#props.employeeId);
-      Logger.log('Period:', period.displayName);
-      Logger.log('Include hierarchy:', includeHierarchy);
-      Logger.log('Include tip provider:', includeTipProvider);
-      Logger.log('Include provisioned:', includeProvisioned);
+      let report;
 
-      const report = await this.#billingReportService.generateReport(
-        this.#props.employeeId,
-        period,
-        {
-          includeHierarchy,
-          includeTipProvider,
-          includeProvisioned,
-          generatedBy: this.#props.generatedBy,
-          generatedByName: this.#props.generatedByName,
-        }
-      );
+      if (this.#props.isExtraordinary) {
+        Logger.log('Generating extraordinary billing report...');
+        Logger.log('GF:', this.#props.employeeId);
+        Logger.log('Period:', period.displayName);
+
+        report = await this.#billingReportService.generateExtraordinaryReport(
+          this.#props.employeeId,
+          period,
+          {
+            generatedBy: this.#props.generatedBy,
+            generatedByName: this.#props.generatedByName,
+          },
+        );
+      } else {
+        Logger.log('Generating billing report...');
+        Logger.log('Employee:', this.#props.employeeId);
+        Logger.log('Period:', period.displayName);
+        Logger.log('Include hierarchy:', includeHierarchy);
+        Logger.log('Include tip provider:', includeTipProvider);
+        Logger.log('Include provisioned:', includeProvisioned);
+
+        report = await this.#billingReportService.generateReport(
+          this.#props.employeeId,
+          period,
+          {
+            includeHierarchy,
+            includeTipProvider,
+            includeProvisioned,
+            generatedBy: this.#props.generatedBy,
+            generatedByName: this.#props.generatedByName,
+          },
+        );
+      }
 
       if (report.isEmpty) {
         this.#setLoading(false);
@@ -270,9 +297,12 @@ export class BillingExportDialog {
       this.#pdfGeneratorService.downloadPdf(blob, fileName);
 
       // Finalize: transition SUBMITTED -> PROVISIONED for own entries
-      const updatedCount = await this.#billingFinalizationService.finalizeReport(report);
-      if (updatedCount > 0) {
-        Logger.log(`${updatedCount} entries transitioned to PROVISIONED`);
+      // Skip finalization for extraordinary — status transition happens in target employee's billing
+      if (!this.#props.isExtraordinary) {
+        const updatedCount = await this.#billingFinalizationService.finalizeReport(report);
+        if (updatedCount > 0) {
+          Logger.log(`${updatedCount} entries transitioned to PROVISIONED`);
+        }
       }
 
       this.#setLoading(false);

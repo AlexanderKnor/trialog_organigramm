@@ -75,38 +75,52 @@ export class PdfGeneratorService {
     this.#contentWidth = PDF_CONFIG.pageWidth - PDF_CONFIG.margin.left - PDF_CONFIG.margin.right;
 
     this.#renderHeader(report);
-    this.#renderEmployeeAndPeriodSection(report.employeeDetails, report.period);
+    this.#renderEmployeeAndPeriodSection(report.employeeDetails, report.period, report);
 
-    if (report.hasOwnRevenue) {
-      this.#renderRevenueTable(
-        'Eigene Umsätze',
-        report.ownLineItems,
-        report.ownSummary,
-        LINE_ITEM_SOURCES.OWN
-      );
+    if (report.isExtraordinary) {
+      // Extraordinary mode: single table with all Durchlaufposten
+      if (report.hasOwnRevenue) {
+        this.#renderRevenueTable(
+          'Ausserordentliche Umsätze (Durchlaufposten)',
+          report.ownLineItems,
+          report.ownSummary,
+          LINE_ITEM_SOURCES.EXTRAORDINARY,
+        );
+      }
+    } else {
+      if (report.hasOwnRevenue) {
+        this.#renderRevenueTable(
+          'Eigene Umsätze',
+          report.ownLineItems,
+          report.ownSummary,
+          LINE_ITEM_SOURCES.OWN
+        );
+      }
+
+      if (report.hasHierarchyRevenue) {
+        this.#renderRevenueTable(
+          'Team-Umsätze (Hierarchie-Provision)',
+          report.hierarchyLineItems,
+          report.hierarchySummary,
+          LINE_ITEM_SOURCES.HIERARCHY
+        );
+      }
+
+      if (report.hasTipProviderRevenue) {
+        this.#renderRevenueTable(
+          'Tippgeber-Umsätze',
+          report.tipProviderLineItems,
+          report.tipProviderSummary,
+          LINE_ITEM_SOURCES.TIP_PROVIDER
+        );
+      }
     }
 
-    if (report.hasHierarchyRevenue) {
-      this.#renderRevenueTable(
-        'Team-Umsätze (Hierarchie-Provision)',
-        report.hierarchyLineItems,
-        report.hierarchySummary,
-        LINE_ITEM_SOURCES.HIERARCHY
-      );
+    if (!report.isExtraordinary) {
+      this.#renderMissingSectionNotes(report);
     }
-
-    if (report.hasTipProviderRevenue) {
-      this.#renderRevenueTable(
-        'Tippgeber-Umsätze',
-        report.tipProviderLineItems,
-        report.tipProviderSummary,
-        LINE_ITEM_SOURCES.TIP_PROVIDER
-      );
-    }
-
-    this.#renderMissingSectionNotes(report);
     this.#renderTotalSummary(report);
-    this.#renderPaymentInfo();
+    this.#renderPaymentInfo(report);
     this.#renderFooter(report);
 
     const blob = this.#doc.output('blob');
@@ -133,7 +147,8 @@ export class PdfGeneratorService {
       .replace(/\s+/g, '_')
       .replace(/[^a-zA-Z0-9_äöüÄÖÜß]/g, '');
     const period = report.period.shortDisplayName.replace(/\//g, '-');
-    return `Abrechnung_${employeeName}_${period}.pdf`;
+    const prefix = report.isExtraordinary ? 'Durchlaufposten' : 'Abrechnung';
+    return `${prefix}_${employeeName}_${period}.pdf`;
   }
 
   #renderHeader(report) {
@@ -147,7 +162,10 @@ export class PdfGeneratorService {
     this.#doc.setTextColor(...colors.white);
     this.#doc.setFontSize(fontSize.title);
     this.#doc.setFont('helvetica', 'bold');
-    this.#doc.text('PROVISIONSABRECHNUNG', margin.left, 14);
+    const reportTitle = report.isExtraordinary
+      ? 'DURCHLAUFPOSTEN-ABRECHNUNG'
+      : 'PROVISIONSABRECHNUNG';
+    this.#doc.text(reportTitle, margin.left, 14);
 
     // Report info
     this.#doc.setFontSize(fontSize.small);
@@ -166,10 +184,10 @@ export class PdfGeneratorService {
     this.#doc.setTextColor(...colors.black);
   }
 
-  #renderEmployeeAndPeriodSection(employeeDetails, period) {
-    const { colors, fontSize, margin, lineHeight } = PDF_CONFIG;
+  #renderEmployeeAndPeriodSection(employeeDetails, period, report = null) {
+    const { colors, fontSize, margin } = PDF_CONFIG;
+    const isExtraordinary = report?.isExtraordinary ?? false;
 
-    // Employee and period info in a horizontal layout
     const leftColX = margin.left;
     const midColX = margin.left + 90;
     const rightColX = margin.left + 180;
@@ -180,54 +198,87 @@ export class PdfGeneratorService {
 
     const boxY = this.#currentY;
 
-    // Left column: Recipient name and address
-    this.#doc.setFontSize(fontSize.sectionTitle);
-    this.#doc.setFont('helvetica', 'bold');
-    this.#doc.setTextColor(...colors.primary);
-    this.#doc.text('Zahlungsempfänger', leftColX + 4, boxY + 4);
+    if (isExtraordinary) {
+      // Left column: GF as payer (Zahlungspflichtiger)
+      this.#doc.setFontSize(fontSize.sectionTitle);
+      this.#doc.setFont('helvetica', 'bold');
+      this.#doc.setTextColor(...colors.primary);
+      this.#doc.text('Zahlungspflichtiger', leftColX + 4, boxY + 4);
 
-    this.#doc.setFontSize(fontSize.normal);
-    this.#doc.setFont('helvetica', 'bold');
-    this.#doc.setTextColor(...colors.black);
-    this.#doc.text(employeeDetails.name, leftColX + 4, boxY + 11);
+      this.#doc.setFontSize(fontSize.normal);
+      this.#doc.setFont('helvetica', 'bold');
+      this.#doc.setTextColor(...colors.black);
+      this.#doc.text(employeeDetails.name, leftColX + 4, boxY + 11);
 
-    this.#doc.setFont('helvetica', 'normal');
-    this.#doc.setFontSize(fontSize.small);
-    let addressY = boxY + 16;
-    if (employeeDetails.hasAddress) {
-      const { street, cityLine } = employeeDetails.fullAddress;
-      if (street) {
-        this.#doc.text(street, leftColX + 4, addressY);
-        addressY += 4;
+      this.#doc.setFont('helvetica', 'normal');
+      this.#doc.setFontSize(fontSize.small);
+      this.#doc.text('Geschäftsführer', leftColX + 4, boxY + 16);
+
+      // Middle column: Trialog as recipient (Zahlungsempfänger)
+      this.#doc.setFontSize(fontSize.sectionTitle);
+      this.#doc.setFont('helvetica', 'bold');
+      this.#doc.setTextColor(...colors.primary);
+      this.#doc.text('Zahlungsempfänger', midColX, boxY + 4);
+
+      this.#doc.setFontSize(fontSize.normal);
+      this.#doc.setFont('helvetica', 'bold');
+      this.#doc.setTextColor(...colors.black);
+      this.#doc.text('Trialog Makler Gruppe GmbH', midColX, boxY + 11);
+
+      this.#doc.setFont('helvetica', 'normal');
+      this.#doc.setFontSize(fontSize.small);
+      this.#doc.text('Volksbank im Münsterland eG', midColX, boxY + 16);
+      this.#doc.text('IBAN: DE17 4036 1906 5318 8510 00', midColX, boxY + 20);
+    } else {
+      // Left column: Recipient name and address
+      this.#doc.setFontSize(fontSize.sectionTitle);
+      this.#doc.setFont('helvetica', 'bold');
+      this.#doc.setTextColor(...colors.primary);
+      this.#doc.text('Zahlungsempfänger', leftColX + 4, boxY + 4);
+
+      this.#doc.setFontSize(fontSize.normal);
+      this.#doc.setFont('helvetica', 'bold');
+      this.#doc.setTextColor(...colors.black);
+      this.#doc.text(employeeDetails.name, leftColX + 4, boxY + 11);
+
+      this.#doc.setFont('helvetica', 'normal');
+      this.#doc.setFontSize(fontSize.small);
+      let addressY = boxY + 16;
+      if (employeeDetails.hasAddress) {
+        const { street, cityLine } = employeeDetails.fullAddress;
+        if (street) {
+          this.#doc.text(street, leftColX + 4, addressY);
+          addressY += 4;
+        }
+        if (cityLine) {
+          this.#doc.text(cityLine, leftColX + 4, addressY);
+        }
       }
-      if (cityLine) {
-        this.#doc.text(cityLine, leftColX + 4, addressY);
+
+      // Middle column: Tax info
+      this.#doc.setFontSize(fontSize.sectionTitle);
+      this.#doc.setFont('helvetica', 'bold');
+      this.#doc.setTextColor(...colors.primary);
+      this.#doc.text('Steuerdaten', midColX, boxY + 4);
+
+      this.#doc.setFontSize(fontSize.small);
+      this.#doc.setFont('helvetica', 'normal');
+      this.#doc.setTextColor(...colors.black);
+      let taxY = boxY + 11;
+      if (employeeDetails.taxNumber) {
+        this.#doc.text(`Steuernr: ${employeeDetails.taxNumber}`, midColX, taxY);
+        taxY += 4;
+      }
+      if (employeeDetails.vatNumber) {
+        this.#doc.text(`USt-IdNr: ${employeeDetails.vatNumber}`, midColX, taxY);
+        taxY += 4;
+      }
+      if (employeeDetails.hasBankInfo) {
+        this.#doc.text(`IBAN: ${employeeDetails.ibanFormatted}`, midColX, taxY);
       }
     }
 
-    // Middle column: Tax info
-    this.#doc.setFontSize(fontSize.sectionTitle);
-    this.#doc.setFont('helvetica', 'bold');
-    this.#doc.setTextColor(...colors.primary);
-    this.#doc.text('Steuerdaten', midColX, boxY + 4);
-
-    this.#doc.setFontSize(fontSize.small);
-    this.#doc.setFont('helvetica', 'normal');
-    this.#doc.setTextColor(...colors.black);
-    let taxY = boxY + 11;
-    if (employeeDetails.taxNumber) {
-      this.#doc.text(`Steuernr: ${employeeDetails.taxNumber}`, midColX, taxY);
-      taxY += 4;
-    }
-    if (employeeDetails.vatNumber) {
-      this.#doc.text(`USt-IdNr: ${employeeDetails.vatNumber}`, midColX, taxY);
-      taxY += 4;
-    }
-    if (employeeDetails.hasBankInfo) {
-      this.#doc.text(`IBAN: ${employeeDetails.ibanFormatted}`, midColX, taxY);
-    }
-
-    // Right column: Period
+    // Right column: Period (same for both modes)
     this.#doc.setFontSize(fontSize.sectionTitle);
     this.#doc.setFont('helvetica', 'bold');
     this.#doc.setTextColor(...colors.primary);
@@ -348,15 +399,20 @@ export class PdfGeneratorService {
     this.#doc.setFont('helvetica', 'bold');
     this.#doc.setTextColor(...colors.white);
 
-    // Summary: Entries | Umsatz Brutto | Provision Netto/MwSt/Brutto
     const summaryY = this.#currentY + 1;
     const provVat = summary.totalProvisionVat || 0;
     const provNetto = roundCurrency(summary.totalProvision - provVat);
     this.#doc.text(`${summary.entryCount} Einträge`, margin.left + 3, summaryY);
     this.#doc.text(`Umsatz Brutto: ${this.#formatCurrency(summary.totalGross)}`, margin.left + 40, summaryY);
-    this.#doc.text(`Prov. Netto: ${this.#formatCurrency(provNetto)}`, margin.left + 110, summaryY);
-    this.#doc.text(`Prov. MwSt: ${this.#formatCurrency(provVat)}`, margin.left + 170, summaryY);
-    this.#doc.text(`Prov. Brutto: ${this.#formatCurrency(summary.totalProvision)}`, this.#contentWidth + margin.left - 3, summaryY, { align: 'right' });
+
+    if (source === LINE_ITEM_SOURCES.EXTRAORDINARY) {
+      // Durchlaufposten: full pass-through, no provision concept
+      this.#doc.text(`Durchlaufbetrag: ${this.#formatCurrency(summary.totalProvision)}`, this.#contentWidth + margin.left - 3, summaryY, { align: 'right' });
+    } else {
+      this.#doc.text(`Prov. Netto: ${this.#formatCurrency(provNetto)}`, margin.left + 110, summaryY);
+      this.#doc.text(`Prov. MwSt: ${this.#formatCurrency(provVat)}`, margin.left + 170, summaryY);
+      this.#doc.text(`Prov. Brutto: ${this.#formatCurrency(summary.totalProvision)}`, this.#contentWidth + margin.left - 3, summaryY, { align: 'right' });
+    }
 
     this.#currentY += 12;
     this.#doc.setTextColor(...colors.black);
@@ -364,6 +420,7 @@ export class PdfGeneratorService {
 
   #renderTotalSummary(report) {
     const { colors, fontSize, margin, lineHeight } = PDF_CONFIG;
+    const isExtraordinary = report.isExtraordinary;
 
     this.#checkPageBreak(90);
 
@@ -376,10 +433,8 @@ export class PdfGeneratorService {
 
     const totalSummary = report.totalSummary;
 
-    // Two-column layout: Left = Umsatz-Übersicht, Right = Provisions-Übersicht
     const leftBoxWidth = 130;
     const rightBoxWidth = 120;
-    const gap = 10;
     const leftBoxX = margin.left;
     const rightBoxX = PDF_CONFIG.pageWidth - margin.right - rightBoxWidth;
 
@@ -412,12 +467,14 @@ export class PdfGeneratorService {
     this.#doc.text('Brutto gesamt:', leftLabelX, leftY);
     this.#doc.text(this.#formatCurrency(totalSummary.totalGross), leftValueX, leftY, { align: 'right' });
 
-    // Right box: Provisions-Übersicht (with VAT breakdown)
-    // Calculate right box height: header(8) + per-source rows(6 each) + separator(4) + subtotal rows(6×3) + total(8)
+    // Right box: contextual summary
+    const rightBoxTitle = isExtraordinary ? 'DURCHLAUF-ÜBERSICHT' : 'PROVISIONS-ÜBERSICHT';
+
+    // Calculate right box height
     let rightProvisionRows = 0;
     if (report.hasOwnRevenue) rightProvisionRows++;
-    if (report.hasHierarchyRevenue) rightProvisionRows++;
-    if (report.hasTipProviderRevenue) rightProvisionRows++;
+    if (!isExtraordinary && report.hasHierarchyRevenue) rightProvisionRows++;
+    if (!isExtraordinary && report.hasTipProviderRevenue) rightProvisionRows++;
     const rightBoxHeight = (rightProvisionRows * 6) + 8 + 4 + 24 + 8;
 
     this.#doc.setFillColor(...colors.lightGray);
@@ -426,7 +483,7 @@ export class PdfGeneratorService {
     this.#doc.setFontSize(fontSize.small);
     this.#doc.setFont('helvetica', 'bold');
     this.#doc.setTextColor(...colors.primary);
-    this.#doc.text('PROVISIONS-ÜBERSICHT', rightBoxX + 5, this.#currentY + 3);
+    this.#doc.text(rightBoxTitle, rightBoxX + 5, this.#currentY + 3);
 
     this.#doc.setFontSize(fontSize.normal);
     this.#doc.setFont('helvetica', 'normal');
@@ -436,23 +493,32 @@ export class PdfGeneratorService {
     const rightValueX = rightBoxX + rightBoxWidth - 5;
     let rightY = this.#currentY + 11;
 
-    // Per-source provision (netto)
-    if (report.hasOwnRevenue) {
-      this.#doc.text('Eigene Umsätze:', rightLabelX, rightY);
-      this.#doc.text(this.#formatCurrency(report.ownSummary.totalProvision), rightValueX, rightY, { align: 'right' });
-      rightY += 6;
-    }
+    if (isExtraordinary) {
+      // Extraordinary: single row showing the pass-through amount
+      if (report.hasOwnRevenue) {
+        this.#doc.text('Durchlaufposten:', rightLabelX, rightY);
+        this.#doc.text(this.#formatCurrency(report.ownSummary.totalProvision), rightValueX, rightY, { align: 'right' });
+        rightY += 6;
+      }
+    } else {
+      // Standard: per-source provision breakdown
+      if (report.hasOwnRevenue) {
+        this.#doc.text('Eigene Umsätze:', rightLabelX, rightY);
+        this.#doc.text(this.#formatCurrency(report.ownSummary.totalProvision), rightValueX, rightY, { align: 'right' });
+        rightY += 6;
+      }
 
-    if (report.hasHierarchyRevenue) {
-      this.#doc.text('Team-Provision:', rightLabelX, rightY);
-      this.#doc.text(this.#formatCurrency(report.hierarchySummary.totalProvision), rightValueX, rightY, { align: 'right' });
-      rightY += 6;
-    }
+      if (report.hasHierarchyRevenue) {
+        this.#doc.text('Team-Provision:', rightLabelX, rightY);
+        this.#doc.text(this.#formatCurrency(report.hierarchySummary.totalProvision), rightValueX, rightY, { align: 'right' });
+        rightY += 6;
+      }
 
-    if (report.hasTipProviderRevenue) {
-      this.#doc.text('Tippgeber-Provision:', rightLabelX, rightY);
-      this.#doc.text(this.#formatCurrency(report.tipProviderSummary.totalProvision), rightValueX, rightY, { align: 'right' });
-      rightY += 6;
+      if (report.hasTipProviderRevenue) {
+        this.#doc.text('Tippgeber-Provision:', rightLabelX, rightY);
+        this.#doc.text(this.#formatCurrency(report.tipProviderSummary.totalProvision), rightValueX, rightY, { align: 'right' });
+        rightY += 6;
+      }
     }
 
     // Separator line
@@ -461,8 +527,6 @@ export class PdfGeneratorService {
     this.#doc.setLineWidth(0.5);
     this.#doc.line(rightLabelX, rightY - 3, rightValueX, rightY - 3);
 
-    // Provision totals with VAT breakdown (VAT is extracted, not added)
-    // Inline calculation to avoid getter dependency issues
     const totalProv = report.totalProvision || 0;
     const totalProvVat = (report.ownSummary?.totalProvisionVat || 0)
       + (report.hierarchySummary?.totalProvisionVat || 0)
@@ -473,7 +537,10 @@ export class PdfGeneratorService {
     this.#doc.setFont('helvetica', 'bold');
     this.#doc.setFontSize(fontSize.sectionTitle);
     this.#doc.setTextColor(...colors.primary);
-    this.#doc.text('GESAMTPROVISION:', rightLabelX, rightY + 2);
+    const totalLabel = isExtraordinary
+      ? 'GESAMTBETRAG ZUR ÜBERWEISUNG:'
+      : 'GESAMTPROVISION:';
+    this.#doc.text(totalLabel, rightLabelX, rightY + 2);
     this.#doc.setTextColor(...colors.accent);
     this.#doc.text(this.#formatCurrency(totalProv), rightValueX, rightY + 2, { align: 'right' });
     rightY += 8;
@@ -536,8 +603,9 @@ export class PdfGeneratorService {
     this.#doc.setFont('helvetica', 'normal');
   }
 
-  #renderPaymentInfo() {
+  #renderPaymentInfo(report = null) {
     const { colors, fontSize, margin } = PDF_CONFIG;
+    const isExtraordinary = report?.isExtraordinary ?? false;
     const blockHeight = 38;
 
     this.#checkPageBreak(blockHeight);
@@ -555,15 +623,15 @@ export class PdfGeneratorService {
     this.#doc.text('ZAHLUNGSHINWEIS', margin.left, this.#currentY);
     this.#currentY += 5;
 
-    // Payment instruction text
+    // Payment instruction text — reversed for extraordinary
     this.#doc.setFontSize(fontSize.small);
     this.#doc.setFont('helvetica', 'normal');
     this.#doc.setTextColor(...colors.black);
-    this.#doc.text(
-      'Ein Sollsaldo ist innerhalb von 5 Tagen durch Überweisung über unser Konto zu entrichten:',
-      margin.left,
-      this.#currentY,
-    );
+
+    const paymentText = isExtraordinary
+      ? 'Der Gesamtbetrag ist innerhalb von 5 Tagen an Trialog Makler Gruppe GmbH zu überweisen:'
+      : 'Ein Sollsaldo ist innerhalb von 5 Tagen durch Überweisung über unser Konto zu entrichten:';
+    this.#doc.text(paymentText, margin.left, this.#currentY);
     this.#currentY += 6;
 
     // Bank details
@@ -649,6 +717,20 @@ export class PdfGeneratorService {
       { header: 'Prov. Brutto', key: 'provGross', align: 'right', wrap: false },
     ];
 
+    if (source === LINE_ITEM_SOURCES.EXTRAORDINARY) {
+      return [
+        { header: 'Datum', key: 'date', align: 'left', wrap: false },
+        { header: 'Ziel-MA', key: 'employee', align: 'left', wrap: true },
+        { header: 'Kunde', key: 'customer', align: 'left', wrap: true },
+        { header: 'Kategorie', key: 'category', align: 'left', wrap: false },
+        { header: 'Produkt', key: 'product', align: 'left', wrap: true },
+        { header: 'Anbieter', key: 'provider', align: 'left', wrap: true },
+        { header: 'Netto', key: 'net', align: 'right', wrap: false },
+        { header: 'MwSt', key: 'vat', align: 'right', wrap: false },
+        { header: 'Brutto', key: 'gross', align: 'right', wrap: false },
+      ];
+    }
+
     if (source === LINE_ITEM_SOURCES.HIERARCHY || source === LINE_ITEM_SOURCES.TIP_PROVIDER) {
       return [
         { header: 'Datum', key: 'date', align: 'left', wrap: false },
@@ -671,6 +753,11 @@ export class PdfGeneratorService {
 
   #getColumnWidthsForSource(source) {
     // Total content width: 267mm (A4 landscape 297mm minus 15mm margins on each side)
+    if (source === LINE_ITEM_SOURCES.EXTRAORDINARY) {
+      // 9 columns: Date(20) + Employee(32) + Customer(32) + Category(24) + Product(32) + Provider(32) + Net(28) + MwSt(24) + Brutto(43) = 267
+      return [20, 32, 32, 24, 32, 32, 28, 24, 43];
+    }
+
     // 12 columns with revenue Netto/MwSt/Brutto + provision Netto/MwSt/Brutto
     if (source === LINE_ITEM_SOURCES.HIERARCHY || source === LINE_ITEM_SOURCES.TIP_PROVIDER) {
       // 12 columns: Date(18) + Employee(28) + Customer(28) + Category(20) + Product(30) + Net(19) + MwSt(17) + Brutto(19) + %(13) + P.Netto(24) + P.MwSt(22) + P.Brutto(29) = 267
@@ -683,6 +770,20 @@ export class PdfGeneratorService {
   #getRowValuesForSource(item, source) {
     // Format date as full date (e.g., "01.12.2025")
     const formattedDate = this.#formatFullDate(item.date);
+
+    if (source === LINE_ITEM_SOURCES.EXTRAORDINARY) {
+      return [
+        formattedDate,
+        item.subordinateName || 'Unbekannt',
+        item.customerName || '',
+        item.categoryDisplayName || '',
+        item.productName || '',
+        item.providerName || '',
+        this.#formatCurrency(item.netAmount),
+        this.#formatCurrency(item.vatAmount),
+        this.#formatCurrency(item.grossAmount),
+      ];
+    }
 
     if (source === LINE_ITEM_SOURCES.HIERARCHY || source === LINE_ITEM_SOURCES.TIP_PROVIDER) {
       return [

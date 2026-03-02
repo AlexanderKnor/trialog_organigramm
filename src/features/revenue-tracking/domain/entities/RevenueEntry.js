@@ -40,6 +40,9 @@ export class RevenueEntry {
   #source;
   #sourceReference;
   #manualBilling;
+  #isExtraordinary;
+  #extraordinaryGfId;
+  #extraordinaryGfName;
 
   constructor({
     id = null,
@@ -74,6 +77,9 @@ export class RevenueEntry {
     source = null,
     sourceReference = null,
     manualBilling = false,
+    isExtraordinary = false,
+    extraordinaryGfId = null,
+    extraordinaryGfName = null,
   }) {
     this.#id = id || generateUUID();
     this.#employeeId = employeeId;
@@ -130,6 +136,18 @@ export class RevenueEntry {
 
     // Manual billing override (bypasses BillingExclusionRule)
     this.#manualBilling = Boolean(manualBilling);
+
+    // Extraordinary revenue (Durchlaufposten) — GF received payment for another employee
+    this.#isExtraordinary = Boolean(isExtraordinary);
+    this.#extraordinaryGfId = isExtraordinary ? extraordinaryGfId : null;
+    this.#extraordinaryGfName = isExtraordinary ? extraordinaryGfName : null;
+
+    if (this.#isExtraordinary && (!this.#extraordinaryGfId || !this.#extraordinaryGfName)) {
+      throw new ValidationError(
+        'Extraordinary entries require extraordinaryGfId and extraordinaryGfName',
+        'isExtraordinary',
+      );
+    }
   }
 
   /**
@@ -331,6 +349,9 @@ export class RevenueEntry {
   get source() { return this.#source; }
   get sourceReference() { return this.#sourceReference; }
   get manualBilling() { return this.#manualBilling; }
+  get isExtraordinary() { return this.#isExtraordinary; }
+  get extraordinaryGfId() { return this.#extraordinaryGfId; }
+  get extraordinaryGfName() { return this.#extraordinaryGfName; }
 
   // === Derived ===
 
@@ -445,6 +466,17 @@ export class RevenueEntry {
       this.#manualBilling = Boolean(updates.manualBilling);
     }
 
+    // Extraordinary fields
+    if (updates.isExtraordinary !== undefined) {
+      this.#isExtraordinary = Boolean(updates.isExtraordinary);
+    }
+    if (updates.extraordinaryGfId !== undefined) {
+      this.#extraordinaryGfId = updates.extraordinaryGfId;
+    }
+    if (updates.extraordinaryGfName !== undefined) {
+      this.#extraordinaryGfName = updates.extraordinaryGfName;
+    }
+
     // VAT fields
     if (updates.hasVAT !== undefined) {
       this.#hasVAT = Boolean(updates.hasVAT);
@@ -501,6 +533,10 @@ export class RevenueEntry {
       sourceReference: this.#sourceReference,
       // Manual billing override
       manualBilling: this.#manualBilling,
+      // Extraordinary revenue (Durchlaufposten)
+      isExtraordinary: this.#isExtraordinary,
+      extraordinaryGfId: this.#extraordinaryGfId,
+      extraordinaryGfName: this.#extraordinaryGfName,
     };
   }
 
@@ -549,6 +585,10 @@ export class RevenueEntry {
       sourceReference: json.sourceReference ?? null,
       // Manual billing override (default false for backward compatibility)
       manualBilling: json.manualBilling ?? false,
+      // Extraordinary revenue (default false for backward compatibility)
+      isExtraordinary: json.isExtraordinary ?? false,
+      extraordinaryGfId: json.extraordinaryGfId ?? null,
+      extraordinaryGfName: json.extraordinaryGfName ?? null,
     });
   }
 }
