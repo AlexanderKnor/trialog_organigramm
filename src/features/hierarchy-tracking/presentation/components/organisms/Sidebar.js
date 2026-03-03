@@ -379,12 +379,25 @@ export class Sidebar {
         if (email) {
           userProfile = await this.#profileService.getUserByEmail(email);
         }
-        // Fallback: case-insensitive search if exact match failed
-        if (!userProfile && email) {
+        // Fallback 1: case-insensitive search if exact match failed
+        if (!userProfile) {
           const allUsers = await this.#profileService.getAllUsers();
-          userProfile = allUsers.find(
-            u => u.email?.toLowerCase() === email.toLowerCase()
-          ) || null;
+          if (email) {
+            userProfile = allUsers.find(
+              u => u.email?.toLowerCase() === email.toLowerCase()
+            ) || null;
+          }
+          // Fallback 2: match by node name when email is missing from node
+          if (!userProfile && this.#node.name) {
+            const nodeName = this.#node.name.trim().toLowerCase();
+            userProfile = allUsers.find(u => {
+              const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase();
+              return fullName && fullName === nodeName;
+            }) || null;
+            if (userProfile) {
+              Logger.log(`Profile matched by name: "${this.#node.name}" → ${userProfile.email}`);
+            }
+          }
         }
       } catch (error) {
         Logger.error('Failed to load user profile:', error);
@@ -411,6 +424,13 @@ export class Sidebar {
 
             if (userProfile) {
               await this.#updateEmployeeProfile(userProfile.uid, formData);
+            } else if (!isGeschaeftsfuehrer) {
+              // Regular employee but profile not found — critical error
+              Logger.error(`Profile not found for node "${this.#node.name}" (email: ${this.#node.email || 'MISSING'})`);
+              throw new Error(
+                `Profil für "${this.#node.name}" konnte nicht gefunden werden. ` +
+                'Bitte prüfen Sie, ob der Mitarbeiter einen Account hat.'
+              );
             } else if (isGeschaeftsfuehrer && gfEmail) {
               // GF has no profile yet — resolve UID via Cloud Function (any admin can do this)
               const gfConfig = getGeschaeftsfuehrerConfig(this.#node.id);
@@ -443,12 +463,12 @@ export class Sidebar {
               };
 
               if (this.#props.onSave) {
-                this.#props.onSave(this.#node.id, nodeData);
+                await this.#props.onSave(this.#node.id, nodeData);
               }
             }
 
-            // Wait for real-time updates
-            await new Promise(resolve => setTimeout(resolve, 4000));
+            // Wait for real-time tree update (event-driven)
+            await this.#waitForTreeUpdate(5000);
             this.#hideLoadingOverlay();
 
             this.setMode('view');
@@ -500,9 +520,14 @@ export class Sidebar {
     } else {
       // Use NodeEditor for root/custom nodes
       const editor = new NodeEditor(this.#node, {
-        onSave: (data) => {
+        onSave: async (data) => {
           if (this.#props.onSave) {
-            this.#props.onSave(this.#node.id, data);
+            try {
+              await this.#props.onSave(this.#node.id, data);
+            } catch (error) {
+              Logger.error('Failed to save node:', error);
+              alert('Fehler beim Speichern: ' + error.message);
+            }
           }
           this.setMode('view');
         },

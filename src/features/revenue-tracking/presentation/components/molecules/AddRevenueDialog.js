@@ -674,8 +674,21 @@ export class AddRevenueDialog {
     // Exclude the current employee
     const excludeId = this.#props.employeeId;
 
-    this.#allEmployees
+    // Build candidates: start from #allEmployees, ensure GFs are included
+    const candidates = [...this.#allEmployees];
+    const existingIds = new Set(candidates.map((e) => e.id));
+    for (const gfId of GESCHAEFTSFUEHRER_IDS) {
+      if (!existingIds.has(gfId)) {
+        const gfConfig = getGeschaeftsfuehrerConfig(gfId);
+        if (gfConfig) {
+          candidates.push({ id: gfConfig.id, name: gfConfig.name });
+        }
+      }
+    }
+
+    candidates
       .filter((emp) => emp.id !== excludeId && !usedIds.has(emp.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
       .forEach((employee) => {
         const option = createElement('option', { value: employee.id }, [employee.name]);
         selectEl.appendChild(option);
@@ -773,6 +786,14 @@ export class AddRevenueDialog {
 
       let employees = allNodes.filter((node) => !node.isRoot && node.id !== this.#props.employeeId);
 
+      // In company mode, include root node (Trialog) as selectable revenue target
+      if (this.#companyMode) {
+        const rootNode = allNodes.find((node) => node.isRoot);
+        if (rootNode) {
+          employees.push({ id: rootNode.id, name: rootNode.name });
+        }
+      }
+
       for (const gfId of GESCHAEFTSFUEHRER_IDS) {
         if (gfId !== this.#props.employeeId) {
           const gfConfig = getGeschaeftsfuehrerConfig(gfId);
@@ -826,10 +847,15 @@ export class AddRevenueDialog {
     const defaultOption = createElement('option', { value: '' }, ['Ziel-Mitarbeiter auswählen...']);
     this.#extraordinaryEmployeeSelect.appendChild(defaultOption);
 
-    // Show all employees except GFs and root
-    const eligibleEmployees = this.#allEmployees.filter(
-      (emp) => !isGeschaeftsfuehrerId(emp.id),
-    );
+    // All employees including GFs are valid targets for Durchlaufposten
+    const eligibleEmployees = [...this.#allEmployees];
+
+    // Add current GF (self) — excluded from #allEmployees but valid as extraordinary target
+    const currentGfConfig = getGeschaeftsfuehrerConfig(this.#props.employeeId);
+    if (currentGfConfig) {
+      eligibleEmployees.push({ id: currentGfConfig.id, name: currentGfConfig.name });
+      eligibleEmployees.sort((a, b) => a.name.localeCompare(b.name));
+    }
 
     eligibleEmployees.forEach((employee) => {
       const option = createElement('option', { value: employee.id }, [employee.name]);

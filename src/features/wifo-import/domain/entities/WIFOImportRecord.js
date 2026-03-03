@@ -403,7 +403,7 @@ export class WIFOImportRecord {
       return index !== undefined ? rowData[index] : null;
     };
 
-    // Parse Excel serial dates
+    // Parse Excel serial dates and German date strings (Safari-safe)
     const parseExcelDate = (value) => {
       if (value === null || value === undefined) return null;
       if (typeof value === 'number') {
@@ -413,7 +413,18 @@ export class WIFOImportRecord {
         return date;
       }
       if (typeof value === 'string') {
-        const parsed = new Date(value);
+        const trimmed = value.trim();
+        // German date format DD.MM.YYYY or D.M.YYYY (Safari rejects new Date("01.02.2024"))
+        const germanMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+        if (germanMatch) {
+          const day = parseInt(germanMatch[1], 10);
+          const month = parseInt(germanMatch[2], 10) - 1;
+          let year = parseInt(germanMatch[3], 10);
+          if (year < 100) year += 2000;
+          return new Date(year, month, day);
+        }
+        // ISO or other format — use Date constructor (works on all browsers for ISO 8601)
+        const parsed = new Date(trimmed);
         return isNaN(parsed.getTime()) ? null : parsed;
       }
       return null;

@@ -307,8 +307,8 @@ export class HierarchyService {
   }
 
   /**
-   * Get all employees from the tree (excluding root) plus Geschäftsführer
-   * Used for WIFO import employee matching
+   * Get all employees from the tree (including root node) plus Geschäftsführer
+   * Used for WIFO import employee matching and revenue tracking
    * @param {string} treeId - Optional tree ID, uses first tree if not provided
    * @returns {Promise<Array<{id: string, name: string, firstName: string, lastName: string}>>}
    */
@@ -335,6 +335,22 @@ export class HierarchyService {
     employees.push(...geschaeftsfuehrer);
 
     if (tree && tree.rootId) {
+      // Include the root node (company) so WIFO entries assigned to the company can be matched
+      const rootNode = tree.root;
+      if (rootNode) {
+        const rootNameParts = this.#parseEmployeeName(rootNode.name);
+        employees.push({
+          id: rootNode.id,
+          name: rootNode.name,
+          firstName: rootNameParts.firstName,
+          lastName: rootNameParts.lastName,
+          email: rootNode.email || '',
+          bankProvision: rootNode.bankProvision || 0,
+          insuranceProvision: rootNode.insuranceProvision || 0,
+          realEstateProvision: rootNode.realEstateProvision || 0,
+        });
+      }
+
       this.#collectEmployeesRecursive(tree, tree.rootId, employees);
     }
 

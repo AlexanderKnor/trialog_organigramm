@@ -102,7 +102,7 @@ export class WIFOFileParser {
     // Parse workbook
     let workbook;
     try {
-      workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      workbook = XLSX.read(arrayBuffer, { type: 'array', codepage: 1252 });
     } catch (error) {
       throw new WIFOParseError(`Datei konnte nicht gelesen werden: ${error.message}`);
     }
@@ -245,17 +245,29 @@ export class WIFOFileParser {
   }
 
   /**
-   * Read file as text for CSV parsing
+   * Read file as text for CSV parsing with automatic encoding detection.
+   * German WIFO exports typically use Windows-1252 encoding.
    * @param {File} file - The file to read
    * @returns {Promise<string>}
    */
-  #readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden'));
-      reader.readAsText(file, 'utf-8');
-    });
+  async #readFileAsText(file) {
+    const buffer = await this.#readFileAsArrayBuffer(file);
+    const bytes = new Uint8Array(buffer);
+
+    // UTF-8 BOM (EF BB BF) — file is explicitly UTF-8
+    const hasUtf8Bom = bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
+    if (hasUtf8Bom) {
+      return new TextDecoder('utf-8').decode(buffer);
+    }
+
+    // Try UTF-8 first — valid UTF-8 produces no replacement characters
+    const utf8Text = new TextDecoder('utf-8').decode(buffer);
+    if (!utf8Text.includes('\uFFFD')) {
+      return utf8Text;
+    }
+
+    // Fallback to Windows-1252 (standard for German business software / WIFO exports)
+    return new TextDecoder('windows-1252').decode(buffer);
   }
 
   /**
