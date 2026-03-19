@@ -211,6 +211,17 @@ createElement('svg', {
       rightGroup.push(wifoImportBtn);
     }
 
+    // Billing export button for admins viewing a specific employee (not company view)
+    if (!this.#isCompanyView && authService.isAdmin()) {
+      const billingBtn = new Button({
+        label: 'Abrechnung',
+        variant: 'outline',
+        icon: new Icon({ name: 'fileText', size: 16 }),
+        onClick: () => this.#showBillingExportDialog(this.#employeeId, this.#employee?.name),
+      });
+      rightGroup.push(billingBtn.element);
+    }
+
     // Add button: employee view -> direct add, company view -> add with employee selector
     if (canEdit) {
       const addBtn = new Button({
@@ -1925,8 +1936,11 @@ createElement('svg', {
       hierarchyService: this.#hierarchyService,
       generatedBy: user?.uid || null,
       generatedByName: user?.email || null,
+      initialYear: this.#startDate?.getFullYear() ?? null,
+      initialMonth: this.#startDate != null ? this.#startDate.getMonth() : null,
       onExportComplete: (report) => {
         Logger.log('Billing export completed:', report.metadata.reportNumber);
+        this.#loadData();
       },
       onCancel: () => {
         Logger.log('Billing export cancelled');

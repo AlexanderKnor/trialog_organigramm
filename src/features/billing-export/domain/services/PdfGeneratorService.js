@@ -146,9 +146,9 @@ export class PdfGeneratorService {
     const employeeName = report.employeeDetails.name
       .replace(/\s+/g, '_')
       .replace(/[^a-zA-Z0-9_äöüÄÖÜß]/g, '');
-    const period = report.period.shortDisplayName.replace(/\//g, '-');
+    const period = report.period.shortDisplayName.replace(/\//g, '_');
     const prefix = report.isExtraordinary ? 'Durchlaufposten' : 'Abrechnung';
-    return `${prefix}_${employeeName}_${period}.pdf`;
+    return `${period}_${prefix}_${employeeName}.pdf`;
   }
 
   #renderHeader(report) {

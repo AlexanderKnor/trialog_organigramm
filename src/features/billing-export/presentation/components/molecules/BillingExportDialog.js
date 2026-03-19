@@ -39,6 +39,8 @@ export class BillingExportDialog {
       onCancel: props.onCancel || null,
       className: props.className || '',
       isExtraordinary: props.isExtraordinary || false,
+      initialYear: props.initialYear ?? null,
+      initialMonth: props.initialMonth ?? null,
     };
 
     this.#isLoading = false;
@@ -107,9 +109,16 @@ export class BillingExportDialog {
       'Abrechnungszeitraum',
     ]);
 
-    this.#periodSelector = new PeriodSelector({
+    const periodProps = {
       onChange: (period) => this.#onPeriodChange(period),
-    });
+    };
+    if (this.#props.initialYear !== null) {
+      periodProps.initialYear = this.#props.initialYear;
+    }
+    if (this.#props.initialMonth !== null) {
+      periodProps.initialMonth = this.#props.initialMonth;
+    }
+    this.#periodSelector = new PeriodSelector(periodProps);
 
     periodSection.appendChild(periodTitle);
     periodSection.appendChild(this.#periodSelector.element);
