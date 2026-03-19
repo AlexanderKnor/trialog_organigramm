@@ -44,6 +44,7 @@ export class RevenueTable {
       onEdit: props.onEdit || null,
       onDelete: props.onDelete || null,
       onStatusChange: props.onStatusChange || null,
+      isAdmin: props.isAdmin || false,
       className: props.className || '',
     };
 
@@ -390,16 +391,24 @@ export class RevenueTable {
   #renderStatusCell(entry) {
     const status = entry.status;
     const statusClass = `status-${status.type}`;
-    const isSubmitted = status.type === REVENUE_STATUS_TYPES.SUBMITTED;
 
-    // If status is SUBMITTED and we have a status change handler, show custom dropdown
-    if (isSubmitted && this.#props.onStatusChange) {
-      return createElement('td', { className: 'revenue-table-td td-status' }, [
-        this.#createStatusDropdown(entry, status),
-      ]);
+    if (this.#props.onStatusChange) {
+      // Admin: dropdown for all statuses
+      if (this.#props.isAdmin) {
+        return createElement('td', { className: 'revenue-table-td td-status' }, [
+          this.#createStatusDropdown(entry, status),
+        ]);
+      }
+
+      // Employee: dropdown only for SUBMITTED entries
+      if (status.type === REVENUE_STATUS_TYPES.SUBMITTED) {
+        return createElement('td', { className: 'revenue-table-td td-status' }, [
+          this.#createStatusDropdown(entry, status),
+        ]);
+      }
     }
 
-    // Otherwise show read-only badge
+    // Read-only badge
     return createElement('td', { className: 'revenue-table-td td-status' }, [
       createElement('span', {
         className: `status-badge ${statusClass}`,
@@ -408,10 +417,18 @@ export class RevenueTable {
   }
 
   #createStatusDropdown(entry, currentStatus) {
-    const statusOptions = [
-      { value: REVENUE_STATUS_TYPES.SUBMITTED, label: 'Aktiv' },
-      { value: REVENUE_STATUS_TYPES.CANCELLED, label: 'Storno' },
-    ];
+    const statusOptions = this.#props.isAdmin
+      ? [
+        { value: REVENUE_STATUS_TYPES.SUBMITTED, label: 'Eingereicht' },
+        { value: REVENUE_STATUS_TYPES.TRANSFERRED, label: 'Überwiesen' },
+        { value: REVENUE_STATUS_TYPES.PROVISIONED, label: 'Provisioniert' },
+        { value: REVENUE_STATUS_TYPES.REJECTED, label: 'Abgelehnt' },
+        { value: REVENUE_STATUS_TYPES.CANCELLED, label: 'Storniert' },
+      ]
+      : [
+        { value: REVENUE_STATUS_TYPES.SUBMITTED, label: 'Aktiv' },
+        { value: REVENUE_STATUS_TYPES.CANCELLED, label: 'Storno' },
+      ];
 
     const dropdown = createElement('div', {
       className: 'status-dropdown',

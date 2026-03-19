@@ -5,6 +5,7 @@
 
 export const REVENUE_STATUS_TYPES = {
   SUBMITTED: 'submitted',
+  TRANSFERRED: 'transferred',
   PROVISIONED: 'provisioned',
   REJECTED: 'rejected',
   CANCELLED: 'cancelled',
@@ -12,6 +13,7 @@ export const REVENUE_STATUS_TYPES = {
 
 const STATUS_DISPLAY_NAMES = {
   [REVENUE_STATUS_TYPES.SUBMITTED]: 'Eingereicht',
+  [REVENUE_STATUS_TYPES.TRANSFERRED]: 'Überwiesen',
   [REVENUE_STATUS_TYPES.PROVISIONED]: 'Provisioniert',
   [REVENUE_STATUS_TYPES.REJECTED]: 'Abgelehnt',
   [REVENUE_STATUS_TYPES.CANCELLED]: 'Storniert',
@@ -19,6 +21,7 @@ const STATUS_DISPLAY_NAMES = {
 
 const STATUS_COLORS = {
   [REVENUE_STATUS_TYPES.SUBMITTED]: '#f59e0b',
+  [REVENUE_STATUS_TYPES.TRANSFERRED]: '#3b82f6',
   [REVENUE_STATUS_TYPES.PROVISIONED]: '#16a34a',
   [REVENUE_STATUS_TYPES.REJECTED]: '#dc2626',
   [REVENUE_STATUS_TYPES.CANCELLED]: '#6b7280',
@@ -48,6 +51,10 @@ export class RevenueStatus {
 
   get isSubmitted() {
     return this.#type === REVENUE_STATUS_TYPES.SUBMITTED;
+  }
+
+  get isTransferred() {
+    return this.#type === REVENUE_STATUS_TYPES.TRANSFERRED;
   }
 
   get isProvisioned() {
@@ -91,6 +98,7 @@ export class RevenueStatus {
   static get companyEditableStatuses() {
     return [
       new RevenueStatus(REVENUE_STATUS_TYPES.SUBMITTED),
+      new RevenueStatus(REVENUE_STATUS_TYPES.TRANSFERRED),
       new RevenueStatus(REVENUE_STATUS_TYPES.PROVISIONED),
       new RevenueStatus(REVENUE_STATUS_TYPES.REJECTED),
     ];

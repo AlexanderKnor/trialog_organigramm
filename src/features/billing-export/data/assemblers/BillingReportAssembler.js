@@ -142,12 +142,12 @@ export class BillingReportAssembler {
                       entry.originalEntry?.status?.type || entry.originalEntry?.status;
 
         if (includeProvisioned) {
-          if (status !== REVENUE_STATUS_TYPES.SUBMITTED &&
+          if (status !== REVENUE_STATUS_TYPES.TRANSFERRED &&
               status !== REVENUE_STATUS_TYPES.PROVISIONED) {
             return false;
           }
         } else {
-          if (status !== REVENUE_STATUS_TYPES.SUBMITTED) {
+          if (status !== REVENUE_STATUS_TYPES.TRANSFERRED) {
             return false;
           }
         }
@@ -237,10 +237,10 @@ export class BillingReportAssembler {
     generatedBy = null,
     generatedByName = null,
   }) {
-    // Filter to billable status only
+    // Filter to billable status only (only TRANSFERRED entries are billable)
     const activeEntries = entries.filter(entry => {
       const status = entry.status?.type || entry.status;
-      return status === REVENUE_STATUS_TYPES.SUBMITTED;
+      return status === REVENUE_STATUS_TYPES.TRANSFERRED;
     });
 
     const excludedEntryCount = entries.length - activeEntries.length;

@@ -1798,6 +1798,13 @@
   border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
+/* Transferred - Blue */
+.status-badge.status-transferred {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.18) 100%);
+  color: #1d4ed8;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
 /* Provisioned - Green */
 .status-badge.status-provisioned {
   background: linear-gradient(135deg, rgba(22, 163, 74, 0.12) 0%, rgba(21, 128, 61, 0.18) 100%);
@@ -1934,6 +1941,13 @@
   background: linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(75, 85, 99, 0.15) 100%);
   color: #4b5563;
   border-color: rgba(107, 114, 128, 0.2);
+}
+
+.status-dropdown-trigger.status-transferred,
+.status-dropdown-item.status-transferred {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.15) 100%);
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.2);
 }
 
 .status-dropdown-trigger.status-provisioned,

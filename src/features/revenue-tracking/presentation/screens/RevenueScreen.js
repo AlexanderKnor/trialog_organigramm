@@ -718,6 +718,7 @@ createElement('svg', {
     this.#revenueTable = new RevenueTable({
       entries,
       employee: this.#employee,
+      isAdmin: authService.isAdmin(),
       onEdit: canEdit ? (entry) => this.#handleEdit(entry) : null,
       onDelete: canEdit ? (entry) => this.#handleDelete(entry) : null,
       onStatusChange: canEdit ? (entryId, newStatus) => this.#handleStatusChange(entryId, newStatus) : null,
@@ -1538,6 +1539,7 @@ createElement('svg', {
   #createCompanyStatusDropdown(entry, currentStatus) {
     const statusOptions = [
       { value: REVENUE_STATUS_TYPES.SUBMITTED, label: 'Eingereicht' },
+      { value: REVENUE_STATUS_TYPES.TRANSFERRED, label: 'Überwiesen' },
       { value: REVENUE_STATUS_TYPES.PROVISIONED, label: 'Provisioniert' },
       { value: REVENUE_STATUS_TYPES.REJECTED, label: 'Abgelehnt' },
       { value: REVENUE_STATUS_TYPES.CANCELLED, label: 'Storniert' },
