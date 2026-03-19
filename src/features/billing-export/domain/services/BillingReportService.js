@@ -37,6 +37,14 @@ export class BillingReportService {
         throw new Error(`Employee ${employeeId} not found`);
       }
 
+      if (!employeeDetails.isBillingReady) {
+        const missing = employeeDetails.missingBillingFields.join(', ');
+        throw new Error(
+          `Abrechnung für "${employeeDetails.name}" nicht möglich. ` +
+          `Fehlende Profildaten: ${missing}`,
+        );
+      }
+
       Logger.log('Employee details loaded:', employeeDetails.name);
 
       const ownEntries = await this.#loadOwnEntries(employeeId, period);
@@ -192,6 +200,14 @@ export class BillingReportService {
       const gfDetails = await this.#loadEmployeeDetails(gfId);
       if (!gfDetails) {
         throw new Error(`Geschaeftsfuehrer ${gfId} not found`);
+      }
+
+      if (!gfDetails.isBillingReady) {
+        const missing = gfDetails.missingBillingFields.join(', ');
+        throw new Error(
+          `Abrechnung für "${gfDetails.name}" nicht möglich. ` +
+          `Fehlende Profildaten: ${missing}`,
+        );
       }
 
       const allEntries = await this.#revenueService.getExtraordinaryEntriesByGf(gfId);

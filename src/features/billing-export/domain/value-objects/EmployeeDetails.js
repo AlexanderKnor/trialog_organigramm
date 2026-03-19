@@ -148,6 +148,32 @@ export class EmployeeDetails {
   get realEstateProvision() { return this.#realEstateProvision; }
   get hasDirectPaymentGewo() { return this.#hasDirectPaymentGewo; }
 
+  get isBillingReady() {
+    return this.missingBillingFields.length === 0;
+  }
+
+  get missingBillingFields() {
+    const missing = [];
+
+    if (!this.#name) {
+      missing.push('Name');
+    }
+
+    if (!this.#street || !this.#postalCode || !this.#city) {
+      missing.push('Anschrift (Straße, PLZ, Ort)');
+    }
+
+    if (!this.#iban || !this.#bic || !this.#bankName) {
+      missing.push('Bankdaten (IBAN, BIC, Bankname)');
+    }
+
+    if (!this.#taxNumber && !this.#isSmallBusiness) {
+      missing.push('Steuerdaten (Steuernummer oder Kleinunternehmer-Status)');
+    }
+
+    return missing;
+  }
+
   getProvisionRate(type) {
     switch (type) {
       case 'bank':
