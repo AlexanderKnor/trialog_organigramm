@@ -158,12 +158,26 @@ export class ProfileScreen {
   }
 
   #renderPersonalSection() {
+    const isCompany = this.#user.companyName;
+
+    const identityFields = isCompany
+      ? [
+        this.#renderField('Firmenname', this.#user.companyName),
+        this.#renderField('Rechtsform', this.#user.legalInfo?.legalForm || '-'),
+        this.#renderField('Gründungsdatum', this.#user.legalInfo?.foundingDate
+          ? new Date(this.#user.legalInfo.foundingDate).toLocaleDateString('de-DE') : '-'),
+      ]
+      : [
+        this.#renderField('Vorname', this.#user.firstName || '-'),
+        this.#renderField('Nachname', this.#user.lastName || '-'),
+        this.#renderField('Geburtsdatum', this.#user.birthDate
+          ? new Date(this.#user.birthDate).toLocaleDateString('de-DE') : '-'),
+      ];
+
     return createElement('div', { className: 'profile-section' }, [
       createElement('h2', { className: 'section-title' }, ['Persönliche Daten']),
       createElement('div', { className: 'section-content' }, [
-        this.#renderField('Vorname', this.#user.firstName || '-'),
-        this.#renderField('Nachname', this.#user.lastName || '-'),
-        this.#renderField('Geburtsdatum', this.#user.birthDate ? new Date(this.#user.birthDate).toLocaleDateString('de-DE') : '-'),
+        ...identityFields,
         this.#renderField('Telefon', this.#user.phone || '-'),
         this.#renderField('Email', this.#user.email),
       ]),
@@ -193,15 +207,21 @@ export class ProfileScreen {
 
   #renderTaxSection() {
     const tax = this.#user.taxInfo;
-    return createElement('div', { className: 'profile-section' }, [
-      createElement('h2', { className: 'section-title' }, ['Steuerinformationen']),
-      createElement('div', { className: 'section-content' }, [
+    const isEmployee = this.#user.legalInfo?.legalForm === 'Angestellte/r';
+
+    const fields = isEmployee
+      ? [this.#renderField('Steuer-ID', tax.taxId || '-')]
+      : [
         this.#renderField('Steuernummer', tax.taxNumber || '-'),
         this.#renderField('Ust-IdNr.', tax.vatNumber || '-'),
         this.#renderField('Finanzamt', tax.taxOffice || '-'),
         this.#renderField('Kleinunternehmer', tax.isSmallBusiness ? 'Ja' : 'Nein'),
         this.#renderField('Umsatzsteuerpflichtig', tax.isVatLiable ? 'Ja' : 'Nein'),
-      ]),
+      ];
+
+    return createElement('div', { className: 'profile-section' }, [
+      createElement('h2', { className: 'section-title' }, ['Steuerinformationen']),
+      createElement('div', { className: 'section-content' }, fields),
       createElement('div', { className: 'section-actions' }, [
         new Button({
           label: 'Bearbeiten',
@@ -254,11 +274,29 @@ export class ProfileScreen {
 
   #renderQualificationsSection() {
     const qual = this.#user.qualifications;
+    const registrationNumbers = qual.registrationNumbers || {};
+    const activeQualifications = qual.ihkQualifications || [];
+
+    // Build qualification list with individual registration numbers
+    const qualEntries = activeQualifications.map(qualLabel => {
+      const regNumber = registrationNumbers[qualLabel];
+      const display = regNumber
+        ? `${qualLabel} — Nr. ${regNumber}`
+        : qualLabel;
+      return createElement('li', {}, [display]);
+    });
+
+    const qualList = qualEntries.length > 0
+      ? qualEntries
+      : [createElement('li', { className: 'empty' }, ['-'])];
+
     return createElement('div', { className: 'profile-section' }, [
       createElement('h2', { className: 'section-title' }, ['Qualifikationen']),
       createElement('div', { className: 'section-content' }, [
-        this.#renderField('IHK-Registrierungsnummer', qual.ihkRegistrationNumber || '-'),
-        this.#renderList('IHK-Qualifikationen', qual.ihkQualifications),
+        createElement('div', { className: 'profile-field-list' }, [
+          createElement('span', { className: 'field-label' }, ['IHK-Qualifikationen:']),
+          createElement('ul', { className: 'field-list' }, qualList),
+        ]),
         this.#renderList('Zertifikate', qual.certifications),
       ]),
       createElement('div', { className: 'section-actions' }, [
@@ -543,8 +581,9 @@ export class ProfileScreen {
     if (!user) throw new Error('User not found');
 
     user.updatePersonalInfo({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+      firstName: formData.firstName || '',
+      lastName: formData.lastName || '',
+      companyName: formData.companyName || '',
       birthDate: formData.birthDate,
       phone: formData.phone,
     });
@@ -558,6 +597,7 @@ export class ProfileScreen {
 
     user.updateTaxInfo(new TaxInfo({
       taxNumber: formData.taxNumber,
+      taxId: formData.taxId,
       vatNumber: formData.vatNumber,
       taxOffice: formData.taxOffice,
       isSmallBusiness: formData.isSmallBusiness,
@@ -573,12 +613,13 @@ export class ProfileScreen {
 
     user.updateLegalInfo(new LegalInfo({
       legalForm: formData.legalForm,
+      foundingDate: formData.foundingDate || null,
       registrationCourt: formData.registrationCourt,
     }));
 
     user.updateQualifications(new Qualifications({
       ihkQualifications: formData.ihkQualifications,
-      ihkRegistrationNumber: formData.ihkRegistrationNumber,
+      registrationNumbers: formData.registrationNumbers || {},
     }));
 
     user.updateCareerLevel(new CareerLevel({

@@ -188,6 +188,31 @@
   grid-template-columns: 1fr;
 }
 
+/* Qualification rows with optional registration number */
+.qual-row {
+  margin-bottom: 0.5rem;
+}
+
+.qual-checkbox-row {
+  display: flex;
+  align-items: center;
+}
+
+.qual-registration-container {
+  margin-left: 1.75rem;
+  margin-top: 0.35rem;
+  max-width: 320px;
+}
+
+.qual-registration-container .input-wrapper {
+  margin-bottom: 0;
+}
+
+.qual-registration-container .input-field {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.6rem;
+}
+
 /* Manual form layout with explicit rows */
 .wizard-form-manual {
   display: flex;

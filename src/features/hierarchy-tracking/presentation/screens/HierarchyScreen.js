@@ -692,6 +692,7 @@ async #deleteEmployeeRevenueEntries(employeeId) {
 
     new TaxInfo({
       taxNumber: formData.taxNumber,
+      taxId: formData.taxId,
       vatNumber: formData.vatNumber,
       taxOffice: formData.taxOffice,
       isSmallBusiness: formData.isSmallBusiness,
@@ -791,10 +792,11 @@ async #deleteEmployeeRevenueEntries(employeeId) {
       const functions = getFunctions(firebaseApp.app);
       const createEmployee = httpsCallable(functions, 'createEmployeeAccount');
 
+      const displayName = formData.companyName || `${formData.firstName} ${formData.lastName}`;
       const result = await createEmployee({
         email: formData.email,
         password: formData.password,
-        displayName: `${formData.firstName} ${formData.lastName}`,
+        displayName,
       });
 
       const employeeUid = result.data.uid;
@@ -815,8 +817,9 @@ async #deleteEmployeeRevenueEntries(employeeId) {
 
     // Update with all profile data
     userEntity.updatePersonalInfo({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+      firstName: formData.firstName || '',
+      lastName: formData.lastName || '',
+      companyName: formData.companyName || '',
       birthDate: formData.birthDate,
       phone: formData.phone,
     });
@@ -830,6 +833,7 @@ async #deleteEmployeeRevenueEntries(employeeId) {
 
     userEntity.updateTaxInfo(new TaxInfo({
       taxNumber: formData.taxNumber,
+      taxId: formData.taxId,
       vatNumber: formData.vatNumber,
       taxOffice: formData.taxOffice,
       isSmallBusiness: formData.isSmallBusiness,
@@ -845,12 +849,13 @@ async #deleteEmployeeRevenueEntries(employeeId) {
 
     userEntity.updateLegalInfo(new LegalInfo({
       legalForm: formData.legalForm,
+      foundingDate: formData.foundingDate || null,
       registrationCourt: formData.registrationCourt,
     }));
 
     userEntity.updateQualifications(new Qualifications({
       ihkQualifications: formData.ihkQualifications,
-      ihkRegistrationNumber: formData.ihkRegistrationNumber,
+      registrationNumbers: formData.registrationNumbers || {},
     }));
 
     userEntity.updateCareerLevel(new CareerLevel({
@@ -883,7 +888,7 @@ async #deleteEmployeeRevenueEntries(employeeId) {
 
     // Step 5: Create HierarchyNode
     const nodeData = {
-      name: `${formData.firstName} ${formData.lastName}`,
+      name: formData.companyName || `${formData.firstName} ${formData.lastName}`,
       email: formData.email,
       phone: formData.phone,
       bankProvision: parseFloat(formData.bankProvision) || 0,

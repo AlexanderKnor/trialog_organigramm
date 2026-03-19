@@ -454,7 +454,7 @@ export class Sidebar {
             // GF nodes are not in the hierarchy tree, skip node update
             if (!isGeschaeftsfuehrer) {
               const nodeData = {
-                name: `${formData.firstName} ${formData.lastName}`,
+                name: formData.companyName || `${formData.firstName} ${formData.lastName}`,
                 email: formData.email,
                 phone: formData.phone,
                 bankProvision: parseFloat(formData.bankProvision) || 0,
@@ -632,8 +632,9 @@ export class Sidebar {
     if (!user) throw new Error('User not found');
 
     user.updatePersonalInfo({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+      firstName: formData.firstName || '',
+      lastName: formData.lastName || '',
+      companyName: formData.companyName || '',
       birthDate: formData.birthDate,
       phone: formData.phone,
     });
@@ -647,6 +648,7 @@ export class Sidebar {
 
     user.updateTaxInfo(new TaxInfo({
       taxNumber: formData.taxNumber,
+      taxId: formData.taxId,
       vatNumber: formData.vatNumber,
       taxOffice: formData.taxOffice,
       isSmallBusiness: formData.isSmallBusiness,
@@ -662,12 +664,13 @@ export class Sidebar {
 
     user.updateLegalInfo(new LegalInfo({
       legalForm: formData.legalForm,
+      foundingDate: formData.foundingDate || null,
       registrationCourt: formData.registrationCourt,
     }));
 
     user.updateQualifications(new Qualifications({
       ihkQualifications: formData.ihkQualifications,
-      ihkRegistrationNumber: formData.ihkRegistrationNumber,
+      registrationNumbers: formData.registrationNumbers || {},
     }));
 
     user.updateCareerLevel(new CareerLevel({

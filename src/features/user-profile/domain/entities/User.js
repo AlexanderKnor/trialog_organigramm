@@ -20,6 +20,7 @@ export class User {
   // Personal Information
   #firstName;
   #lastName;
+  #companyName;
   #birthDate;
   #phone;
   #profileImageUrl;
@@ -56,6 +57,7 @@ export class User {
     role = 'employee',
     firstName = '',
     lastName = '',
+    companyName = '',
     birthDate = null,
     phone = '',
     profileImageUrl = null,
@@ -78,6 +80,7 @@ export class User {
 
     this.#firstName = firstName;
     this.#lastName = lastName;
+    this.#companyName = companyName;
     this.#birthDate = birthDate ? new Date(birthDate) : null;
     this.#phone = phone;
     this.#profileImageUrl = profileImageUrl;
@@ -116,7 +119,11 @@ export class User {
   get role() { return this.#role; }
   get firstName() { return this.#firstName; }
   get lastName() { return this.#lastName; }
-  get fullName() { return `${this.#firstName} ${this.#lastName}`.trim() || this.#email; }
+  get companyName() { return this.#companyName; }
+  get fullName() {
+    if (this.#companyName) return this.#companyName;
+    return `${this.#firstName} ${this.#lastName}`.trim() || this.#email;
+  }
   get birthDate() { return this.#birthDate; }
   get age() {
     if (!this.#birthDate) return null;
@@ -174,9 +181,10 @@ export class User {
   }
 
   // Update methods
-  updatePersonalInfo({ firstName, lastName, birthDate, phone }) {
+  updatePersonalInfo({ firstName, lastName, companyName, birthDate, phone }) {
     if (firstName !== undefined) this.#firstName = firstName;
     if (lastName !== undefined) this.#lastName = lastName;
+    if (companyName !== undefined) this.#companyName = companyName;
     if (birthDate !== undefined) this.#birthDate = birthDate ? new Date(birthDate) : null;
     if (phone !== undefined) this.#phone = phone;
     this.#touch();
@@ -258,6 +266,7 @@ export class User {
       role: this.#role,
       firstName: this.#firstName,
       lastName: this.#lastName,
+      companyName: this.#companyName,
       birthDate: this.#birthDate && !isNaN(this.#birthDate.getTime()) ? this.#birthDate.toISOString() : null,
       phone: this.#phone,
       profileImageUrl: this.#profileImageUrl,
@@ -281,6 +290,7 @@ export class User {
       role: json.role || 'employee',
       firstName: json.firstName || '',
       lastName: json.lastName || '',
+      companyName: json.companyName || '',
       birthDate: json.birthDate || null,
       phone: json.phone || '',
       profileImageUrl: json.profileImageUrl || null,

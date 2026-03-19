@@ -8,6 +8,7 @@ import { Logger } from './../../../../core/utils/logger.js';
 
 export class TaxInfo {
   #taxNumber;
+  #taxId;
   #vatNumber;
   #taxOffice;
   #isSmallBusiness;
@@ -15,12 +16,14 @@ export class TaxInfo {
 
   constructor({
     taxNumber = '',
+    taxId = '',
     vatNumber = '',
     taxOffice = '',
     isSmallBusiness = false,
     isVatLiable = true,
   } = {}) {
     this.#taxNumber = this.#validateTaxNumber(taxNumber);
+    this.#taxId = this.#validateTaxId(taxId);
     this.#vatNumber = this.#validateVatNumber(vatNumber);
     this.#taxOffice = taxOffice;
     this.#isSmallBusiness = Boolean(isSmallBusiness);
@@ -43,6 +46,17 @@ export class TaxInfo {
     return taxNumber;
   }
 
+  #validateTaxId(taxId) {
+    if (!taxId) return '';
+
+    // German tax ID (Steueridentifikationsnummer): exactly 11 digits
+    const cleaned = taxId.replace(/[\s\-]/g, '');
+    if (cleaned && (cleaned.length !== 11 || !/^\d+$/.test(cleaned))) {
+      throw new ValidationError('Steuer-ID ungültig (11 Ziffern)', 'taxId');
+    }
+    return taxId;
+  }
+
   #validateVatNumber(vatNumber) {
     if (!vatNumber) return '';
 
@@ -56,6 +70,10 @@ export class TaxInfo {
 
   get taxNumber() {
     return this.#taxNumber;
+  }
+
+  get taxId() {
+    return this.#taxId;
   }
 
   get vatNumber() {
@@ -85,6 +103,7 @@ export class TaxInfo {
   toJSON() {
     return {
       taxNumber: this.#taxNumber,
+      taxId: this.#taxId,
       vatNumber: this.#vatNumber,
       taxOffice: this.#taxOffice,
       isSmallBusiness: this.#isSmallBusiness,
@@ -97,6 +116,7 @@ export class TaxInfo {
 
     return new TaxInfo({
       taxNumber: json.taxNumber || '',
+      taxId: json.taxId || '',
       vatNumber: json.vatNumber || '',
       taxOffice: json.taxOffice || '',
       isSmallBusiness: json.isSmallBusiness ?? false,
