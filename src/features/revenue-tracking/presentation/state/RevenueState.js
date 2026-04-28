@@ -14,6 +14,8 @@ export class RevenueState {
   #isLoading = false;
   #error = null;
   #listeners = new Set();
+  #batchDepth = 0;
+  #pendingNotify = false;
 
   constructor() {
     this.#entries = [];
@@ -160,9 +162,35 @@ export class RevenueState {
     this.#notify();
   }
 
+  /**
+   * Update an entry without triggering a re-render.
+   * Used when the DOM was already updated in-place (e.g., row-level status change).
+   */
+  updateEntrySilent(updatedEntry) {
+    this.#entries = this.#entries.map((entry) =>
+      entry.id === updatedEntry.id ? updatedEntry : entry,
+    );
+  }
+
   removeEntry(entryId) {
     this.#entries = this.#entries.filter((entry) => entry.id !== entryId);
     this.#notify();
+  }
+
+  /**
+   * Batch multiple state updates into a single notification.
+   * Prevents 6-8 re-renders during #loadData() — collapses to exactly 1.
+   */
+  beginBatch() {
+    this.#batchDepth++;
+  }
+
+  endBatch() {
+    this.#batchDepth--;
+    if (this.#batchDepth === 0 && this.#pendingNotify) {
+      this.#pendingNotify = false;
+      this.#notify();
+    }
   }
 
   subscribe(listener) {
@@ -178,6 +206,11 @@ export class RevenueState {
   }
 
   #notify() {
+    if (this.#batchDepth > 0) {
+      this.#pendingNotify = true;
+      return;
+    }
+
     const state = {
       entries: this.#entries,
       hierarchicalEntries: this.#hierarchicalEntries,

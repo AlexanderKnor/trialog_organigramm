@@ -47,18 +47,18 @@ export class BillingReportService {
 
       Logger.log('Employee details loaded:', employeeDetails.name);
 
-      const ownEntries = await this.#loadOwnEntries(employeeId, period);
+      const ownEntries = await this.#loadOwnEntries(employeeId);
       Logger.log('Own entries loaded:', ownEntries.length);
 
       let hierarchyEntries = [];
       if (includeHierarchy) {
-        hierarchyEntries = await this.#loadHierarchyEntries(employeeId, period);
+        hierarchyEntries = await this.#loadHierarchyEntries(employeeId);
         Logger.log('Hierarchy entries loaded:', hierarchyEntries.length);
       }
 
       let tipProviderEntries = [];
       if (includeTipProvider) {
-        tipProviderEntries = await this.#loadTipProviderEntries(employeeId, period);
+        tipProviderEntries = await this.#loadTipProviderEntries(employeeId);
         Logger.log('Tip provider entries loaded:', tipProviderEntries.length);
       }
 
@@ -83,6 +83,38 @@ export class BillingReportService {
     }
   }
 
+  async #loadOwnEntries(employeeId) {
+    return await this.#revenueService.getEntriesByEmployee(employeeId);
+  }
+
+  async #loadHierarchyEntries(employeeId) {
+    try {
+      const trees = await this.#hierarchyService.getAllTrees();
+      if (trees.length === 0) return [];
+
+      const tree = trees[0];
+      const treeId = tree.id;
+
+      if (!tree.hasNode(employeeId)) {
+        return [];
+      }
+
+      return await this.#revenueService.getHierarchicalRevenues(employeeId, treeId);
+    } catch (error) {
+      Logger.warn('Failed to load hierarchy entries:', error);
+      return [];
+    }
+  }
+
+  async #loadTipProviderEntries(employeeId) {
+    try {
+      return await this.#revenueService.getEntriesByTipProvider(employeeId);
+    } catch (error) {
+      Logger.warn('Failed to load tip provider entries:', error);
+      return [];
+    }
+  }
+
   async #loadEmployeeDetails(employeeId) {
     let user = null;
     let hierarchyNode = null;
@@ -91,6 +123,18 @@ export class BillingReportService {
       try {
         const users = await this.#profileService.getAllUsers();
         user = users.find(u => u.linkedNodeId === employeeId || u.uid === employeeId);
+
+        // Geschaeftsfuehrer: also try matching by email (their IDs are hardcoded, not Firebase UIDs)
+        if (!user && isGeschaeftsfuehrerId(employeeId)) {
+          const gfData = buildGeschaeftsfuehrerNode(employeeId);
+          if (gfData?.email) {
+            const gfEmail = gfData.email.toLowerCase();
+            user = users.find(u => u.email?.toLowerCase() === gfEmail);
+            if (user) {
+              Logger.log(`✓ Geschaeftsfuehrer profile matched by email: ${gfEmail}`);
+            }
+          }
+        }
       } catch (error) {
         Logger.warn('Failed to load user profile:', error);
       }
@@ -129,57 +173,10 @@ export class BillingReportService {
     return null;
   }
 
-  async #loadOwnEntries(employeeId, period) {
-    const allEntries = await this.#revenueService.getEntriesByEmployee(employeeId);
-    return this.#filterEntriesByPeriod(allEntries, period);
-  }
-
-  async #loadHierarchyEntries(employeeId, period) {
-    try {
-      const trees = await this.#hierarchyService.getAllTrees();
-      if (trees.length === 0) return [];
-
-      const tree = trees[0];
-      const treeId = tree.id;
-
-      if (!tree.hasNode(employeeId)) {
-        return [];
-      }
-
-      const hierarchicalEntries = await this.#revenueService.getHierarchicalRevenues(
-        employeeId,
-        treeId
-      );
-
-      return this.#filterHierarchicalEntriesByPeriod(hierarchicalEntries, period);
-    } catch (error) {
-      Logger.warn('Failed to load hierarchy entries:', error);
-      return [];
-    }
-  }
-
-  async #loadTipProviderEntries(employeeId, period) {
-    try {
-      const entries = await this.#revenueService.getEntriesByTipProvider(employeeId);
-      return this.#filterEntriesByPeriod(entries, period);
-    } catch (error) {
-      Logger.warn('Failed to load tip provider entries:', error);
-      return [];
-    }
-  }
-
-  #filterEntriesByPeriod(entries, period) {
+  #filterEntriesByPeriodEnd(entries, period) {
     return entries.filter(entry => {
       const entryDate = new Date(entry.entryDate || entry.createdAt);
-      return period.containsDate(entryDate);
-    });
-  }
-
-  #filterHierarchicalEntriesByPeriod(entries, period) {
-    return entries.filter(entry => {
-      const originalEntry = entry.originalEntry;
-      const entryDate = new Date(originalEntry.entryDate || originalEntry.createdAt);
-      return period.containsDate(entryDate);
+      return entryDate <= period.endDate;
     });
   }
 
@@ -211,14 +208,13 @@ export class BillingReportService {
       }
 
       const allEntries = await this.#revenueService.getExtraordinaryEntriesByGf(gfId);
-      const periodEntries = this.#filterEntriesByPeriod(allEntries, period);
 
-      Logger.log('Extraordinary entries in period:', periodEntries.length);
+      Logger.log('Extraordinary entries total:', allEntries.length);
 
       const report = BillingReportAssembler.assembleExtraordinaryReport({
         gfDetails,
         period,
-        entries: periodEntries,
+        entries: allEntries,
         generatedBy,
         generatedByName,
       });

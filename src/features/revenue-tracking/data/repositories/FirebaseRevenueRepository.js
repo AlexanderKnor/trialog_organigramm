@@ -60,6 +60,14 @@ export class FirebaseRevenueRepository extends IRevenueRepository {
     await this.#dataSource.batchUpdateStatus(updates);
   }
 
+  async batchAddBilledRecipient(entryIds, field, recipientId) {
+    await this.#dataSource.batchAddBilledRecipient(entryIds, field, recipientId);
+  }
+
+  async batchRemoveBilledRecipient(entryIds, field, recipientId) {
+    await this.#dataSource.batchRemoveBilledRecipient(entryIds, field, recipientId);
+  }
+
   async findByExtraordinaryGfId(gfId) {
     const data = await this.#dataSource.findByExtraordinaryGfId(gfId);
     return data.map((item) => RevenueEntry.fromJSON(item));
@@ -71,8 +79,9 @@ export class FirebaseRevenueRepository extends IRevenueRepository {
   }
 
   /**
-   * Subscribe to real-time updates for all revenue entries
-   * Returns unsubscribe function
+   * Subscribe to real-time updates for revenue entries.
+   * Uses docChanges() to extract only affected IDs instead of mapping the entire collection.
+   * Callback receives { affectedEmployeeIds: Set, affectedTipProviderIds: Set, changeCount: number }
    */
   subscribeToRevenue(callback) {
     const subscribeFunc = async () => {
@@ -88,16 +97,31 @@ export class FirebaseRevenueRepository extends IRevenueRepository {
       let isFirstSnapshot = true;
 
       return onSnapshot(colRef, (snapshot) => {
-        // Skip the first snapshot (initial data already loaded)
         if (isFirstSnapshot) {
           isFirstSnapshot = false;
           Logger.log('✓ Revenue listener initialized (skipping initial snapshot)');
           return;
         }
 
-        const entries = snapshot.docs.map(doc => RevenueEntry.fromJSON(doc.data()));
-        Logger.log(`🔄 Real-time update: ${entries.length} revenue entries (remote change)`);
-        callback(entries);
+        const changes = snapshot.docChanges();
+        if (changes.length === 0) return;
+
+        // Extract affected IDs from changed docs only — no full collection mapping
+        const affectedEmployeeIds = new Set();
+        const affectedTipProviderIds = new Set();
+
+        for (const change of changes) {
+          const data = change.doc.data();
+          if (data.employeeId) affectedEmployeeIds.add(data.employeeId);
+          if (Array.isArray(data.tipProviders)) {
+            for (const tp of data.tipProviders) {
+              if (tp.id) affectedTipProviderIds.add(tp.id);
+            }
+          }
+        }
+
+        Logger.log(`🔄 Revenue change: ${changes.length} doc(s), employees: [${[...affectedEmployeeIds].join(', ')}]`);
+        callback({ affectedEmployeeIds, affectedTipProviderIds, changeCount: changes.length });
       }, (error) => {
         Logger.error('Revenue real-time listener error:', error);
       });

@@ -80,6 +80,36 @@ export class RevenueService {
     Logger.log(`Batch updated ${updates.length} entries to status: ${newStatus}`);
   }
 
+  async markEntriesAsBilledForTipProvider(entryIds, tipProviderId) {
+    if (!entryIds || entryIds.length === 0) return;
+    await this.#revenueRepository.batchAddBilledRecipient(
+      entryIds, 'billedTipProviderIds', tipProviderId,
+    );
+    Logger.log(`Marked ${entryIds.length} entries as billed for tip provider: ${tipProviderId}`);
+  }
+
+  async markEntriesAsBilledForHierarchyManager(entryIds, managerId) {
+    if (!entryIds || entryIds.length === 0) return;
+    await this.#revenueRepository.batchAddBilledRecipient(
+      entryIds, 'billedHierarchyManagerIds', managerId,
+    );
+    Logger.log(`Marked ${entryIds.length} entries as billed for hierarchy manager: ${managerId}`);
+  }
+
+  async unmarkEntryAsBilledForTipProvider(entryId, tipProviderId) {
+    await this.#revenueRepository.batchRemoveBilledRecipient(
+      [entryId], 'billedTipProviderIds', tipProviderId,
+    );
+    Logger.log(`Unmarked entry ${entryId} as billed for tip provider: ${tipProviderId}`);
+  }
+
+  async unmarkEntryAsBilledForHierarchyManager(entryId, managerId) {
+    await this.#revenueRepository.batchRemoveBilledRecipient(
+      [entryId], 'billedHierarchyManagerIds', managerId,
+    );
+    Logger.log(`Unmarked entry ${entryId} as billed for hierarchy manager: ${managerId}`);
+  }
+
   async deleteEntry(entryId) {
     await this.#revenueRepository.delete(entryId);
   }

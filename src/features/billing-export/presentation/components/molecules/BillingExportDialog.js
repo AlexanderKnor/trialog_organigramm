@@ -288,10 +288,18 @@ export class BillingExportDialog {
       if (report.isEmpty) {
         this.#setLoading(false);
         if (report.hasExcludedEntries) {
-          alert(
-            `Es sind ${report.excludedEntryCount} Umsätze im Zeitraum vorhanden, ` +
-            'jedoch sind alle von der Abrechnung ausgeschlossen (Direktzahlung durch Produktgeber).',
-          );
+          if (this.#props.isExtraordinary) {
+            alert(
+              `Es sind ${report.excludedEntryCount} Durchlaufposten im Zeitraum vorhanden, ` +
+              'jedoch haben alle noch nicht den Status "Überwiesen". ' +
+              'Bitte setzen Sie den Status der Einträge auf "Überwiesen", um sie exportieren zu können.',
+            );
+          } else {
+            alert(
+              `Es sind ${report.excludedEntryCount} Umsätze im Zeitraum vorhanden, ` +
+              'jedoch sind alle von der Abrechnung ausgeschlossen (Direktzahlung durch Produktgeber oder Status nicht "Überwiesen").',
+            );
+          }
         } else {
           alert('Keine Umsätze im ausgewählten Zeitraum gefunden.');
         }
@@ -305,12 +313,18 @@ export class BillingExportDialog {
       Logger.log('PDF created, downloading:', fileName);
       this.#pdfGeneratorService.downloadPdf(blob, fileName);
 
-      // Finalize: transition SUBMITTED -> PROVISIONED for own entries
+      // Finalize: transition own entries + mark tip provider/hierarchy as billed
       // Skip finalization for extraordinary — status transition happens in target employee's billing
       if (!this.#props.isExtraordinary) {
-        const updatedCount = await this.#billingFinalizationService.finalizeReport(report);
-        if (updatedCount > 0) {
-          Logger.log(`${updatedCount} entries transitioned to PROVISIONED`);
+        const result = await this.#billingFinalizationService.finalizeReport(report);
+        if (result.ownCount > 0) {
+          Logger.log(`${result.ownCount} own entries transitioned to PROVISIONED`);
+        }
+        if (result.tipProviderCount > 0) {
+          Logger.log(`${result.tipProviderCount} tip provider entries marked as billed`);
+        }
+        if (result.hierarchyCount > 0) {
+          Logger.log(`${result.hierarchyCount} hierarchy entries marked as billed`);
         }
       }
 

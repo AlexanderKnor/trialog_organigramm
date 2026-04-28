@@ -90,8 +90,17 @@ export class BillingReportAssembler {
     const provisionPercentage = allocation
       ? allocation.provisionPercentage
       : (entry.tipProviderProvisionPercentage || 0);
+
+    // VAT-exempt tip providers (Kleinunternehmer / nicht umsatzsteuerpflichtig):
+    // provision is calculated on net amount — they cannot charge or offset VAT.
+    // VAT-liable tip providers: provision is calculated on gross, then VAT is extracted.
+    const isVatExempt = employeeDetails?.isVatExempt ?? false;
+    const baseAmount = (entry.hasVAT && isVatExempt)
+      ? (entry.netAmount || entry.provisionAmount)
+      : (entry.grossAmount || entry.provisionAmount);
+
     const provisionAmount = allocation
-      ? allocation.calculateAmount(entry.grossAmount || entry.provisionAmount)
+      ? allocation.calculateAmount(baseAmount)
       : (entry.tipProviderProvisionAmount || 0);
     const { provisionVatRate, provisionVatAmount, provisionGrossAmount } =
       BillingReportAssembler.#calculateProvisionVat(provisionAmount, employeeDetails, entry.hasVAT, entry.vatRate);
@@ -136,33 +145,81 @@ export class BillingReportAssembler {
     generatedByName = null,
     includeProvisioned = false,
   }) {
-    const filterBillableEntries = (entries) => {
+    // Step 1a: Filter OWN entries by status + period eligibility
+    const filterOwnByStatusAndPeriod = (entries) => {
       return entries.filter(entry => {
-        const status = entry.status?.type || entry.status ||
-                      entry.originalEntry?.status?.type || entry.originalEntry?.status;
+        const sourceEntry = entry.originalEntry || entry;
+        const status = sourceEntry.status?.type || sourceEntry.status;
+        const entryDate = new Date(sourceEntry.entryDate || sourceEntry.createdAt);
 
-        if (includeProvisioned) {
-          if (status !== REVENUE_STATUS_TYPES.TRANSFERRED &&
-              status !== REVENUE_STATUS_TYPES.PROVISIONED) {
-            return false;
-          }
-        } else {
-          if (status !== REVENUE_STATUS_TYPES.TRANSFERRED) {
-            return false;
-          }
+        // TRANSFERRED (not yet billed): carry forward — include if entryDate <= period end
+        if (status === REVENUE_STATUS_TYPES.TRANSFERRED) {
+          return entryDate <= period.endDate;
         }
-
-        return !BillingExclusionRule.shouldExcludeEntry(entry, employeeDetails.hasDirectPaymentGewo);
+        // PROVISIONED (reprint mode): only within exact period
+        if (includeProvisioned && status === REVENUE_STATUS_TYPES.PROVISIONED) {
+          return period.containsDate(entryDate);
+        }
+        // All other statuses: not eligible
+        return false;
       });
     };
 
-    const activeOwnEntries = filterBillableEntries(ownEntries);
-    const activeHierarchyEntries = filterBillableEntries(hierarchyEntries);
-    const activeTipProviderEntries = filterBillableEntries(tipProviderEntries);
+    // Step 1b: Filter HIERARCHY and TIP PROVIDER entries by status + period.
+    // The entry status reflects the OWNER's billing state — PROVISIONED means the
+    // owner was already billed, but managers and tip providers may not have been.
+    // Uses per-recipient tracking arrays to prevent double-billing.
+    const recipientId = employeeDetails.id;
 
-    const totalInputCount = ownEntries.length + hierarchyEntries.length + tipProviderEntries.length;
-    const totalActiveCount = activeOwnEntries.length + activeHierarchyEntries.length + activeTipProviderEntries.length;
-    const excludedEntryCount = totalInputCount - totalActiveCount;
+    const filterRelatedByStatusAndPeriod = (entries, isBilledForRecipient) => {
+      return entries.filter(entry => {
+        const sourceEntry = entry.originalEntry || entry;
+        const status = sourceEntry.status?.type || sourceEntry.status;
+        const entryDate = new Date(sourceEntry.entryDate || sourceEntry.createdAt);
+
+        // Cancelled/rejected entries are never eligible
+        if (status === REVENUE_STATUS_TYPES.CANCELLED || status === REVENUE_STATUS_TYPES.REJECTED) {
+          return false;
+        }
+        // TRANSFERRED or PROVISIONED: eligible for billing
+        if (status === REVENUE_STATUS_TYPES.TRANSFERRED || status === REVENUE_STATUS_TYPES.PROVISIONED) {
+          // Skip if already billed for this recipient (unless reprint mode)
+          if (!includeProvisioned && isBilledForRecipient(sourceEntry)) {
+            return false;
+          }
+          return entryDate <= period.endDate;
+        }
+        // SUBMITTED: not yet approved for billing
+        return false;
+      });
+    };
+
+    // Step 2: Apply BillingExclusionRule to eligible entries
+    const filterByExclusionRule = (entries) => {
+      return entries.filter(entry =>
+        !BillingExclusionRule.shouldExcludeEntry(entry, employeeDetails.hasDirectPaymentGewo),
+      );
+    };
+
+    const eligibleOwnEntries = filterOwnByStatusAndPeriod(ownEntries);
+    const eligibleHierarchyEntries = filterRelatedByStatusAndPeriod(
+      hierarchyEntries,
+      (entry) => entry.isBilledForHierarchyManager?.(recipientId) ?? false,
+    );
+    const eligibleTipProviderEntries = filterRelatedByStatusAndPeriod(
+      tipProviderEntries,
+      (entry) => entry.isBilledForTipProvider?.(recipientId) ?? false,
+    );
+
+    // BillingExclusionRule only applies to OWN entries.
+    // Tip provider and hierarchy provisions are paid by Trialog regardless of
+    // the entry's direct-payment status or the recipient's GewO qualifications.
+    const activeOwnEntries = filterByExclusionRule(eligibleOwnEntries);
+    const activeHierarchyEntries = eligibleHierarchyEntries;
+    const activeTipProviderEntries = eligibleTipProviderEntries;
+
+    // excludedEntryCount: only own entries excluded by BillingExclusionRule
+    const excludedEntryCount = eligibleOwnEntries.length - activeOwnEntries.length;
 
     const ownLineItems = activeOwnEntries.map(entry =>
       BillingReportAssembler.createOwnLineItem(entry, employeeDetails)
@@ -237,10 +294,13 @@ export class BillingReportAssembler {
     generatedBy = null,
     generatedByName = null,
   }) {
-    // Filter to billable status only (only TRANSFERRED entries are billable)
+    // TRANSFERRED entries: carry forward — include if entryDate <= period end
     const activeEntries = entries.filter(entry => {
       const status = entry.status?.type || entry.status;
-      return status === REVENUE_STATUS_TYPES.TRANSFERRED;
+      if (status !== REVENUE_STATUS_TYPES.TRANSFERRED) return false;
+
+      const entryDate = new Date(entry.entryDate || entry.createdAt);
+      return entryDate <= period.endDate;
     });
 
     const excludedEntryCount = entries.length - activeEntries.length;
@@ -263,10 +323,10 @@ export class BillingReportAssembler {
   }
 
   static #calculateProvisionVat(provisionAmount, employeeDetails, revenueHasVat, revenueVatRate) {
-    const isSmallBusiness = employeeDetails?.isSmallBusiness ?? false;
+    const isVatExempt = employeeDetails?.isVatExempt ?? false;
 
-    // Only extract VAT if: revenue itself has VAT AND employee is not Kleinunternehmer
-    if (!revenueHasVat || isSmallBusiness) {
+    // Only extract VAT if: revenue itself has VAT AND employee is VAT-liable
+    if (!revenueHasVat || isVatExempt) {
       return { provisionVatRate: 0, provisionVatAmount: 0, provisionGrossAmount: provisionAmount };
     }
 

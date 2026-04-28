@@ -108,6 +108,10 @@ export class BillingReport {
     return this.#employeeDetails?.isSmallBusiness ?? false;
   }
 
+  get isVatExempt() {
+    return this.#employeeDetails?.isVatExempt ?? false;
+  }
+
   get hasOwnRevenue() {
     return this.#ownLineItems.length > 0;
   }

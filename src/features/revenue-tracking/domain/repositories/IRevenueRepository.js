@@ -40,6 +40,14 @@ export class IRevenueRepository {
     throw new Error('Method not implemented');
   }
 
+  async batchAddBilledRecipient(entryIds, field, recipientId) {
+    throw new Error('Method not implemented');
+  }
+
+  async batchRemoveBilledRecipient(entryIds, field, recipientId) {
+    throw new Error('Method not implemented');
+  }
+
   async getNextCustomerNumber(employeeId) {
     throw new Error('Method not implemented');
   }

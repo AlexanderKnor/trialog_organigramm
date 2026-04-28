@@ -18,6 +18,7 @@ export class OrganigrammView {
   #cardMap;
   #props;
   #geschaeftsfuehrerNodes;
+  #lastTreeFingerprint = null;
 
   constructor(props = {}) {
     this.#tree = props.tree || null;
@@ -59,8 +60,9 @@ export class OrganigrammView {
   #renderOrganigramm() {
     clearElement(this.#container);
     this.#cardMap.clear();
+    this.#lastTreeFingerprint = this.#getTreeStructureFingerprint(this.#tree);
 
-    Logger.log('🎨 Rendering organigramm, tree:', this.#tree?.name);
+    Logger.log('🎨 Rendering organigramm (full rebuild), tree:', this.#tree?.name);
 
     if (!this.#tree || !this.#tree.root) {
       this.#renderEmptyState();
@@ -459,29 +461,94 @@ export class OrganigrammView {
   }
 
   setTree(tree) {
+    const newFingerprint = this.#getTreeStructureFingerprint(tree);
     this.#tree = tree;
-    this.#renderOrganigramm();
+
+    if (this.#lastTreeFingerprint && newFingerprint === this.#lastTreeFingerprint) {
+      // Structure unchanged — update existing cards in-place (no DOM rebuild)
+      Logger.log('🔄 Tree structure unchanged — updating cards in-place');
+      this.#updateCardsInPlace();
+    } else {
+      // Structure changed or first render — full rebuild required
+      this.#renderOrganigramm();
+    }
   }
 
   setState(state) {
     this.#state = state;
   }
 
-  setRevenueDataMap(revenueDataMap) {
+  setRevenueDataMap(revenueDataMap, { render = true } = {}) {
     this.#props.revenueDataMap = revenueDataMap || new Map();
-    // Trigger re-render to show updated revenue values
-    this.refresh();
+    if (render) {
+      // Update only revenue values on existing cards — no DOM rebuild
+      this.#updateRevenueInPlace();
+    }
   }
 
   setGeschaeftsfuehrerProfiles(profiles) {
     this.#props.geschaeftsfuehrerProfiles = profiles || null;
-    // No auto-render — setTree() is called immediately after and triggers render
   }
 
   refresh() {
     this.#renderOrganigramm();
-    // Re-check scroll hint after refresh
     setTimeout(() => this.#checkScrollHint(this.#element), 100);
+  }
+
+  /**
+   * Compute a structural fingerprint of the tree (node IDs + parent-child relationships).
+   * Used to detect if the tree structure changed (add/remove/move node) vs only data changes.
+   */
+  #getTreeStructureFingerprint(tree) {
+    if (!tree || !tree.root) return null;
+
+    const isEmployeeView = tree._isEmployeeView || false;
+    const employeeRootId = tree._employeeRootNodeId || null;
+    const startNodeId = isEmployeeView && employeeRootId ? employeeRootId : tree.root.id;
+
+    const parts = [`v:${isEmployeeView}:${employeeRootId}`];
+
+    const traverse = (nodeId) => {
+      const children = tree.getChildren(nodeId);
+      const childIds = children.map(c => c.id).sort().join(',');
+      parts.push(`${nodeId}:[${childIds}]`);
+      for (const child of children) {
+        traverse(child.id);
+      }
+    };
+
+    traverse(startNodeId);
+    return parts.join('|');
+  }
+
+  /**
+   * Update all cards in-place without rebuilding the DOM tree.
+   * Called when the tree structure hasn't changed (only node data or revenue changed).
+   */
+  #updateCardsInPlace() {
+    for (const [nodeId, card] of this.#cardMap) {
+      let node;
+      if (this.#geschaeftsfuehrerNodes.has(nodeId)) {
+        node = this.#createGeschaeftsfuehrerNode(nodeId);
+      } else if (this.#tree.hasNode(nodeId)) {
+        node = this.#tree.getNode(nodeId);
+      }
+
+      if (node) {
+        card.updateNodeData(node);
+        card.updateRevenueData(this.#props.revenueDataMap.get(nodeId) || null);
+      }
+    }
+  }
+
+  /**
+   * Update only revenue values on existing cards — no DOM structure changes.
+   * Called when only revenue data changed (most common real-time update).
+   */
+  #updateRevenueInPlace() {
+    for (const [nodeId, card] of this.#cardMap) {
+      card.updateRevenueData(this.#props.revenueDataMap.get(nodeId) || null);
+    }
   }
 
   updateNodeSelection(nodeId) {

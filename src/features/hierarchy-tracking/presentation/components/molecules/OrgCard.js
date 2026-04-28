@@ -190,4 +190,41 @@ export class OrgCard {
     this.#props.isSelected = isSelected;
     this.#element.classList.toggle('selected', isSelected);
   }
+
+  /**
+   * Update revenue display in-place without rebuilding the entire card.
+   */
+  updateRevenueData(revenueData) {
+    this.#props.revenueData = revenueData;
+    const oldRevenue = this.#element.querySelector('.card-revenue');
+    if (oldRevenue) {
+      const newRevenue = this.#renderRevenueInfo();
+      oldRevenue.replaceWith(newRevenue);
+    }
+  }
+
+  /**
+   * Update node data (name, description, initials, badge) in-place.
+   */
+  updateNodeData(node) {
+    this.#node = node;
+
+    const nameEl = this.#element.querySelector('.card-name');
+    if (nameEl) nameEl.textContent = node.name;
+
+    const roleEl = this.#element.querySelector('.card-role');
+    if (roleEl) roleEl.textContent = node.description || '';
+
+    const initialsEl = this.#element.querySelector('.card-initials');
+    if (initialsEl) initialsEl.textContent = this.#getInitials();
+
+    const badgeEl = this.#element.querySelector('.card-badge');
+    if (badgeEl) {
+      const data = this.#props.revenueData;
+      const badgeCount = this.#props.isRoot && data?.totalEmployees
+        ? data.totalEmployees
+        : (node.childCount || 0);
+      badgeEl.textContent = String(badgeCount);
+    }
+  }
 }

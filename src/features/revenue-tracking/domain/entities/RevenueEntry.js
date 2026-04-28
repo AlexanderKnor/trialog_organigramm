@@ -43,6 +43,8 @@ export class RevenueEntry {
   #isExtraordinary;
   #extraordinaryGfId;
   #extraordinaryGfName;
+  #billedTipProviderIds;
+  #billedHierarchyManagerIds;
 
   constructor({
     id = null,
@@ -80,6 +82,8 @@ export class RevenueEntry {
     isExtraordinary = false,
     extraordinaryGfId = null,
     extraordinaryGfName = null,
+    billedTipProviderIds = [],
+    billedHierarchyManagerIds = [],
   }) {
     this.#id = id || generateUUID();
     this.#employeeId = employeeId;
@@ -141,6 +145,10 @@ export class RevenueEntry {
     this.#isExtraordinary = Boolean(isExtraordinary);
     this.#extraordinaryGfId = isExtraordinary ? extraordinaryGfId : null;
     this.#extraordinaryGfName = isExtraordinary ? extraordinaryGfName : null;
+
+    // Per-recipient billing tracking
+    this.#billedTipProviderIds = Array.isArray(billedTipProviderIds) ? [...billedTipProviderIds] : [];
+    this.#billedHierarchyManagerIds = Array.isArray(billedHierarchyManagerIds) ? [...billedHierarchyManagerIds] : [];
 
     if (this.#isExtraordinary && (!this.#extraordinaryGfId || !this.#extraordinaryGfName)) {
       throw new ValidationError(
@@ -353,6 +361,38 @@ export class RevenueEntry {
   get extraordinaryGfId() { return this.#extraordinaryGfId; }
   get extraordinaryGfName() { return this.#extraordinaryGfName; }
 
+  // Per-recipient billing tracking
+  get billedTipProviderIds() { return [...this.#billedTipProviderIds]; }
+  get billedHierarchyManagerIds() { return [...this.#billedHierarchyManagerIds]; }
+
+  isBilledForTipProvider(tipProviderId) {
+    return this.#billedTipProviderIds.includes(tipProviderId);
+  }
+
+  isBilledForHierarchyManager(managerId) {
+    return this.#billedHierarchyManagerIds.includes(managerId);
+  }
+
+  addBilledTipProvider(tipProviderId) {
+    if (!this.#billedTipProviderIds.includes(tipProviderId)) {
+      this.#billedTipProviderIds.push(tipProviderId);
+    }
+  }
+
+  removeBilledTipProvider(tipProviderId) {
+    this.#billedTipProviderIds = this.#billedTipProviderIds.filter(id => id !== tipProviderId);
+  }
+
+  addBilledHierarchyManager(managerId) {
+    if (!this.#billedHierarchyManagerIds.includes(managerId)) {
+      this.#billedHierarchyManagerIds.push(managerId);
+    }
+  }
+
+  removeBilledHierarchyManager(managerId) {
+    this.#billedHierarchyManagerIds = this.#billedHierarchyManagerIds.filter(id => id !== managerId);
+  }
+
   // === Derived ===
 
   get requiresPropertyAddress() {
@@ -431,10 +471,27 @@ export class RevenueEntry {
       this.#notes = updates.notes;
     }
     if (updates.status !== undefined) {
-      this.#status =
+      const newStatus =
         updates.status instanceof RevenueStatus
           ? updates.status
           : new RevenueStatus(updates.status);
+
+      // Status rollback detection: if status goes "backwards" in the lifecycle
+      // (e.g. PROVISIONED → TRANSFERRED), clear per-recipient billing tracking.
+      // This ensures tip providers and hierarchy managers are re-included in future billings.
+      const STATUS_ORDER = {
+        [REVENUE_STATUS_TYPES.SUBMITTED]: 0,
+        [REVENUE_STATUS_TYPES.TRANSFERRED]: 1,
+        [REVENUE_STATUS_TYPES.PROVISIONED]: 2,
+      };
+      const oldOrder = STATUS_ORDER[this.#status.type] ?? -1;
+      const newOrder = STATUS_ORDER[newStatus.type] ?? -1;
+      if (newOrder >= 0 && newOrder < oldOrder) {
+        this.#billedTipProviderIds = [];
+        this.#billedHierarchyManagerIds = [];
+      }
+
+      this.#status = newStatus;
     }
     if (updates.entryDate !== undefined) {
       this.#entryDate = new Date(updates.entryDate);
@@ -537,6 +594,9 @@ export class RevenueEntry {
       isExtraordinary: this.#isExtraordinary,
       extraordinaryGfId: this.#extraordinaryGfId,
       extraordinaryGfName: this.#extraordinaryGfName,
+      // Per-recipient billing tracking
+      billedTipProviderIds: this.#billedTipProviderIds,
+      billedHierarchyManagerIds: this.#billedHierarchyManagerIds,
     };
   }
 
@@ -589,6 +649,9 @@ export class RevenueEntry {
       isExtraordinary: json.isExtraordinary ?? false,
       extraordinaryGfId: json.extraordinaryGfId ?? null,
       extraordinaryGfName: json.extraordinaryGfName ?? null,
+      // Per-recipient billing tracking (default empty for backward compatibility)
+      billedTipProviderIds: json.billedTipProviderIds ?? [],
+      billedHierarchyManagerIds: json.billedHierarchyManagerIds ?? [],
     });
   }
 }

@@ -243,7 +243,7 @@ export class RevenueTable {
     ];
 
     const rowClassName = `revenue-table-row${isExcluded ? ' row-rejected' : ''}`;
-    return createElement('tr', { className: rowClassName }, cells);
+    return createElement('tr', { className: rowClassName, 'data-entry-id': entry.id }, cells);
   }
 
   #renderIdCell(id) {
@@ -616,6 +616,43 @@ export class RevenueTable {
 
   get element() {
     return this.#element;
+  }
+
+  /**
+   * Update a single entry's status in-place — only the status cell and actions cell
+   * are replaced in the DOM. No full table rebuild.
+   * @returns {boolean} true if the row was found and updated
+   */
+  updateEntryStatus(entryId, updatedEntry) {
+    // Update internal arrays
+    this.#entries = this.#entries.map(e => e.id === entryId ? updatedEntry : e);
+    this.#originalEntries = this.#originalEntries.map(e => e.id === entryId ? updatedEntry : e);
+
+    // Find the row in the DOM
+    const row = this.#element.querySelector(`tr[data-entry-id="${entryId}"]`);
+    if (!row) return false;
+
+    // Replace status cell (index 14)
+    const statusCell = row.querySelector('.td-status');
+    if (statusCell) {
+      const newStatusCell = this.#renderStatusCell(updatedEntry);
+      statusCell.replaceWith(newStatusCell);
+    }
+
+    // Replace actions cell (last cell — edit/delete depends on status)
+    const cells = row.querySelectorAll('td');
+    const lastCell = cells[cells.length - 1];
+    if (lastCell) {
+      const newActionsCell = this.#renderActionsCell(updatedEntry);
+      lastCell.replaceWith(newActionsCell);
+    }
+
+    // Update row styling
+    const isExcluded = updatedEntry.status?.type === REVENUE_STATUS_TYPES.REJECTED ||
+                       updatedEntry.status?.type === REVENUE_STATUS_TYPES.CANCELLED;
+    row.classList.toggle('row-rejected', isExcluded);
+
+    return true;
   }
 
   setEntries(entries) {

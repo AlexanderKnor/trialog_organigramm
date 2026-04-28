@@ -48,7 +48,6 @@ export class PdfGeneratorService {
   #currentY;
   #pageNumber;
   #contentWidth;
-
   constructor() {
     this.#doc = null;
     this.#currentY = PDF_CONFIG.margin.top;
@@ -532,7 +531,7 @@ export class PdfGeneratorService {
       + (report.hierarchySummary?.totalProvisionVat || 0)
       + (report.tipProviderSummary?.totalProvisionVat || 0);
     const totalProvNetto = roundCurrency(totalProv - totalProvVat);
-    const isSmallBusiness = report.employeeDetails?.isSmallBusiness ?? false;
+    const isVatExempt = report.employeeDetails?.isVatExempt ?? false;
 
     this.#doc.setFont('helvetica', 'bold');
     this.#doc.setFontSize(fontSize.sectionTitle);
@@ -549,7 +548,7 @@ export class PdfGeneratorService {
     this.#doc.setFont('helvetica', 'normal');
     this.#doc.setTextColor(...colors.black);
 
-    if (!isSmallBusiness) {
+    if (!isVatExempt) {
       this.#doc.text('darin enth. Netto:', rightLabelX, rightY + 2);
       this.#doc.text(this.#formatCurrency(totalProvNetto), rightValueX, rightY + 2, { align: 'right' });
       rightY += 5;
@@ -701,7 +700,7 @@ export class PdfGeneratorService {
 
   #getColumnsForSource(source) {
     // Base columns for own revenues (expanded layout for landscape)
-    // Total content width: 267mm - includes revenue Netto/MwSt/Brutto + provision Netto/MwSt/Brutto
+    // Total content width: 267mm - includes revenue Netto/MwSt/Brutto + provision columns
     const baseColumns = [
       { header: 'Datum', key: 'date', align: 'left', wrap: false },
       { header: 'Kunde', key: 'customer', align: 'left', wrap: true },
@@ -758,7 +757,6 @@ export class PdfGeneratorService {
       return [20, 32, 32, 24, 32, 32, 28, 24, 43];
     }
 
-    // 12 columns with revenue Netto/MwSt/Brutto + provision Netto/MwSt/Brutto
     if (source === LINE_ITEM_SOURCES.HIERARCHY || source === LINE_ITEM_SOURCES.TIP_PROVIDER) {
       // 12 columns: Date(18) + Employee(28) + Customer(28) + Category(20) + Product(30) + Net(19) + MwSt(17) + Brutto(19) + %(13) + P.Netto(24) + P.MwSt(22) + P.Brutto(29) = 267
       return [18, 28, 28, 20, 30, 19, 17, 19, 13, 24, 22, 29];

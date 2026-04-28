@@ -40,6 +40,7 @@ export class HierarchyScreen {
   #keyboardHandler;
   #pendingUpdateResolvers = [];
   #closeUserMenuHandler = null;
+  #revenueUpdateTimer = null;
 
   constructor(container, hierarchyService, revenueService = null, profileService = null) {
     this.#container = typeof container === 'string' ? getElement(container) : container;
@@ -1126,14 +1127,32 @@ async #refreshTree(forceResubscribe = false) {
         }
       }
 
-      // Set up real-time listener for revenue entries
+      // Set up real-time listener for revenue entries (debounced + relevance filter)
       if (this.#revenueService) {
         try {
           this.#unsubscribeRevenueListener = await this.#revenueService.subscribeToRevenueUpdates(
-            async () => {
-              Logger.log('🔄 Real-time revenue update received');
-              await this.#reloadRevenueData();
-            }
+            async (changeInfo) => {
+              // Relevance check: only reload if change involves employees in this tree
+              if (changeInfo && changeInfo.affectedEmployeeIds) {
+                const tree = this.#state.currentTree;
+                if (tree) {
+                  const allNodes = tree.getAllNodes();
+                  const treeEmployeeIds = new Set(allNodes.map(n => n.id));
+                  const isRelevant = [...changeInfo.affectedEmployeeIds].some(id => treeEmployeeIds.has(id));
+                  if (!isRelevant) {
+                    Logger.log('⏭ Revenue change not relevant for this tree, skipping');
+                    return;
+                  }
+                }
+              }
+
+              // Debounce: coalesce rapid changes
+              if (this.#revenueUpdateTimer) clearTimeout(this.#revenueUpdateTimer);
+              this.#revenueUpdateTimer = setTimeout(async () => {
+                Logger.log('🔄 Real-time revenue update received (debounced)');
+                await this.#reloadRevenueData();
+              }, 500);
+            },
           );
           Logger.log('✓ Real-time revenue listener active');
         } catch (error) {
@@ -1190,11 +1209,11 @@ async #refreshTree(forceResubscribe = false) {
       const gfProfiles = await this.#loadGeschaeftsfuehrerProfiles();
 
       this.#orgView.setState(this.#state);
-      this.#orgView.setRevenueDataMap(revenueDataMap);
+      this.#orgView.setRevenueDataMap(revenueDataMap, { render: false });
       if (gfProfiles) {
         this.#orgView.setGeschaeftsfuehrerProfiles(gfProfiles);
       }
-      this.#orgView.setTree(tree); // setTree already renders, no need for refresh()
+      this.#orgView.setTree(tree); // setTree renders once — no double-render
       this.#sidebar.setTreeId(this.#currentTreeId);
       this.#sidebar.setTree(tree);
     } catch (error) {
@@ -1289,9 +1308,9 @@ async #handleTreeUpdate(updatedTree) {
 
         this.#state.setCurrentTree(updatedTree);
 
-        // Reload revenue data (only if revenue service exists)
+        // Reload revenue data without triggering render (setTree below renders once)
         if (this.#revenueService) {
-          await this.#reloadRevenueData();
+          await this.#reloadRevenueData({ render: false });
         }
 
         // Load GF profiles for organigramm enrichment
@@ -1300,7 +1319,7 @@ async #handleTreeUpdate(updatedTree) {
           this.#orgView.setGeschaeftsfuehrerProfiles(gfProfiles);
         }
 
-        // Update UI with smooth transition
+        // Update UI — setTree renders once (no double-render)
         this.#orgView.setState(this.#state);
         this.#orgView.setTree(updatedTree);
         this.#sidebar.setTree(updatedTree);
@@ -1314,7 +1333,7 @@ async #handleTreeUpdate(updatedTree) {
     }, 300);  // 300ms debounce delay for better batching
   }
 
-  async #reloadRevenueData() {
+  async #reloadRevenueData({ render = true } = {}) {
     try {
       let revenueDataMap = new Map();
       if (this.#revenueService && this.#currentTreeId) {
@@ -1326,8 +1345,7 @@ async #handleTreeUpdate(updatedTree) {
         );
       }
 
-      // Update organigramm with new revenue data
-      this.#orgView.setRevenueDataMap(revenueDataMap);
+      this.#orgView.setRevenueDataMap(revenueDataMap, { render });
 
       Logger.log('✓ Revenue data updated');
     } catch (error) {
@@ -1433,6 +1451,10 @@ async #handleTreeUpdate(updatedTree) {
   }
 
   unmount() {
+    if (this.#revenueUpdateTimer) {
+      clearTimeout(this.#revenueUpdateTimer);
+      this.#revenueUpdateTimer = null;
+    }
     if (this.#unsubscribe) {
       this.#unsubscribe();
     }

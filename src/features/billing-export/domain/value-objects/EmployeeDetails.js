@@ -39,6 +39,7 @@ export class EmployeeDetails {
   #vatNumber;
   #taxOffice;
   #isSmallBusiness;
+  #isVatLiable;
 
   // Career Level
   #careerLevelName;
@@ -66,6 +67,7 @@ export class EmployeeDetails {
     vatNumber = '',
     taxOffice = '',
     isSmallBusiness = false,
+    isVatLiable = true,
     careerLevelName = '',
     bankProvision = 0,
     insuranceProvision = 0,
@@ -88,6 +90,7 @@ export class EmployeeDetails {
     this.#vatNumber = vatNumber;
     this.#taxOffice = taxOffice;
     this.#isSmallBusiness = isSmallBusiness;
+    this.#isVatLiable = isVatLiable;
     this.#careerLevelName = careerLevelName;
     this.#bankProvision = bankProvision;
     this.#insuranceProvision = insuranceProvision;
@@ -137,6 +140,12 @@ export class EmployeeDetails {
   get vatNumber() { return this.#vatNumber; }
   get taxOffice() { return this.#taxOffice; }
   get isSmallBusiness() { return this.#isSmallBusiness; }
+  get isVatLiable() { return this.#isVatLiable; }
+
+  /**
+   * Employee is VAT-exempt if either Kleinunternehmer OR explicitly not VAT-liable.
+   */
+  get isVatExempt() { return this.#isSmallBusiness || !this.#isVatLiable; }
 
   get hasTaxInfo() {
     return Boolean(this.#taxNumber);
@@ -193,9 +202,11 @@ export class EmployeeDetails {
     const taxInfo = user.taxInfo || {};
     const careerLevel = user.careerLevel || {};
     const ihkQualifications = user.qualifications?.ihkQualifications || [];
-    const hasDirectPaymentGewo = ihkQualifications.some(
-      (q) => DIRECT_PAYMENT_QUALIFICATIONS.includes(q),
-    );
+    // Geschaeftsfuehrer: payment always flows through the company (Trialog),
+    // so GewO direct-payment exclusion does not apply to them.
+    const hasDirectPaymentGewo = hierarchyNode?.isGeschaeftsfuehrer
+      ? false
+      : ihkQualifications.some((q) => DIRECT_PAYMENT_QUALIFICATIONS.includes(q));
 
     return new EmployeeDetails({
       id: user.linkedNodeId || hierarchyNode?.id || user.uid || user.id,
@@ -214,6 +225,7 @@ export class EmployeeDetails {
       vatNumber: taxInfo.vatNumber || '',
       taxOffice: taxInfo.taxOffice || '',
       isSmallBusiness: taxInfo.isSmallBusiness || false,
+      isVatLiable: taxInfo.isVatLiable ?? true,
       careerLevelName: careerLevel.name || careerLevel.displayName || '',
       bankProvision: hierarchyNode?.bankProvision || careerLevel.bankProvision || 0,
       insuranceProvision: hierarchyNode?.insuranceProvision || careerLevel.insuranceProvision || 0,
@@ -265,6 +277,7 @@ export class EmployeeDetails {
       vatNumber: this.#vatNumber,
       taxOffice: this.#taxOffice,
       isSmallBusiness: this.#isSmallBusiness,
+      isVatLiable: this.#isVatLiable,
       careerLevelName: this.#careerLevelName,
       bankProvision: this.#bankProvision,
       insuranceProvision: this.#insuranceProvision,

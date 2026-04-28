@@ -305,6 +305,78 @@ export class RevenueFirestoreDataSource {
     }
   }
 
+  /**
+   * Atomically add a recipientId to a billing-tracking array field on multiple entries.
+   * Uses Firestore arrayUnion to avoid read-before-write.
+   * @param {string[]} entryIds - Entry IDs to update
+   * @param {string} field - 'billedTipProviderIds' or 'billedHierarchyManagerIds'
+   * @param {string} recipientId - The ID to add to the array
+   */
+  async batchAddBilledRecipient(entryIds, field, recipientId) {
+    try {
+      if (!entryIds || entryIds.length === 0) return;
+
+      const firestore = this.#getFirestore();
+      const { doc, writeBatch, arrayUnion, serverTimestamp } = await this.#importFirestoreHelpers();
+
+      const BATCH_LIMIT = 500;
+      for (let i = 0; i < entryIds.length; i += BATCH_LIMIT) {
+        const chunk = entryIds.slice(i, i + BATCH_LIMIT);
+        const batch = writeBatch(firestore);
+
+        for (const entryId of chunk) {
+          const docRef = doc(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES, entryId);
+          batch.update(docRef, {
+            [field]: arrayUnion(recipientId),
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        await batch.commit();
+      }
+
+      Logger.log(`Marked ${entryIds.length} entries as billed for ${field}:${recipientId}`);
+    } catch (error) {
+      throw new StorageError(`Failed to mark entries as billed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Atomically remove a recipientId from a billing-tracking array field on multiple entries.
+   * Uses Firestore arrayRemove to avoid read-before-write.
+   * @param {string[]} entryIds - Entry IDs to update
+   * @param {string} field - 'billedTipProviderIds' or 'billedHierarchyManagerIds'
+   * @param {string} recipientId - The ID to remove from the array
+   */
+  async batchRemoveBilledRecipient(entryIds, field, recipientId) {
+    try {
+      if (!entryIds || entryIds.length === 0) return;
+
+      const firestore = this.#getFirestore();
+      const { doc, writeBatch, arrayRemove, serverTimestamp } = await this.#importFirestoreHelpers();
+
+      const BATCH_LIMIT = 500;
+      for (let i = 0; i < entryIds.length; i += BATCH_LIMIT) {
+        const chunk = entryIds.slice(i, i + BATCH_LIMIT);
+        const batch = writeBatch(firestore);
+
+        for (const entryId of chunk) {
+          const docRef = doc(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES, entryId);
+          batch.update(docRef, {
+            [field]: arrayRemove(recipientId),
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        await batch.commit();
+      }
+
+      Logger.log(`Unmarked ${entryIds.length} entries as billed for ${field}:${recipientId}`);
+    } catch (error) {
+      throw new StorageError(`Failed to unmark entries as billed: ${error.message}`);
+    }
+  }
+
   async getMaxCustomerNumber(employeeId) {
     try {
       const entries = await this.findByEmployeeId(employeeId);

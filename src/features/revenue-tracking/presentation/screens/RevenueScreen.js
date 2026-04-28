@@ -63,6 +63,9 @@ export class RevenueScreen {
   #companySortDirection = null; // 'asc', 'desc', or null
   #viewMode = 'table'; // 'table', 'dashboard', 'rankings', 'cancellation'
   #isAnimating = false;
+  #revenueUpdateTimer = null;
+  #lastRenderFingerprint = null;
+  #isVatExempt = false;
 
   constructor(container, revenueService, hierarchyService, employeeId, treeId, profileService = null) {
     this.#container = typeof container === 'string' ? getElement(container) : container;
@@ -109,6 +112,17 @@ export class RevenueScreen {
       };
       this.#isCompanyView = false;
       this.#activeTab = 'own';
+    }
+
+    // Load VAT status for tip provider provision base calculation
+    if (this.#profileService && this.#employee?.email) {
+      try {
+        const userProfile = await this.#profileService.getUserByEmail(this.#employee.email);
+        const taxInfo = userProfile?.taxInfo;
+        this.#isVatExempt = taxInfo ? (taxInfo.isSmallBusiness || !taxInfo.isVatLiable) : false;
+      } catch {
+        this.#isVatExempt = false;
+      }
     }
 
     this.#element = this.#render();
@@ -472,6 +486,7 @@ createElement('svg', {
 
   #switchTab(tab) {
     if (this.#activeTab === tab || this.#isAnimating) return;
+    this.#lastRenderFingerprint = null;
 
     this.#isAnimating = true;
 
@@ -557,8 +572,17 @@ createElement('svg', {
     });
   }
 
-  async #loadData() {
-    this.#state.setLoading(true);
+  /**
+   * @param {Object} options
+   * @param {boolean} options.silent - Skip loading spinner (used for real-time updates)
+   */
+  async #loadData({ silent = false } = {}) {
+    if (!silent) {
+      this.#state.setLoading(true);
+    }
+
+    // Batch all state updates into a single notification
+    this.#state.beginBatch();
 
     try {
       const tree = await this.#hierarchyService.getTree(this.#treeId);
@@ -567,29 +591,24 @@ createElement('svg', {
       }
 
       if (this.#isCompanyView) {
-        // Load all company revenues
         const companyEntries = await this.#revenueService.getCompanyRevenues(
           this.#employeeId,
           this.#treeId,
         );
         this.#state.setCompanyEntries(companyEntries);
       } else {
-        // Load employee's own revenues
         const entries = await this.#revenueService.getEntriesByEmployee(this.#employeeId);
         this.#state.setEntries(entries);
 
-        // Load hierarchical revenues (from subordinates)
         const hierarchicalEntries = await this.#revenueService.getHierarchicalRevenues(
           this.#employeeId,
           this.#treeId,
         );
         this.#state.setHierarchicalEntries(hierarchicalEntries);
 
-        // Load tip provider revenues (entries where this employee is tip provider)
         const tipProviderEntries = await this.#revenueService.getEntriesByTipProvider(this.#employeeId);
         this.#state.setTipProviderEntries(tipProviderEntries);
 
-        // Load extraordinary entries (Durchlaufposten) for Geschaeftsfuehrer
         if (isGeschaeftsfuehrerId(this.#employeeId)) {
           const extraordinaryEntries = await this.#revenueService.getExtraordinaryEntriesByGf(this.#employeeId);
           this.#state.setExtraordinaryEntries(extraordinaryEntries);
@@ -599,7 +618,10 @@ createElement('svg', {
       Logger.error('Failed to load revenue data:', error);
       this.#state.setError(error.message);
     } finally {
-      this.#state.setLoading(false);
+      this.#state.endBatch();
+      if (!silent) {
+        this.#state.setLoading(false);
+      }
     }
   }
 
@@ -612,19 +634,31 @@ createElement('svg', {
 
   #renderContent() {
     const content = this.#element.querySelector('.revenue-content');
-    clearElement(content);
-
     const state = this.#state.getState();
 
+    // Always render loading/error states (bypass fingerprint)
     if (state.isLoading) {
+      this.#lastRenderFingerprint = null;
+      clearElement(content);
       content.appendChild(this.#renderLoading());
       return;
     }
 
     if (state.error) {
+      this.#lastRenderFingerprint = null;
+      clearElement(content);
       content.appendChild(this.#renderError(state.error));
       return;
     }
+
+    // Skip render if data hasn't changed (same tab, same entries, same statuses)
+    const fingerprint = this.#computeRenderFingerprint(state);
+    if (fingerprint && fingerprint === this.#lastRenderFingerprint) {
+      return;
+    }
+    this.#lastRenderFingerprint = fingerprint;
+
+    clearElement(content);
 
     if (this.#activeTab === 'company') {
       content.appendChild(this.#renderCompanyRevenues());
@@ -637,6 +671,43 @@ createElement('svg', {
     } else if (this.#activeTab === 'extraordinary') {
       content.appendChild(this.#renderExtraordinaryRevenues());
     }
+  }
+
+  /**
+   * Compute a lightweight fingerprint of the currently visible data + UI state.
+   * If the fingerprint matches the last render, the render is skipped.
+   * Includes: tab, view mode, date range, search query, and entry data
+   * (ID + status + provisionAmount — NOT updatedAt due to Firestore serverTimestamp mismatch).
+   */
+  #computeRenderFingerprint(state) {
+    let entries;
+    switch (this.#activeTab) {
+      case 'company': entries = state.companyEntries; break;
+      case 'own': entries = state.entries; break;
+      case 'team': entries = state.hierarchicalEntries; break;
+      case 'tipProvider': entries = state.tipProviderEntries; break;
+      case 'extraordinary': entries = state.extraordinaryEntries; break;
+      default: return null;
+    }
+
+    // UI state that affects rendering
+    const dateKey = `${this.#startDate?.getTime() || 0}-${this.#endDate?.getTime() || 0}`;
+    const uiKey = `${this.#activeTab}:${this.#viewMode}:${dateKey}:${state.searchQuery || ''}`;
+
+    if (!entries || entries.length === 0) return `${uiKey}:empty`;
+
+    const parts = entries.map(e => {
+      const src = e.originalEntry || e;
+      let billingKey = '';
+      if (this.#activeTab === 'tipProvider') {
+        billingKey = src.isBilledForTipProvider?.(this.#employeeId) ? ':B' : ':O';
+      } else if (this.#activeTab === 'team') {
+        billingKey = src.isBilledForHierarchyManager?.(this.#employeeId) ? ':B' : ':O';
+      }
+      return `${src.id}:${src.status?.type || src.status}:${src.provisionAmount || 0}${billingKey}`;
+    });
+
+    return `${uiKey}:${entries.length}:${parts.join(',')}`;
   }
 
   #renderLoading() {
@@ -804,6 +875,7 @@ createElement('svg', {
           createElement('th', { className: 'text-right' }, ['MA-%']),
           createElement('th', { className: 'text-right' }, ['Ihre-%']),
           createElement('th', { className: 'text-right' }, ['Ihre Provision']),
+          createElement('th', {}, ['Abrechnung']),
         ]),
       ]),
       createElement('tbody', {}, tableRows),
@@ -869,7 +941,10 @@ createElement('svg', {
     const totalTipProviderProvision = activeEntries.reduce(
       (sum, entry) => {
         const allocation = (entry.tipProviders || []).find((tp) => tp.id === employeeId);
-        return sum + (allocation ? allocation.calculateAmount(entry.grossAmount || entry.provisionAmount) : (entry.tipProviderProvisionAmount || 0));
+        const base = (entry.hasVAT && this.#isVatExempt)
+          ? (entry.netAmount || entry.provisionAmount)
+          : (entry.grossAmount || entry.provisionAmount);
+        return sum + (allocation ? allocation.calculateAmount(base) : (entry.tipProviderProvisionAmount || 0));
       },
       0
     );
@@ -898,6 +973,7 @@ createElement('svg', {
           createElement('th', { className: 'text-right' }, ['Ihre %']),
           createElement('th', { className: 'text-right' }, ['Ihre Provision']),
           createElement('th', {}, ['Status']),
+          createElement('th', {}, ['Abrechnung']),
         ]),
       ]),
       createElement('tbody', {}, tableRows),
@@ -1528,11 +1604,22 @@ createElement('svg', {
 
   async #handleStatusChange(entryId, newStatus) {
     try {
-      await this.#revenueService.updateEntryStatus(entryId, newStatus);
-      // Reload data to reflect changes
-      await this.#loadData();
+      const entry = await this.#revenueService.updateEntryStatus(entryId, newStatus);
+
+      if (this.#activeTab === 'own' && this.#revenueTable) {
+        // Row-level DOM update — only status + actions cells are replaced
+        this.#revenueTable.updateEntryStatus(entryId, entry);
+        // Update state without triggering a full re-render
+        this.#state.updateEntrySilent(entry);
+        // Sync fingerprint so the Firestore listener doesn't trigger a redundant rebuild
+        this.#lastRenderFingerprint = this.#computeRenderFingerprint(this.#state.getState());
+      } else {
+        // Other tabs (company, etc.): silent full reload
+        await this.#loadData({ silent: true });
+      }
     } catch (error) {
       Logger.error('Failed to update status:', error);
+      await this.#loadData();
     }
   }
 
@@ -1634,6 +1721,161 @@ createElement('svg', {
   #closeStatusDropdown(dropdown, menu) {
     dropdown.classList.remove('open');
     menu.classList.remove('open');
+  }
+
+  /**
+   * Create a billing status dropdown (admin-only) for tip provider / hierarchy rows.
+   * Uses the same pattern as #createCompanyStatusDropdown.
+   * Note: innerHTML usage below mirrors the existing chevron pattern used in #createCompanyStatusDropdown
+   * and only contains a static SVG literal — no user data is interpolated.
+   * @param {RevenueEntry} entry - The revenue entry
+   * @param {boolean} isBilled - Current billing state
+   * @param {'tipProvider'|'hierarchy'} type - Which billing array to update
+   */
+  #createBillingStatusDropdown(entry, isBilled, type) {
+    const billingOptions = [
+      { value: 'open', label: 'Offen' },
+      { value: 'billed', label: 'Abgerechnet' },
+    ];
+    const currentValue = isBilled ? 'billed' : 'open';
+
+    const dropdown = createElement('div', {
+      className: 'status-dropdown billing-status-dropdown',
+    });
+
+    // Static SVG chevron — same pattern as #createCompanyStatusDropdown, no user data interpolated
+    const chevronSvg = `<svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
+
+    const trigger = createElement('button', {
+      type: 'button',
+      className: `status-dropdown-trigger billing-${currentValue}`,
+    });
+    // Safe: only static SVG + safe label text, no user-controlled data
+    trigger.innerHTML = `<span>${isBilled ? 'Abgerechnet' : 'Offen'}</span>${chevronSvg}`;
+
+    const menu = createElement('div', { className: 'status-dropdown-menu' });
+
+    billingOptions.forEach((option) => {
+      const isActive = option.value === currentValue;
+      const item = createElement('div', {
+        className: `status-dropdown-item billing-${option.value}${isActive ? ' active' : ''}`,
+      }, [option.label]);
+
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (option.value !== currentValue) {
+          this.#handleBillingStatusChange(entry.id, option.value, type);
+        }
+        this.#closeStatusDropdown(dropdown, menu);
+      });
+
+      menu.appendChild(item);
+    });
+
+    dropdown.appendChild(trigger);
+
+    const positionMenu = () => {
+      const rect = trigger.getBoundingClientRect();
+      menu.style.left = `${rect.left + rect.width / 2 - menu.offsetWidth / 2}px`;
+      menu.style.top = `${rect.bottom + 2}px`;
+    };
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = dropdown.classList.contains('open');
+
+      document.querySelectorAll('.status-dropdown-menu.open').forEach((m) => {
+        m.classList.remove('open');
+      });
+      document.querySelectorAll('.status-dropdown.open').forEach((d) => {
+        d.classList.remove('open');
+      });
+
+      if (!isOpen) {
+        if (!menu.parentElement || menu.parentElement !== document.body) {
+          document.body.appendChild(menu);
+        }
+        dropdown.classList.add('open');
+        menu.classList.add('open');
+        positionMenu();
+      }
+    });
+
+    const closeHandler = (e) => {
+      if (!dropdown.contains(e.target) && !menu.contains(e.target)) {
+        this.#closeStatusDropdown(dropdown, menu);
+      }
+    };
+    document.addEventListener('click', closeHandler);
+
+    const scrollHandler = () => {
+      if (dropdown.classList.contains('open')) {
+        positionMenu();
+      }
+    };
+    window.addEventListener('scroll', scrollHandler, true);
+
+    const td = createElement('td', {}, [dropdown]);
+    return td;
+  }
+
+  async #handleBillingStatusChange(entryId, newValue, type) {
+    const isBilled = newValue === 'billed';
+
+    // 1) Update state entries locally (no re-render)
+    const state = this.#state.getState();
+    const updateEntry = (entry) => {
+      const src = entry.originalEntry || entry;
+      if (src.id !== entryId) return;
+      if (type === 'tipProvider') {
+        isBilled ? src.addBilledTipProvider(this.#employeeId) : src.removeBilledTipProvider(this.#employeeId);
+      } else {
+        isBilled ? src.addBilledHierarchyManager(this.#employeeId) : src.removeBilledHierarchyManager(this.#employeeId);
+      }
+    };
+    if (this.#activeTab === 'tipProvider') {
+      state.tipProviderEntries.forEach(updateEntry);
+    } else if (this.#activeTab === 'team') {
+      state.hierarchicalEntries.forEach(updateEntry);
+    }
+
+    // 2) Update the DOM cell in-place
+    const row = this.#element.querySelector(`tr[data-entry-id="${entryId}"]`);
+    if (row) {
+      const cells = row.querySelectorAll('td');
+      const lastCell = cells[cells.length - 1];
+      if (lastCell) {
+        const newCell = this.#createBillingStatusDropdown(
+          { id: entryId },
+          isBilled,
+          type,
+        );
+        lastCell.replaceWith(newCell);
+      }
+    }
+
+    // 3) Update fingerprint to match new state — prevents listener-triggered re-render
+    this.#lastRenderFingerprint = this.#computeRenderFingerprint(this.#state.getState());
+
+    // 4) Persist to Firestore
+    try {
+      if (type === 'tipProvider') {
+        if (!isBilled) {
+          await this.#revenueService.unmarkEntryAsBilledForTipProvider(entryId, this.#employeeId);
+        } else {
+          await this.#revenueService.markEntriesAsBilledForTipProvider([entryId], this.#employeeId);
+        }
+      } else {
+        if (!isBilled) {
+          await this.#revenueService.unmarkEntryAsBilledForHierarchyManager(entryId, this.#employeeId);
+        } else {
+          await this.#revenueService.markEntriesAsBilledForHierarchyManager([entryId], this.#employeeId);
+        }
+      }
+    } catch (error) {
+      Logger.error('Failed to update billing status:', error);
+      await this.#loadData({ silent: true });
+    }
   }
 
   #renderCompanyActionsCell(companyEntry) {
@@ -1756,6 +1998,8 @@ createElement('svg', {
   }
 
   #renderHierarchicalRow(entry) {
+    const isBilled = entry.originalEntry?.isBilledForHierarchyManager?.(this.#employeeId) ?? false;
+
     const revenueCell = entry.originalEntry.hasVAT
       ? createElement('td', { className: 'text-right' }, [
           createElement('div', { className: 'revenue-amount-with-vat' }, [
@@ -1773,7 +2017,7 @@ createElement('svg', {
           this.#formatCurrency(entry.originalEntry.provisionAmount),
         ]);
 
-    return createElement('tr', {}, [
+    return createElement('tr', { 'data-entry-id': entry.originalEntry.id }, [
       createElement('td', {}, [entry.owner.name]),
       createElement('td', {}, [entry.originalEntry.customerName]),
       createElement('td', {}, [entry.originalEntry.category.displayName]),
@@ -1789,6 +2033,15 @@ createElement('svg', {
           `${entry.managerProvisionAmount.toFixed(2)} EUR`,
         ]),
       ]),
+      authService.isAdmin()
+        ? this.#createBillingStatusDropdown(entry.originalEntry, isBilled, 'hierarchy')
+        : createElement('td', {}, [
+            createElement('span', {
+              className: `billing-badge ${isBilled ? 'billing-done' : 'billing-open'}`,
+            }, [
+              isBilled ? 'Abgerechnet' : 'Offen',
+            ]),
+          ]),
     ]);
   }
 
@@ -1796,10 +2049,15 @@ createElement('svg', {
     // Find this employee's specific allocation from the tipProviders array
     const allocation = (entry.tipProviders || []).find((tp) => tp.id === this.#employeeId);
     const tipProviderPercent = allocation ? allocation.provisionPercentage : (entry.tipProviderProvisionPercentage || 0);
-    const tipProviderAmount = allocation ? allocation.calculateAmount(entry.grossAmount || entry.provisionAmount) : (entry.tipProviderProvisionAmount || 0);
+    // VAT-exempt tip providers: provision based on net amount; VAT-liable: based on gross
+    const baseAmount = (entry.hasVAT && this.#isVatExempt)
+      ? (entry.netAmount || entry.provisionAmount)
+      : (entry.grossAmount || entry.provisionAmount);
+    const tipProviderAmount = allocation ? allocation.calculateAmount(baseAmount) : (entry.tipProviderProvisionAmount || 0);
     const ownerName = entry.hierarchySnapshot?.ownerName || 'Unbekannt';
     const status = entry.status;
     const statusClass = `status-${status.type}`;
+    const isBilled = entry.isBilledForTipProvider?.(this.#employeeId) ?? false;
 
     // Format date
     const dateStr = this.#formatDate(entry.entryDate);
@@ -1821,7 +2079,7 @@ createElement('svg', {
           this.#formatCurrency(entry.provisionAmount),
         ]);
 
-    return createElement('tr', {}, [
+    return createElement('tr', { 'data-entry-id': entry.id }, [
       createElement('td', {}, [dateStr]),
       createElement('td', {}, [ownerName]),
       createElement('td', {}, [entry.customerName]),
@@ -1841,6 +2099,15 @@ createElement('svg', {
           status.displayName,
         ]),
       ]),
+      authService.isAdmin()
+        ? this.#createBillingStatusDropdown(entry, isBilled, 'tipProvider')
+        : createElement('td', {}, [
+            createElement('span', {
+              className: `billing-badge ${isBilled ? 'billing-done' : 'billing-open'}`,
+            }, [
+              isBilled ? 'Abgerechnet' : 'Offen',
+            ]),
+          ]),
     ]);
   }
 
@@ -2007,19 +2274,56 @@ createElement('svg', {
     window.location.hash = '';
   }
 
+  /**
+   * Check if a revenue change is relevant for this screen's employee.
+   * Prevents re-renders triggered by unrelated users' changes.
+   */
+  #isChangeRelevant(changeInfo) {
+    if (!changeInfo || !changeInfo.affectedEmployeeIds) return true;
+
+    const { affectedEmployeeIds, affectedTipProviderIds } = changeInfo;
+
+    // Company view: any change is relevant
+    if (this.#isCompanyView) return true;
+
+    // Own entries changed
+    if (affectedEmployeeIds.has(this.#employeeId)) return true;
+
+    // Tip provider entries where this employee is the provider
+    if (affectedTipProviderIds.has(this.#employeeId)) return true;
+
+    // Hierarchical entries: check if any subordinate is affected
+    const state = this.#state.getState();
+    for (const entry of state.hierarchicalEntries) {
+      const ownerId = entry.originalEntry?.employeeId || entry.employeeId;
+      if (affectedEmployeeIds.has(ownerId)) return true;
+    }
+
+    return false;
+  }
+
   async mount() {
     clearElement(this.#container);
     await this.#init();
     this.#container.appendChild(this.#element);
     await this.#loadData();
 
-    // Set up real-time listener for revenue entries
+    // Set up real-time listener with debounce + relevance filtering
     try {
       this.#unsubscribeRevenueListener = await this.#revenueService.subscribeToRevenueUpdates(
-        async () => {
-          Logger.log('🔄 Real-time revenue update - reloading data');
-          await this.#loadData();
-        }
+        async (changeInfo) => {
+          if (!this.#isChangeRelevant(changeInfo)) {
+            Logger.log('⏭ Revenue change not relevant for this employee, skipping');
+            return;
+          }
+
+          // Debounce: coalesce rapid changes into a single reload
+          if (this.#revenueUpdateTimer) clearTimeout(this.#revenueUpdateTimer);
+          this.#revenueUpdateTimer = setTimeout(async () => {
+            Logger.log('🔄 Real-time revenue update - reloading data (debounced)');
+            await this.#loadData({ silent: true });
+          }, 300);
+        },
       );
       Logger.log('✓ Real-time revenue listener active for RevenueScreen');
     } catch (error) {
@@ -2028,6 +2332,10 @@ createElement('svg', {
   }
 
   unmount() {
+    if (this.#revenueUpdateTimer) {
+      clearTimeout(this.#revenueUpdateTimer);
+      this.#revenueUpdateTimer = null;
+    }
     if (this.#unsubscribe) {
       this.#unsubscribe();
     }
