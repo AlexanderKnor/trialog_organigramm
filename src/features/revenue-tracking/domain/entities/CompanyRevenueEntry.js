@@ -199,7 +199,9 @@ export class CompanyRevenueEntry {
    * Check if company gets provision from this entry
    */
   get hasCompanyProvision() {
-    return this.#companyProvisionAmount > 0;
+    // Non-zero (not just positive): a clawback (Rueckforderung) produces a negative
+    // company share that must still be tracked and reclaimed from the company.
+    return this.#companyProvisionAmount !== 0;
   }
 
   /**

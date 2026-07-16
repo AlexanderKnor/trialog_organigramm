@@ -30,6 +30,14 @@ const PDF_CONFIG = {
   },
   lineHeight: 4.5,
   rowPadding: 2,
+  // Legally required imprint shown in the footer of every page
+  legal: {
+    company: 'Trialog Makler Gruppe GmbH',
+    address: 'Barkeystraße 30 · 33330 Gütersloh',
+    taxNumber: '351/5778/2989',
+    vatId: 'DE452574140',
+    hrb: '13900',
+  },
   colors: {
     primary: [16, 39, 76],
     secondary: [100, 100, 100],
@@ -654,8 +662,15 @@ export class PdfGeneratorService {
   }
 
   #renderFooter(report) {
-    const { colors, fontSize, margin } = PDF_CONFIG;
+    const { colors, fontSize, margin, legal } = PDF_CONFIG;
     const pageCount = this.#doc.internal.getNumberOfPages();
+    const centerX = PDF_CONFIG.pageWidth / 2;
+    const separatorY = PDF_CONFIG.pageHeight - margin.bottom + 5;
+    const legalY = PDF_CONFIG.pageHeight - margin.bottom + 9.5;
+    const metaY = PDF_CONFIG.pageHeight - margin.bottom + 13.5;
+
+    const legalLine = `${legal.company} · ${legal.address} · Steuernr.: ${legal.taxNumber}`
+      + ` · USt-IdNr.: ${legal.vatId} · HRB ${legal.hrb}`;
 
     for (let i = 1; i <= pageCount; i++) {
       this.#doc.setPage(i);
@@ -663,25 +678,27 @@ export class PdfGeneratorService {
       this.#doc.setDrawColor(...colors.borderGray);
       this.#doc.line(
         margin.left,
-        PDF_CONFIG.pageHeight - margin.bottom + 5,
+        separatorY,
         PDF_CONFIG.pageWidth - margin.right,
-        PDF_CONFIG.pageHeight - margin.bottom + 5
+        separatorY
       );
 
+      // Legally required imprint, centered across the page
       this.#doc.setFontSize(fontSize.small);
       this.#doc.setFont('helvetica', 'normal');
       this.#doc.setTextColor(...colors.secondary);
+      this.#doc.text(legalLine, centerX, legalY, { align: 'center' });
 
       this.#doc.text(
         `Seite ${i} von ${pageCount}`,
         margin.left,
-        PDF_CONFIG.pageHeight - margin.bottom + 12
+        metaY
       );
 
       this.#doc.text(
         `Generiert: ${report.metadata.generatedAtFormatted}`,
         PDF_CONFIG.pageWidth - margin.right,
-        PDF_CONFIG.pageHeight - margin.bottom + 12,
+        metaY,
         { align: 'right' }
       );
     }

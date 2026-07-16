@@ -8,6 +8,7 @@ import { generateUUID, roundCurrency } from '../../../../core/utils/index.js';
 import { ValidationError } from '../../../../core/errors/index.js';
 import { RevenueCategory } from '../value-objects/RevenueCategory.js';
 import { RevenueStatus, REVENUE_STATUS_TYPES } from '../value-objects/RevenueStatus.js';
+import { EntryKind } from '../value-objects/EntryKind.js';
 import { Product } from '../value-objects/Product.js';
 import { ProductProvider } from '../value-objects/ProductProvider.js';
 import { CustomerAddress } from '../value-objects/CustomerAddress.js';
@@ -45,6 +46,7 @@ export class RevenueEntry {
   #extraordinaryGfName;
   #billedTipProviderIds;
   #billedHierarchyManagerIds;
+  #reversalOfEntryId;
 
   constructor({
     id = null,
@@ -84,6 +86,8 @@ export class RevenueEntry {
     extraordinaryGfName = null,
     billedTipProviderIds = [],
     billedHierarchyManagerIds = [],
+    // Clawback (Rueckforderung): optional reference to the reversed original entry
+    reversalOfEntryId = null,
   }) {
     this.#id = id || generateUUID();
     this.#employeeId = employeeId;
@@ -106,7 +110,7 @@ export class RevenueEntry {
         : ProductProvider.fromJSON(productProvider);
     this.#propertyAddress = propertyAddress;
     this.#contractNumber = contractNumber;
-    this.#provisionAmount = provisionAmount;
+    this.#provisionAmount = this.#validateProvisionAmount(provisionAmount);
     this.#notes = notes;
     this.#status =
       status instanceof RevenueStatus
@@ -149,6 +153,10 @@ export class RevenueEntry {
     // Per-recipient billing tracking
     this.#billedTipProviderIds = Array.isArray(billedTipProviderIds) ? [...billedTipProviderIds] : [];
     this.#billedHierarchyManagerIds = Array.isArray(billedHierarchyManagerIds) ? [...billedHierarchyManagerIds] : [];
+
+    // Clawback reference (nullable). A negative provisionAmount marks this entry
+    // as a Rueckforderung; the reference optionally links it to the original entry.
+    this.#reversalOfEntryId = reversalOfEntryId ?? null;
 
     if (this.#isExtraordinary && (!this.#extraordinaryGfId || !this.#extraordinaryGfName)) {
       throw new ValidationError(
@@ -226,6 +234,19 @@ export class RevenueEntry {
     }
   }
 
+  /**
+   * Validate the provision/revenue amount.
+   * Negative values are explicitly allowed and represent a clawback (Rueckforderung).
+   * Only non-numeric or non-finite values are rejected.
+   */
+  #validateProvisionAmount(amount) {
+    const num = typeof amount === 'number' ? amount : parseFloat(amount);
+    if (num === null || num === undefined || isNaN(num) || !isFinite(num)) {
+      throw new ValidationError('Provision amount must be a finite number', 'provisionAmount');
+    }
+    return num;
+  }
+
   #validateVATRate(rate) {
     if (rate === null || rate === undefined) {
       return 19;
@@ -269,6 +290,17 @@ export class RevenueEntry {
   get hasProvisionSnapshot() {
     return this.#ownerProvisionSnapshot !== null && this.#ownerProvisionSnapshot !== undefined;
   }
+
+  // === Clawback (Rueckforderung) ===
+
+  /** Optional reference to the original entry this clawback reverses (nullable) */
+  get reversalOfEntryId() { return this.#reversalOfEntryId; }
+
+  /** Derived entry kind (revenue | clawback) based on the amount's sign */
+  get entryKind() { return EntryKind.fromAmount(this.#provisionAmount); }
+
+  /** Whether this entry is a clawback (negative amount) */
+  get isClawback() { return this.#provisionAmount < 0; }
 
   // === Multi-Tip-Provider Getters ===
 
@@ -411,7 +443,9 @@ export class RevenueEntry {
       this.#customerName &&
       this.#customerAddress.isComplete &&
       this.#contractNumber &&
-      this.#provisionAmount >= 0 &&
+      // Amount may be negative (clawback); only require a finite, non-zero value
+      Number.isFinite(this.#provisionAmount) &&
+      this.#provisionAmount !== 0 &&
       (!this.requiresPropertyAddress || this.#propertyAddress)
     );
   }
@@ -465,7 +499,10 @@ export class RevenueEntry {
       this.#contractNumber = updates.contractNumber;
     }
     if (updates.provisionAmount !== undefined) {
-      this.#provisionAmount = updates.provisionAmount;
+      this.#provisionAmount = this.#validateProvisionAmount(updates.provisionAmount);
+    }
+    if (updates.reversalOfEntryId !== undefined) {
+      this.#reversalOfEntryId = updates.reversalOfEntryId ?? null;
     }
     if (updates.notes !== undefined) {
       this.#notes = updates.notes;
@@ -597,6 +634,9 @@ export class RevenueEntry {
       // Per-recipient billing tracking
       billedTipProviderIds: this.#billedTipProviderIds,
       billedHierarchyManagerIds: this.#billedHierarchyManagerIds,
+      // Clawback (Rueckforderung)
+      entryKind: this.entryKind.toJSON(),
+      reversalOfEntryId: this.#reversalOfEntryId,
     };
   }
 
@@ -652,6 +692,8 @@ export class RevenueEntry {
       // Per-recipient billing tracking (default empty for backward compatibility)
       billedTipProviderIds: json.billedTipProviderIds ?? [],
       billedHierarchyManagerIds: json.billedHierarchyManagerIds ?? [],
+      // Clawback reference (default null; entryKind is derived, not read back)
+      reversalOfEntryId: json.reversalOfEntryId ?? null,
     });
   }
 }

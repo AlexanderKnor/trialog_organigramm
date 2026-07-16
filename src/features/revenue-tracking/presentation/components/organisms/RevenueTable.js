@@ -466,11 +466,38 @@ export class RevenueTable {
 
     dropdown.appendChild(trigger);
 
-    // Position and show menu function
+    // Position and show menu function.
+    // The menu is portaled to <body> as a fixed-position element, so it must be
+    // kept inside the viewport manually: open upward when there is not enough
+    // room below the trigger, and clamp horizontally to the visible area.
     const positionMenu = () => {
       const rect = trigger.getBoundingClientRect();
-      menu.style.left = `${rect.left + rect.width / 2 - menu.offsetWidth / 2}px`;
-      menu.style.top = `${rect.bottom + 2}px`;
+      const menuHeight = menu.offsetHeight;
+      const menuWidth = menu.offsetWidth;
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const gap = 2;
+      const edgePadding = 8;
+
+      // Horizontal: centered on the trigger, clamped to the viewport edges
+      const centeredLeft = rect.left + rect.width / 2 - menuWidth / 2;
+      const clampedLeft = Math.max(
+        edgePadding,
+        Math.min(centeredLeft, viewportWidth - menuWidth - edgePadding)
+      );
+      menu.style.left = `${clampedLeft}px`;
+
+      // Vertical: prefer below, flip above when the menu would overflow the bottom
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const fitsBelow = spaceBelow >= menuHeight + gap + edgePadding;
+
+      if (!fitsBelow && spaceAbove > spaceBelow) {
+        const upwardTop = Math.max(edgePadding, rect.top - menuHeight - gap);
+        menu.style.top = `${upwardTop}px`;
+      } else {
+        menu.style.top = `${rect.bottom + gap}px`;
+      }
     };
 
     // Toggle dropdown on trigger click

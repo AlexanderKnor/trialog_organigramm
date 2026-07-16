@@ -7,6 +7,7 @@
 import { createElement, roundCurrency } from '../../../../../core/utils/index.js';
 import { Input } from '../../../../hierarchy-tracking/presentation/components/atoms/Input.js';
 import { Button } from '../../../../hierarchy-tracking/presentation/components/atoms/Button.js';
+import { Icon } from '../../../../hierarchy-tracking/presentation/components/atoms/Icon.js';
 import {
   RevenueCategory,
   REVENUE_CATEGORY_TYPES,
@@ -49,6 +50,7 @@ export class AddRevenueDialog {
   #manualBillingCheckbox;
   #notesInput;
   #trackingModeRadios; // Track revenue vs provision
+  #closeTrackingModeInfo; // Cleanup for the tracking-mode info popover listeners
   #employeeSelect; // Employee selector for company mode
 
   // Extraordinary revenue (Durchlaufposten) — GF only
@@ -451,10 +453,15 @@ export class AddRevenueDialog {
       createElement('div', { className: 'dialog-form-col-1' }, [providerWrapper, propertyAddressWrapper]),
     ]);
 
+    const trackingModeHeader = createElement('div', { className: 'tracking-mode-header' }, [
+      createElement('label', { className: 'input-label' }, ['Was möchten Sie erfassen?']),
+      this.#createTrackingModeInfo(),
+    ]);
+
     const trackingModeWrapper = createElement('div', {
       className: 'tracking-mode-wrapper',
     }, [
-      createElement('label', { className: 'input-label' }, ['Was möchten Sie erfassen?']),
+      trackingModeHeader,
       this.#trackingModeRadios,
     ]);
 
@@ -1003,6 +1010,92 @@ export class AddRevenueDialog {
     }
   }
 
+  /**
+   * Build the info trigger ("i") shown next to the tracking-mode header.
+   * Reveals a popover contrasting "Umsatz" and "Provision" so the difference is clear.
+   * Opens on hover and toggles on click (touch/keyboard); closes on outside click or Escape.
+   */
+  #createTrackingModeInfo() {
+    const icon = new Icon({ name: 'info', size: 16, color: 'currentColor' });
+
+    const trigger = createElement('button', {
+      type: 'button',
+      className: 'tm-info-trigger',
+      'aria-label': 'Erklärung: Unterschied zwischen Umsatz und Provision',
+      'aria-expanded': 'false',
+    }, [icon.element]);
+
+    const buildBlock = (dotClass, heading, intro, example) =>
+      createElement('div', { className: 'tm-info-block' }, [
+        createElement('div', { className: 'tm-info-heading' }, [
+          createElement('span', { className: `tm-info-dot ${dotClass}` }),
+          heading,
+        ]),
+        createElement('p', { className: 'tm-info-text' }, [intro]),
+        createElement('p', { className: 'tm-info-example' }, [
+          createElement('span', { className: 'tm-info-example-label' }, ['Beispiel: ']),
+          example,
+        ]),
+      ]);
+
+    const popover = createElement('div', { className: 'tm-info-popover', role: 'tooltip' }, [
+      createElement('div', { className: 'tm-info-arrow' }),
+      buildBlock(
+        'tm-info-dot--revenue',
+        'Umsatz',
+        'Umsatz trackst du, wenn du die gesamte Courtage für die TMG erfassen willst.',
+        'Du hast eine Immobilie verkauft und wir haben eine Rechnung von insgesamt 10.000,00 € netto an den Kunden geschickt. Dann erfasst du einen Umsatz von 10.000,00 €.',
+      ),
+      createElement('div', { className: 'tm-info-divider' }),
+      buildBlock(
+        'tm-info-dot--provision',
+        'Provision',
+        'Provision trackst du, wenn du ausschließlich deine Provision erfassen möchtest, die auch dir gehört.',
+        'Du hast einen Privatkredit vermittelt über Europace oder ProCheck und du hast diese Provision erhalten. Das System rechnet die Gesamtprovision anhand deiner Stufe entsprechend hoch.',
+      ),
+    ]);
+
+    const wrapper = createElement('div', { className: 'tm-info' }, [trigger, popover]);
+
+    const onOutside = (e) => {
+      if (!wrapper.contains(e.target)) close();
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        close();
+        trigger.focus();
+      }
+    };
+    const close = () => {
+      wrapper.classList.remove('tm-info-open');
+      trigger.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('click', onOutside, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+    const open = () => {
+      wrapper.classList.add('tm-info-open');
+      trigger.setAttribute('aria-expanded', 'true');
+      document.addEventListener('click', onOutside, true);
+      document.addEventListener('keydown', onKey, true);
+    };
+
+    trigger.addEventListener('click', (e) => {
+      // Prevent the surrounding label/dialog from reacting
+      e.preventDefault();
+      e.stopPropagation();
+      if (wrapper.classList.contains('tm-info-open')) {
+        close();
+      } else {
+        open();
+      }
+    });
+
+    // Expose cleanup so remove() can detach listeners if the dialog closes while open
+    this.#closeTrackingModeInfo = close;
+
+    return wrapper;
+  }
+
   #updateVATCheckboxState(product) {
     const isVatExempt = product?.isVatExempt || false;
     const vatWrapper = this.#element.querySelector('.vat-checkbox-wrapper');
@@ -1147,10 +1240,12 @@ export class AddRevenueDialog {
       return;
     }
 
-    if (enteredAmount <= 0) {
+    // Negative amounts are allowed and represent a clawback (Rueckforderung).
+    // Only an empty/zero amount is rejected.
+    if (enteredAmount === 0 || Number.isNaN(enteredAmount)) {
       const errorMsg = trackingMode === 'provision'
-        ? 'Provision muss grösser als 0 sein'
-        : 'Umsatz muss grösser als 0 sein';
+        ? 'Provision darf nicht 0 sein'
+        : 'Umsatz darf nicht 0 sein';
       this.#provisionAmountInput.setError(errorMsg);
       return;
     }
@@ -1334,6 +1429,7 @@ export class AddRevenueDialog {
   }
 
   remove() {
+    this.#closeTrackingModeInfo?.();
     this.#element.remove();
   }
 }

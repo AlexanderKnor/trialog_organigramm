@@ -115,52 +115,97 @@
 }
 
 /* ========================================
-   HORIZONTAL CONNECTOR LINE
+   HORIZONTAL CONNECTOR LINES
    ======================================== */
 
-/* Line connects: Marcel (right edge) → Trialog → Daniel (left edge) */
-/* Desktop: Marcel ends at 50%-203px, Daniel starts at 50%+203px */
+/*
+ * Two separate segments instead of one bar crossing the Trialog card:
+ *   ::after  = left  segment  Marcel right edge -> Trialog left edge
+ *   ::before = right segment  Trialog right edge -> Daniel left edge
+ *
+ * Each segment spans EXACTLY the gap between the cards, edge to edge, with no
+ * part tucked under any card. The endpoints derive only from the Trialog
+ * half-width and the gap (both fixed), so:
+ *   Trialog edge    = 50% ∓ half-width
+ *   GF inner edge   = 50% ∓ (half-width + gap)   (independent of GF width)
+ * Because nothing sits under a card, dimming the Trialog/GF cards during a
+ * search can no longer reveal the line bleeding over them.
+ */
+.org-top-level::before,
 .org-top-level::after {
-  left: calc(50% - 203px) !important;
-  right: calc(50% - 203px) !important;
+  content: '';
+  position: absolute;
+  height: var(--org-line-width);
+  background: var(--org-line-color);
+  z-index: 0;
+  pointer-events: none;
+  animation: lineFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+}
+
+/* Desktop: Trialog 285px (half 142.5), gap 60 -> GF inner edge 50%∓202.5 */
+.org-top-level::after {
+  left: calc(50% - 202.5px) !important;
+  right: calc(50% + 142.5px) !important;
   top: 88px !important;
 }
 
-/* Desktop 1920px+ */
+.org-top-level::before {
+  left: calc(50% + 142.5px) !important;
+  right: calc(50% - 202.5px) !important;
+  top: 88px !important;
+}
+
+/* Desktop 1920px+ : Trialog 310px (half 155), gap 64 -> GF inner edge 50%∓219 */
 @media (min-width: 1920px) {
   .org-top-level::after {
-    /* Marcel ends: 50%-439px+220px = 50%-219px, Daniel: 50%+219px */
     left: calc(50% - 219px) !important;
+    right: calc(50% + 155px) !important;
+    top: 92px !important;
+  }
+  .org-top-level::before {
+    left: calc(50% + 155px) !important;
     right: calc(50% - 219px) !important;
     top: 92px !important;
   }
 }
 
-/* Tablet */
+/* Tablet : Trialog 260px (half 130), gap 52 -> GF inner edge 50%∓182 */
 @media (min-width: 768px) and (max-width: 1279px) {
   .org-top-level::after {
-    /* Marcel ends: 50%-372px+190px = 50%-182px, Daniel: 50%+182px */
     left: calc(50% - 182px) !important;
+    right: calc(50% + 130px) !important;
+    top: 82px !important;
+  }
+  .org-top-level::before {
+    left: calc(50% + 130px) !important;
     right: calc(50% - 182px) !important;
     top: 82px !important;
   }
 }
 
-/* Mobile */
+/* Mobile : Trialog 260px (half 130), gap 44 -> GF inner edge 50%∓174 */
 @media (min-width: 480px) and (max-width: 767px) {
   .org-top-level::after {
-    /* Marcel ends: 50%-349px+175px = 50%-174px, Daniel: 50%+174px */
     left: calc(50% - 174px) !important;
+    right: calc(50% + 130px) !important;
+    top: 80px !important;
+  }
+  .org-top-level::before {
+    left: calc(50% + 130px) !important;
     right: calc(50% - 174px) !important;
     top: 80px !important;
   }
 }
 
-/* Very small mobile */
+/* Very small mobile : Trialog 230px (half 115), gap 36 -> GF inner edge 50%∓151 */
 @media (max-width: 479px) {
   .org-top-level::after {
-    /* Marcel ends: 50%-296px+145px = 50%-151px, Daniel: 50%+151px */
     left: calc(50% - 151px) !important;
+    right: calc(50% + 115px) !important;
+    top: 78px !important;
+  }
+  .org-top-level::before {
+    left: calc(50% + 115px) !important;
     right: calc(50% - 151px) !important;
     top: 78px !important;
   }

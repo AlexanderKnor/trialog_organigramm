@@ -69,7 +69,9 @@ export class HierarchicalRevenueEntry {
   }
 
   get hasManagerProvision() {
-    return this.#managerProvisionAmount > 0;
+    // Non-zero (not just positive): negative amounts are clawbacks (Rueckforderung)
+    // that must propagate up the cascade to the manager as well.
+    return this.#managerProvisionAmount !== 0;
   }
 
   get provisionDifferencePercentage() {

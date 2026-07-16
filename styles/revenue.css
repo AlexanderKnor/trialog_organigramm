@@ -3487,6 +3487,170 @@
 }
 
 /* ========================================
+   TRACKING MODE INFO POPOVER
+   ======================================== */
+
+.tracking-mode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tracking-mode-header .input-label {
+  margin: 0;
+}
+
+.tm-info {
+  position: relative;
+  display: inline-flex;
+}
+
+.tm-info-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #eef2f7;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tm-info-trigger:hover,
+.tm-info-open .tm-info-trigger {
+  background: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 39, 76, 0.25);
+}
+
+.tm-info-trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.tm-info-trigger .icon svg {
+  display: block;
+}
+
+.tm-info-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  width: 340px;
+  max-width: min(340px, 80vw);
+  padding: 1rem 1.125rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(16, 39, 76, 0.16), 0 2px 6px rgba(16, 39, 76, 0.08);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  text-align: left;
+  pointer-events: none;
+}
+
+/* Invisible bridge across the gap so hover survives moving into the popover */
+.tm-info-popover::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 0;
+  right: 0;
+  height: 12px;
+}
+
+.tm-info:hover .tm-info-popover,
+.tm-info-open .tm-info-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.tm-info-arrow {
+  position: absolute;
+  top: -6px;
+  right: 6px;
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  border-top: 1px solid #e2e8f0;
+  transform: rotate(45deg);
+}
+
+.tm-info-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.tm-info-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--color-primary);
+}
+
+.tm-info-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tm-info-dot--revenue {
+  background: #10274c;
+}
+
+.tm-info-dot--provision {
+  background: #16a34a;
+}
+
+.tm-info-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.tm-info-example {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.tm-info-example-label {
+  font-weight: 600;
+  color: #334155;
+}
+
+.tm-info-divider {
+  height: 1px;
+  background: #eef2f7;
+  margin: 0.875rem 0;
+}
+
+@media (max-width: 640px) {
+  .tm-info-popover {
+    width: 280px;
+    right: -8px;
+  }
+}
+
+/* ========================================
    VAT (UMSATZSTEUER) STYLES
    ======================================== */
 

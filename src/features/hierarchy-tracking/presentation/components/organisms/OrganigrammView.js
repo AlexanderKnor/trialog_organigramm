@@ -564,6 +564,66 @@ export class OrganigrammView {
     }
   }
 
+  /**
+   * Build the searchable node list for the org search control.
+   * Reads the currently rendered cards so it always reflects the live tree
+   * (including the Geschäftsführer cards).
+   */
+  getSearchableNodes() {
+    const nodes = [];
+    for (const [nodeId] of this.#cardMap) {
+      const node = this.getNode(nodeId);
+      if (!node) continue;
+      nodes.push({
+        id: nodeId,
+        name: node.name || '',
+        subtitle: node.isGeschaeftsfuehrer ? 'Geschäftsführer' : (node.description || ''),
+      });
+    }
+    return nodes;
+  }
+
+  /**
+   * Highlight the matching cards and dim the rest. Pass `null` to clear the
+   * search styling entirely.
+   */
+  applySearchHighlight(matchingIds) {
+    const orgChart = this.#element.querySelector('.org-chart');
+
+    if (!matchingIds) {
+      if (orgChart) orgChart.classList.remove('org-search-active');
+      for (const [, card] of this.#cardMap) {
+        card.element.classList.remove('org-card-search-match', 'org-card-search-dim');
+      }
+      return;
+    }
+
+    const matchSet = matchingIds instanceof Set ? matchingIds : new Set(matchingIds);
+    if (orgChart) orgChart.classList.add('org-search-active');
+
+    for (const [nodeId, card] of this.#cardMap) {
+      const isMatch = matchSet.has(nodeId);
+      card.element.classList.toggle('org-card-search-match', isMatch);
+      card.element.classList.toggle('org-card-search-dim', !isMatch);
+    }
+  }
+
+  /**
+   * Center on a node and briefly pulse it so the user sees where it landed.
+   */
+  focusNode(nodeId) {
+    const card = this.#cardMap.get(nodeId);
+    if (!card) return;
+
+    card.element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    card.element.classList.add('org-card-search-focus');
+    setTimeout(() => card.element.classList.remove('org-card-search-focus'), 1600);
+
+    if (this.#props.onNodeSelect) {
+      this.#props.onNodeSelect(nodeId);
+    }
+  }
+
   // Check if a node exists (tree or Geschäftsführer)
   hasNode(nodeId) {
     if (this.#geschaeftsfuehrerNodes.has(nodeId)) {

@@ -12,6 +12,7 @@ import {
 } from '../../../../core/config/geschaeftsfuehrer.config.js';
 import { HierarchyState } from '../state/HierarchyState.js';
 import { OrganigrammView } from '../components/organisms/OrganigrammView.js';
+import { OrgSearch } from '../components/molecules/OrgSearch.js';
 import { Sidebar } from '../components/organisms/Sidebar.js';
 import { NodeEditor } from '../components/molecules/NodeEditor.js';
 import { HierarchyNode } from '../../domain/entities/HierarchyNode.js';
@@ -28,6 +29,7 @@ export class HierarchyScreen {
   #profileService;
   #state;
   #orgView;
+  #orgSearch;
   #sidebar;
   #unsubscribe;
   #unsubscribeTreeListener;
@@ -58,6 +60,14 @@ export class HierarchyScreen {
   }
 
   #render() {
+    // Search/filter control for the organigramm (lives in the top bar)
+    this.#orgSearch = new OrgSearch({
+      getNodes: () => this.#orgView.getSearchableNodes(),
+      onHighlight: (matchingIds) => this.#orgView.applySearchHighlight(matchingIds),
+      onSelect: (nodeId) => this.#orgView.focusNode(nodeId),
+      onClear: () => this.#orgView.applySearchHighlight(null),
+    });
+
     const header = this.#createHeader();
 
     this.#orgView = new OrganigrammView({
@@ -210,7 +220,7 @@ export class HierarchyScreen {
     ]);
 
     return createElement('header', { className: 'app-header' }, [
-      createElement('div', { className: 'header-date' }),
+      createElement('div', { className: 'header-left' }, [this.#orgSearch.element]),
       createElement('div', { className: 'header-logo' }, [
         createElement('span', { className: 'logo-text' }, ['Trialog']),
         createElement('span', { className: 'logo-divider' }, ['·']),
@@ -1469,6 +1479,9 @@ async #handleTreeUpdate(updatedTree) {
     if (this.#keyboardHandler) {
       document.removeEventListener('keydown', this.#keyboardHandler);
       Logger.log('✓ Zoom keyboard shortcuts removed');
+    }
+    if (this.#orgSearch) {
+      this.#orgSearch.destroy();
     }
     clearElement(this.#container);
   }
