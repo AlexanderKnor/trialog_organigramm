@@ -5,8 +5,6 @@
 
 import { WIFOImportBatch } from '../entities/WIFOImportBatch.js';
 import { WIFOValidationService } from './WIFOValidationService.js';
-import { WIFO_IMPORT_STATUS } from '../value-objects/WIFOImportStatus.js';
-import { RECORD_VALIDATION_STATUS } from '../value-objects/RecordValidationStatus.js';
 import { REVENUE_STATUS_TYPES } from '../../../revenue-tracking/domain/value-objects/RevenueStatus.js';
 import { Logger } from '../../../../core/utils/logger.js';
 
@@ -35,58 +33,17 @@ export class WIFOImportService {
    * @returns {Promise<void>}
    */
   async initialize() {
-    // Build employee lookup for validation
     const employees = await this.#hierarchyService.getAllEmployees();
     this.#validationService.buildEmployeeLookup(employees);
-    Logger.log(`✓ Built employee lookup with ${employees.length} employees`);
 
-    // Build duplicate detection index from existing revenue entries
+    // The duplicate index needs every existing entry; without it validation
+    // still works but cannot flag re-imports.
     try {
-      const existingEntries = await this.#loadExistingEntriesForDuplicateCheck();
-      Logger.log(`✓ Loaded ${existingEntries.length} existing entries for duplicate detection`);
-
-      // Debug: Log first few entries to verify data
-      if (existingEntries.length > 0) {
-        const sample = existingEntries.slice(0, 3);
-        Logger.log('   Sample entries:', sample.map(e => ({
-          id: e.id,
-          contractNumber: e.contractNumber,
-          employeeId: e.employeeId,
-          source: e.source,
-          sourceReference: e.sourceReference,
-        })));
-      }
-
+      const existingEntries = (await this.#revenueService.searchEntries({})) || [];
       this.#validationService.buildDuplicateIndex(existingEntries);
     } catch (error) {
-      console.warn('Could not load existing entries for duplicate detection:', error.message);
+      Logger.warn('Could not load existing entries for duplicate detection:', error.message);
     }
-  }
-
-  /**
-   * Load existing revenue entries for duplicate detection
-   * @returns {Promise<RevenueEntry[]>}
-   */
-  async #loadExistingEntriesForDuplicateCheck() {
-    // Try to get entries from repository if available
-    if (this.#revenueService && typeof this.#revenueService.searchEntries === 'function') {
-      try {
-        // Load all entries (no filter - we need all for duplicate detection)
-        const entries = await this.#revenueService.searchEntries({});
-        Logger.log(`   searchEntries returned ${entries?.length || 0} entries`);
-        return entries || [];
-      } catch (error) {
-        // Fallback: try to get all entries
-        Logger.warn('Search failed, falling back to findAll:', error.message);
-      }
-    }
-
-    // If repository has findAll, use it
-    if (this.#wifoRepository && typeof this.#wifoRepository.getAllImportedEntries === 'function') {
-      return await this.#wifoRepository.getAllImportedEntries() || [];
-    }
-
-    return [];
   }
 
   /**
@@ -146,14 +103,17 @@ export class WIFOImportService {
   }
 
   /**
-   * Import validated records as revenue entries
+   * Import validated records as revenue entries.
+   *
+   * All entries are written through the bulk path: customer numbers are
+   * assigned race-free per employee and persistence is all-or-nothing — if
+   * the write fails, already-committed entries are removed again and the
+   * batch is marked failed. Every created entry carries the batch id as
+   * importBatchId, so a completed import can still be rolled back later.
+   *
    * @param {WIFOImportBatch} batch - The batch to import
    * @param {Object} options - Import options
-   * @param {number} options.batchSize - Number of records to process per chunk (default: 10)
-   * @param {number} options.concurrency - Number of parallel imports (default: 3)
-   * @param {boolean} options.stopOnError - Stop import on first error (default: false)
-   * @param {number} options.retryCount - Number of retries for failed imports (default: 1)
-   * @param {number} options.retryDelay - Delay between retries in ms (default: 500)
+   * @param {string[]} options.selectedIds - Restrict the import to these record ids
    * @param {Function} onProgress - Progress callback
    * @returns {Promise<WIFOImportBatch>}
    */
@@ -162,82 +122,80 @@ export class WIFOImportService {
       throw new Error('Batch cannot be imported: no valid records');
     }
 
-    const {
-      batchSize = 10,
-      concurrency = 3,
-      stopOnError = false,
-      retryCount = 1,
-      retryDelay = 500,
-    } = options;
+    const selectedIds = options.selectedIds ? new Set(options.selectedIds) : null;
+    const records = batch
+      .getImportableRecords()
+      .filter((record) => !selectedIds || selectedIds.has(record.id));
+
+    if (records.length === 0) {
+      throw new Error('Keine Einträge zum Importieren ausgewählt');
+    }
 
     batch.startImporting();
+    const total = records.length;
 
-    const importableRecords = batch.getImportableRecords();
-    const total = importableRecords.length;
-    let imported = 0;
-    let failed = 0;
-    let shouldStop = false;
+    if (onProgress) {
+      onProgress(0, total, { imported: 0, failed: 0, remaining: total });
+    }
 
-    // Process in chunks for better memory management
-    const chunks = this.#chunkArray(importableRecords, batchSize);
-
-    for (let chunkIndex = 0; chunkIndex < chunks.length && !shouldStop; chunkIndex++) {
-      const chunk = chunks[chunkIndex];
-
-      // Process chunk with controlled concurrency
-      const results = await this.#processChunkWithConcurrency(
-        chunk,
-        concurrency,
-        async (record) => {
-          return await this.#importRecordWithRetry(record, options, retryCount, retryDelay);
-        }
-      );
-
-      // Update counts and records based on results
-      for (let i = 0; i < results.length; i++) {
-        const { success, error } = results[i];
-        const record = chunk[i];
-
-        if (success) {
-          record.markAsImported();
-          imported++;
-        } else {
-          record.markAsFailed();
-          record.addValidationError({
-            code: 'IMPORT_ERROR',
-            message: error?.message || 'Unbekannter Fehler',
-            severity: 'error',
-          });
-          failed++;
-
-          if (stopOnError) {
-            shouldStop = true;
-            break;
-          }
-        }
-      }
-
-      // Report progress after each chunk
-      const processed = Math.min((chunkIndex + 1) * batchSize, total);
-      if (onProgress) {
-        onProgress(processed, total, {
-          imported,
-          failed,
-          remaining: total - processed,
-          chunkProgress: {
-            current: chunkIndex + 1,
-            total: chunks.length,
-          },
+    // Rows that cannot be turned into a valid entry are rejected here,
+    // before anything touches the database.
+    const items = [];
+    for (const record of records) {
+      try {
+        items.push({
+          record,
+          employeeId: record.mappedEmployeeId,
+          entryData: this.#buildEntryData(record, batch.id),
+        });
+      } catch (error) {
+        record.markAsFailed();
+        record.addValidationError({
+          code: 'IMPORT_ERROR',
+          message: error?.message || 'Unbekannter Fehler',
+          severity: 'error',
         });
       }
+    }
 
-      // Yield to prevent blocking between chunks
-      await new Promise((resolve) => setTimeout(resolve, 0));
+    let result;
+    try {
+      result = await this.#revenueService.addEntriesBulk(
+        items.map(({ employeeId, entryData }) => ({ employeeId, entryData }))
+      );
+    } catch (error) {
+      // saveMany guarantees no partial data survives a failed write.
+      batch.fail(`Import fehlgeschlagen, keine Einträge gespeichert: ${error.message}`);
+      if (this.#wifoRepository) {
+        await this.#wifoRepository.save(batch);
+      }
+      throw error;
+    }
+
+    for (const { index } of result.created) {
+      items[index].record.markAsImported();
+    }
+
+    for (const { index, error } of result.failures) {
+      const record = items[index].record;
+      record.markAsFailed();
+      record.addValidationError({
+        code: 'IMPORT_ERROR',
+        message: error?.message || 'Unbekannter Fehler',
+        severity: 'error',
+      });
+    }
+
+    if (onProgress) {
+      onProgress(total, total, {
+        imported: result.created.length,
+        failed: total - result.created.length,
+        remaining: 0,
+      });
     }
 
     batch.finishImport();
 
-    // Update repository
     if (this.#wifoRepository) {
       await this.#wifoRepository.save(batch);
     }
@@ -246,99 +204,31 @@ export class WIFOImportService {
   }
 
   /**
-   * Process a chunk of records with controlled concurrency
-   * @param {Array} chunk - Records to process
-   * @param {number} concurrency - Max parallel operations
-   * @param {Function} processor - Async function to process each record
-   * @returns {Promise<Array<{success: boolean, error?: Error}>>}
+   * Delete every revenue entry a batch created (identified by importBatchId).
+   * @param {WIFOImportBatch|null} batch - Batch to mark as rolled back (optional)
+   * @param {string} importBatchId - The import batch id stamped on the entries
+   * @returns {Promise<number>} number of deleted entries
    */
-  async #processChunkWithConcurrency(chunk, concurrency, processor) {
-    const results = [];
-    const executing = new Set();
+  async rollbackImport(batch, importBatchId) {
+    const deletedCount = await this.#revenueService.rollbackImportBatch(importBatchId);
 
-    for (let i = 0; i < chunk.length; i++) {
-      const record = chunk[i];
-
-      const promise = processor(record)
-        .then(() => ({ success: true }))
-        .catch((error) => ({ success: false, error }))
-        .finally(() => executing.delete(promise));
-
-      results.push(promise);
-      executing.add(promise);
-
-      // If we've hit concurrency limit, wait for one to finish
-      if (executing.size >= concurrency) {
-        await Promise.race(executing);
+    if (batch) {
+      batch.markRolledBack();
+      if (this.#wifoRepository) {
+        await this.#wifoRepository.save(batch);
       }
     }
 
-    // Wait for all remaining operations
-    return Promise.all(results);
+    Logger.log(`✓ WIFO import ${importBatchId} rolled back (${deletedCount} entries)`);
+    return deletedCount;
   }
 
   /**
-   * Import a record with retry logic
-   * @param {WIFOImportRecord} record - The record to import
-   * @param {Object} options - Import options
-   * @param {number} retryCount - Number of retries
-   * @param {number} retryDelay - Delay between retries
+   * Build the revenue entry payload for a validated WIFO record.
+   * @param {WIFOImportRecord} record - The record to convert
+   * @param {string} importBatchId - Batch id stamped on the entry
    */
-  async #importRecordWithRetry(record, options, retryCount, retryDelay) {
-    let lastError = null;
-
-    for (let attempt = 0; attempt <= retryCount; attempt++) {
-      try {
-        await this.#importRecord(record, options);
-        Logger.log(`✓ Import successful: ${record.vermittlerName} - ${record.vertrag}`);
-        return; // Success
-      } catch (error) {
-        lastError = error;
-        Logger.error(`❌ Import attempt ${attempt + 1} failed for ${record.vermittlerName}:`, error.message);
-        Logger.error('   Stack:', error.stack);
-
-        if (attempt < retryCount) {
-          // Wait before retry
-          await new Promise((resolve) => setTimeout(resolve, retryDelay));
-        }
-      }
-    }
-
-    throw lastError;
-  }
-
-  /**
-   * Split array into chunks
-   * @param {Array} array - Array to chunk
-   * @param {number} size - Chunk size
-   * @returns {Array<Array>}
-   */
-  #chunkArray(array, size) {
-    const chunks = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size));
-    }
-    return chunks;
-  }
-
-  /**
-   * Import a single record as a revenue entry
-   * @param {WIFOImportRecord} record - The record to import
-   * @param {Object} options - Import options
-   */
-  async #importRecord(record, options = {}) {
-    const nettoForLog = record.netto || 0;
-    const statusForLog = nettoForLog < 0 ? 'CANCELLED (Storniert)' : 'PROVISIONED (Provisioniert)';
-
-    Logger.log('📥 Importing WIFO record:', {
-      vermittler: record.vermittlerName,
-      vertrag: record.vertrag,
-      netto: nettoForLog,
-      autoStatus: statusForLog,
-      mappedEmployeeId: record.mappedEmployeeId,
-      mappedCategoryType: record.mappedCategoryType,
-    });
-
+  #buildEntryData(record, importBatchId) {
     if (!record.mappedEmployeeId) {
       throw new Error('Record has no mapped employee');
     }
@@ -347,27 +237,21 @@ export class WIFOImportService {
       throw new Error('Record has no mapped category');
     }
 
-    const employeeId = record.mappedEmployeeId;
-
-    // Determine status based on netto value:
-    // - Negative amounts → CANCELLED (Storniert)
-    // - Positive amounts → PROVISIONED (Provisioniert)
+    // Negative Netto rows (Storno/Rueckforderung) are imported as regular
+    // provisioned entries with a negative amount so they NET AGAINST the
+    // totals. Importing them as CANCELLED would exclude them from every sum
+    // and silently overstate revenue and payouts.
     const nettoValue = record.netto || 0;
-    const autoStatus = nettoValue < 0
-      ? REVENUE_STATUS_TYPES.CANCELLED
-      : REVENUE_STATUS_TYPES.PROVISIONED;
 
-    // Build revenue entry data matching RevenueEntry constructor
-    const entryData = {
+    return {
       category: record.mappedCategoryType,
-      provisionType: this.#mapProvisionType(record.mappedCategoryType),
+      provisionType: 'insurance',
       customerName: this.#buildCustomerName(record),
       provisionAmount: nettoValue,
       contractNumber: record.vertrag || '',
       notes: this.#buildDescription(record),
       entryDate: record.datum || new Date(),
-      status: autoStatus,
-      // Product mapping (use gesellschaft as provider name)
+      status: REVENUE_STATUS_TYPES.PROVISIONED,
       product: {
         name: record.tarif || 'WIFO Import',
         category: record.mappedCategoryType,
@@ -376,11 +260,15 @@ export class WIFOImportService {
         name: record.gesellschaft || 'WIFO',
         category: record.mappedCategoryType,
       },
-      // Source tracking for duplicate detection
+      // Identity in the database: source marks the origin, sourceReference is
+      // the row fingerprint used for duplicate detection, importBatchId groups
+      // the run for auditing and rollback.
       source: 'wifo_import',
-      sourceReference: record.vertrag,
-      // Preserve original WIFO data as metadata in notes
-      wifoMetadata: {
+      sourceReference: record.fingerprint,
+      importBatchId,
+      importMetadata: {
+        lauf: record.lauf,
+        vertragId: record.vertragId,
         sparte: record.sparte,
         art: record.art,
         basis: record.basis,
@@ -388,15 +276,8 @@ export class WIFOImportService {
         brutto: record.brutto,
         stornoreserve: record.stornoreserve,
         rb: record.rb,
-        lauf: record.lauf,
-        importedAt: new Date().toISOString(),
       },
     };
-
-    // Create revenue entry using existing service (employeeId is first parameter)
-    Logger.log('   📤 Calling revenueService.addEntry with employeeId:', employeeId);
-    await this.#revenueService.addEntry(employeeId, entryData);
-    Logger.log('   ✓ Entry created successfully');
   }
 
   /**
@@ -414,16 +295,6 @@ export class WIFOImportService {
     }
 
     return 'Unbekannt (WIFO Import)';
-  }
-
-  /**
-   * Map WIFO category to internal provision type
-   * @param {string} categoryType - Internal category type
-   * @returns {string}
-   */
-  #mapProvisionType(categoryType) {
-    // WIFO data is always insurance
-    return 'insurance';
   }
 
   /**

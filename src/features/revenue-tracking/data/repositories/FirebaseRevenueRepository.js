@@ -36,6 +36,20 @@ export class FirebaseRevenueRepository extends IRevenueRepository {
     return entry;
   }
 
+  async saveMany(entries) {
+    await this.#dataSource.saveMany(entries.map((entry) => entry.toJSON()));
+    return entries;
+  }
+
+  async deleteMany(entryIds) {
+    await this.#dataSource.deleteMany(entryIds);
+  }
+
+  async findByImportBatchId(importBatchId) {
+    const data = await this.#dataSource.findByImportBatchId(importBatchId);
+    return data.map((item) => RevenueEntry.fromJSON(item));
+  }
+
   async update(entry) {
     const data = entry.toJSON();
     await this.#dataSource.update(data);

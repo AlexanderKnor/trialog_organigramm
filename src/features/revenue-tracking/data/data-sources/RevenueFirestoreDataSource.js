@@ -111,6 +111,107 @@ export class RevenueFirestoreDataSource {
     }
   }
 
+  /**
+   * Save many entries with all-or-nothing semantics.
+   * Firestore write batches cap at 500 operations, so large imports span
+   * several commits; if a later commit fails, the already-committed documents
+   * are deleted again so a failed import never leaves partial data behind.
+   */
+  async saveMany(entriesData) {
+    if (entriesData.length === 0) {
+      return [];
+    }
+
+    const firestore = this.#getFirestore();
+    const userId = this.#getCurrentUserId();
+    const { doc, writeBatch, serverTimestamp } = await this.#importFirestoreHelpers();
+
+    const chunks = this.#chunk(entriesData, 400);
+    const committedIds = [];
+
+    for (const chunk of chunks) {
+      try {
+        const batch = writeBatch(firestore);
+        for (const entryData of chunk) {
+          const docRef = doc(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES, entryData.id);
+          batch.set(docRef, { ...entryData, userId, updatedAt: serverTimestamp() });
+        }
+        await batch.commit();
+        committedIds.push(...chunk.map((entryData) => entryData.id));
+      } catch (error) {
+        await this.#compensate(committedIds);
+        throw new StorageError(`Failed to save entries in bulk: ${error.message}`);
+      }
+    }
+
+    Logger.log(`✓ Saved ${committedIds.length} revenue entries in ${chunks.length} batch(es)`);
+    return entriesData;
+  }
+
+  /** Best-effort removal of already-committed documents after a failed bulk save. */
+  async #compensate(entryIds) {
+    if (entryIds.length === 0) {
+      return;
+    }
+
+    try {
+      await this.deleteMany(entryIds);
+      Logger.log(`✓ Rolled back ${entryIds.length} entries after failed bulk save`);
+    } catch (rollbackError) {
+      // The entries still carry their importBatchId, so a later
+      // rollback-by-batch can clean up what this pass could not.
+      Logger.error('Rollback after failed bulk save also failed:', rollbackError);
+    }
+  }
+
+  async deleteMany(entryIds) {
+    if (entryIds.length === 0) {
+      return;
+    }
+
+    try {
+      const firestore = this.#getFirestore();
+      const { doc, writeBatch } = await this.#importFirestoreHelpers();
+
+      for (const chunk of this.#chunk(entryIds, 400)) {
+        const batch = writeBatch(firestore);
+        for (const entryId of chunk) {
+          batch.delete(doc(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES, entryId));
+        }
+        await batch.commit();
+      }
+
+      Logger.log(`✓ Deleted ${entryIds.length} revenue entries`);
+    } catch (error) {
+      throw new StorageError(`Failed to delete entries in bulk: ${error.message}`);
+    }
+  }
+
+  async findByImportBatchId(importBatchId) {
+    try {
+      const firestore = this.#getFirestore();
+      const { collection, query, where, getDocs } = await this.#importFirestoreHelpers();
+
+      const q = query(
+        collection(firestore, FIRESTORE_COLLECTIONS.REVENUE_ENTRIES),
+        where('importBatchId', '==', importBatchId)
+      );
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map((docSnap) => docSnap.data());
+    } catch (error) {
+      throw new StorageError(`Failed to load entries for import batch: ${error.message}`);
+    }
+  }
+
+  #chunk(items, size) {
+    const chunks = [];
+    for (let i = 0; i < items.length; i += size) {
+      chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
+  }
+
   async update(entryData) {
     try {
       const firestore = this.#getFirestore();

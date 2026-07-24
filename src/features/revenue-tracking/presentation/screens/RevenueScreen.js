@@ -76,10 +76,12 @@ export class RevenueScreen {
     this.#treeId = treeId;
     this.#state = new RevenueState();
 
-    // Initialize to current month (first to last day)
+    // Initialize to current month (first to last day). End of day, not
+    // midnight: entries carry timestamps, and a midnight bound would silently
+    // drop everything booked on the last day of the month.
     const now = new Date();
     this.#startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    this.#endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    this.#endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   }
 
   async #init() {
@@ -159,7 +161,7 @@ return createElement('header', { className: 'revenue-header' }, [
 createElement('button', {
           className: 'btn-back-to-org',
           onclick: () => {
-            window.location.hash = '';
+            window.location.hash = 'org';
           },
           'aria-label': 'Zurück zum Organigramm',
         }, [
@@ -2271,7 +2273,7 @@ createElement('svg', {
   }
 
   #navigateBack() {
-    window.location.hash = '';
+    window.location.hash = 'org';
   }
 
   /**

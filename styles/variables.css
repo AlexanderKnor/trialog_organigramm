@@ -29,6 +29,12 @@
   --color-secondary-light: #4a7ad8;
   --color-secondary-dark: #1e3d70;
 
+  /* Lit top-stop of the navy gradients used by the header and the root card.
+     Distinct from --color-secondary-dark (#1e3d70), which is a different hue. */
+  --color-primary-highlight: #1a3a6e;
+  --color-primary-highlight-rgb: 26, 58, 110;
+  --color-primary-deep: #0d1f3c;
+
   /* Accent Colors */
   --color-accent: #d4a853;
   --color-accent-rgb: 212, 168, 83;
@@ -51,6 +57,22 @@
   --color-gray-700: #374151;
   --color-gray-800: #1f2937;
   --color-black: #111827;
+
+  /* Cool neutral ramp. The premium surfaces (root card, org search, zoom controls)
+     are built on this, not on the warm --color-gray-* ramp above; the two are not
+     interchangeable and mixing them shifts the palette visibly. */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+
+  /* Lightest slate that still clears WCAG AA (4.5:1) for body text on white.
+     --color-slate-400 sits at ~2.8:1 and is for decorative icons only. */
+  --color-slate-text-muted: var(--color-slate-500);
 
   /* Semantic Aliases */
   --color-background: var(--color-off-white);
@@ -242,6 +264,41 @@
   --glow-focus: 0 0 0 3px rgba(42, 82, 152, 0.12);
 
   /* ========================================
+     GLASS PANEL PRIMITIVE
+     ======================================== */
+
+  /* The floating-glass look shared by the org search and the zoom controls.
+     Named here because those two files carry the same stack duplicated verbatim. */
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-bg-solid: rgba(255, 255, 255, 0.98);
+  --glass-border: 1px solid rgba(226, 232, 240, 0.7);
+  --glass-blur: blur(12px);
+  --shadow-glass:
+    0 4px 6px rgba(16, 39, 76, 0.06),
+    0 8px 16px rgba(16, 39, 76, 0.08),
+    0 0 0 1px rgba(16, 39, 76, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+
+  /* Lit navy surface: multi-stop and off-axis so it reads as a lit plane
+     rather than a flat fill. Shared DNA with the app header and root card. */
+  --gradient-navy-surface: linear-gradient(
+    165deg,
+    var(--color-primary-highlight) 0%,
+    var(--color-primary) 45%,
+    var(--color-primary-deep) 100%
+  );
+  --shadow-navy-raised:
+    0 2px 8px rgba(16, 39, 76, 0.12),
+    0 8px 24px rgba(16, 39, 76, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  --shadow-navy-raised-hover:
+    0 4px 12px rgba(16, 39, 76, 0.16),
+    0 16px 40px rgba(16, 39, 76, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+
+  /* ========================================
      TRANSITIONS & ANIMATIONS
      ======================================== */
 
@@ -262,6 +319,12 @@
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* The two curves the premium surfaces actually use. Neither is expressible
+     through the generic ones above: --ease-out is a gentler decelerate, and
+     --ease-spring overshoots harder than --ease-back-out. */
+  --ease-expo-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-back-out: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Transition Presets */
   --transition-fast: var(--duration-150) var(--ease-in-out);

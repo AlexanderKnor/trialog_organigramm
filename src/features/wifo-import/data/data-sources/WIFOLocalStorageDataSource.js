@@ -7,7 +7,10 @@
 import { WIFOImportBatch } from '../../domain/entities/WIFOImportBatch.js';
 
 const STORAGE_KEY = 'wifo_import_batches';
-const MAX_STORED_BATCHES = 20;
+
+// Batches serialize every record incl. raw row data (~1 KB each); keeping
+// too many runs risks the ~5 MB localStorage quota.
+const MAX_STORED_BATCHES = 10;
 
 export class WIFOLocalStorageDataSource {
   #storage;

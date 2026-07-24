@@ -4,6 +4,7 @@
  */
 
 import { createElement } from '../../../../../core/utils/index.js';
+import { authService } from '../../../../../core/auth/index.js';
 import { WIFOFileUpload } from './WIFOFileUpload.js';
 import { WIFOProgressIndicator } from './WIFOProgressIndicator.js';
 import { WIFOStatisticsSummary } from './WIFOStatisticsSummary.js';
@@ -333,7 +334,7 @@ export class WIFOImportDialog {
 
       const batch = await this.#importService.parseFile(
         file,
-        null, // userId will be added by service
+        authService.getCurrentUser()?.email ?? null,
         (progress, total, message) => {
           this.#state.setUploading(true, (progress / total) * 50, message);
         }
@@ -384,8 +385,12 @@ export class WIFOImportDialog {
       const batch = this.#state.currentBatch;
       if (!batch || !batch.canImport) return;
 
-      const importableRecords = batch.getImportableRecords();
-      const total = importableRecords.length;
+      const selectedIds = this.#state.selectedRecordIds;
+      const total = batch
+        .getImportableRecords()
+        .filter((record) => selectedIds.has(record.id)).length;
+
+      if (total === 0) return;
 
       // Show elegant import overlay instead of switching steps
       this.#importOverlay.reset();
@@ -408,7 +413,7 @@ export class WIFOImportDialog {
 
       await this.#importService.importBatch(
         batch,
-        {},
+        { selectedIds: [...this.#state.selectedRecordIds] },
         (current, total, stats) => {
           const progress = (current / total) * 100;
 
@@ -493,7 +498,65 @@ export class WIFOImportDialog {
     this.#resultStep.appendChild(resultIcon);
     this.#resultStep.appendChild(resultTitle);
     this.#resultStep.appendChild(resultMessage);
+
+    if (stats.imported > 0) {
+      this.#resultStep.appendChild(
+        createElement('p', { className: 'wifo-result-batchid' }, [
+          'Import-ID: ',
+          createElement('code', {}, [batch.id]),
+        ])
+      );
+    }
+
     this.#resultStep.appendChild(this.#statisticsSummary.element.cloneNode(true));
+
+    if (stats.imported > 0) {
+      const rollbackButton = new Button({
+        label: 'Import rückgängig machen',
+        variant: 'danger',
+        onClick: () => this.#handleRollback(batch, rollbackButton),
+      });
+
+      this.#resultStep.appendChild(
+        createElement('div', { className: 'wifo-result-actions' }, [rollbackButton.element])
+      );
+    }
+  }
+
+  async #handleRollback(batch, rollbackButton) {
+    const confirmed = window.confirm(
+      `Alle ${batch.importedRecords} importierten Einträge dieses Imports werden aus der Datenbank gelöscht (Import-ID ${batch.id}). Fortfahren?`
+    );
+    if (!confirmed) return;
+
+    try {
+      rollbackButton.setDisabled(true);
+      this.#cancelButton.setDisabled(true);
+
+      const deletedCount = await this.#importService.rollbackImport(batch, batch.id);
+
+      this.#resultStep.innerHTML = '';
+      this.#resultStep.appendChild(
+        createElement('div', { className: 'wifo-result-icon wifo-result-partial' }, ['↩'])
+      );
+      this.#resultStep.appendChild(
+        createElement('h3', { className: 'wifo-result-title' }, ['Import rückgängig gemacht'])
+      );
+      this.#resultStep.appendChild(
+        createElement('p', { className: 'wifo-result-message' }, [
+          `${deletedCount} Einträge wurden wieder entfernt.`,
+        ])
+      );
+
+      if (this.#onImportComplete) {
+        this.#onImportComplete(batch);
+      }
+    } catch (error) {
+      rollbackButton.setDisabled(false);
+      this.#state.setError(`Rollback fehlgeschlagen: ${error.message}`);
+    } finally {
+      this.#cancelButton.setDisabled(false);
+    }
   }
 
   #handleRecordClick(record) {

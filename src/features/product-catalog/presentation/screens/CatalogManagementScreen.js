@@ -79,7 +79,7 @@ export class CatalogManagementScreen {
     const backButton = createElement('button', {
       className: 'btn-back-to-org',
       onclick: () => this.#handleBack(),
-      'aria-label': 'Zurück zum Organigramm',
+      'aria-label': 'Zurück zur Übersicht',
     }, [
       createElement('svg', {
         width: '20',
@@ -217,6 +217,11 @@ export class CatalogManagementScreen {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  /**
+   * Returns to the entry point rather than the org chart: that is where the
+   * catalog is opened from now. The org chart keeps its own gear as a second
+   * way in, but it is no longer the place users come from.
+   */
   #handleBack() {
     window.location.hash = '';
   }

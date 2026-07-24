@@ -176,7 +176,7 @@ export class AuthService {
     // PRIORITY 3: Fallback to email check (for migration/new users)
     const normalizedEmail = user.email.toLowerCase();
     const role = ADMIN_EMAILS.some((adminEmail) =>
-      normalizedEmail.includes(adminEmail.toLowerCase())
+      normalizedEmail === adminEmail.toLowerCase()
     )
       ? USER_ROLES.ADMIN
       : USER_ROLES.EMPLOYEE;
@@ -263,7 +263,7 @@ export class AuthService {
       // Determine role for new user (check if admin email)
       const normalizedEmail = email.toLowerCase();
       const role = ADMIN_EMAILS.some((adminEmail) =>
-        normalizedEmail.includes(adminEmail.toLowerCase())
+        normalizedEmail === adminEmail.toLowerCase()
       )
         ? USER_ROLES.ADMIN
         : USER_ROLES.EMPLOYEE;

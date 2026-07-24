@@ -71,6 +71,16 @@ export const createElement = (tag, attributes = {}, children = []) => {
   return element;
 };
 
+/**
+ * Size a textarea to its content instead of scrolling inside it.
+ * Only works once the element is in the document, and expects the stylesheet to
+ * hide its overflow — otherwise the measurement grows on every keystroke.
+ */
+export const autoGrowTextarea = (textarea) => {
+  textarea.style.height = 'auto';
+  textarea.style.height = `${textarea.scrollHeight}px`;
+};
+
 export const clearElement = (element) => {
   while (element.firstChild) {
     element.removeChild(element.firstChild);

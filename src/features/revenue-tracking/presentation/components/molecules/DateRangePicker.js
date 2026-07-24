@@ -53,17 +53,19 @@ export class DateRangePicker {
   }
 
   #renderQuickSelects() {
+    // Range ends are end-of-day: entries carry timestamps, and a midnight
+    // bound would silently drop everything booked on the range's last day.
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
     const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-    const lastDayOfYear = new Date(today.getFullYear(), 11, 31);
+    const lastDayOfYear = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
 
     const quickOptions = [
       { label: 'Dieser Monat', start: firstDayOfMonth, end: lastDayOfMonth },
       { label: 'Dieses Jahr', start: firstDayOfYear, end: lastDayOfYear },
       { label: 'Letzter Monat', start: this.#getFirstDayOfPreviousMonth(), end: this.#getLastDayOfPreviousMonth() },
-      { label: 'Letztes Jahr', start: new Date(today.getFullYear() - 1, 0, 1), end: new Date(today.getFullYear() - 1, 11, 31) },
+      { label: 'Letztes Jahr', start: new Date(today.getFullYear() - 1, 0, 1), end: new Date(today.getFullYear() - 1, 11, 31, 23, 59, 59, 999) },
       { label: 'Gesamter Zeitraum', start: null, end: null },
     ];
 
@@ -84,7 +86,7 @@ export class DateRangePicker {
 
   #getLastDayOfPreviousMonth() {
     const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 0);
+    return new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
   }
 
   #handleStartChange(e) {

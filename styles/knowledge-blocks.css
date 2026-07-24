@@ -1,0 +1,422 @@
+/**
+ * Knowledge Base — content blocks
+ *
+ * The typographic system of an article: paragraphs, headings, lists, process
+ * steps, callouts, quotes, figures, video frames, link cards and dividers.
+ * Loaded once and used by both surfaces that show an article — the reader
+ * overlay and the composer's preview — so a block cannot look different
+ * depending on who is looking at it.
+ */
+
+/* ========================================
+   TEXT & HEADINGS
+   ======================================== */
+
+.kbase-block-text {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-base);
+  color: var(--color-gray-700);
+  line-height: var(--line-height-relaxed);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* Editorial drop cap on the opening paragraph — only when the article actually
+   opens with prose, which the :first-child guard ensures. */
+.kbase-reader-body > .kbase-block-text:first-child::first-letter {
+  float: left;
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-4xl);
+  line-height: 0.9;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  margin: var(--spacing-1) var(--spacing-2) 0 0;
+}
+
+.kbase-block-heading {
+  position: relative;
+  margin: var(--spacing-4) 0 0;
+  font-family: var(--font-family-primary);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.kbase-block-heading--h2 {
+  padding-top: var(--spacing-4);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+/* The accent rule marks a new chapter without adding another line of chrome. */
+.kbase-block-heading--h2::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--spacing-8);
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+}
+
+.kbase-block-heading--h3 {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.kbase-block-heading:first-child {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.kbase-block-heading:first-child::before {
+  display: none;
+}
+
+/* ========================================
+   LISTS
+   ======================================== */
+
+/* base.css strips list markers globally; article lists want them back. Flex
+   would take them away again: a flex item is blockified and loses its marker. */
+.kbase-block-list {
+  margin: 0;
+  padding-left: var(--spacing-5);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-base);
+  color: var(--color-gray-700);
+  line-height: var(--line-height-relaxed);
+}
+
+.kbase-block-list li + li {
+  margin-top: var(--spacing-2);
+}
+
+.kbase-block-list.is-bulleted {
+  list-style: disc;
+}
+
+.kbase-block-list.is-ordered {
+  list-style: decimal;
+}
+
+.kbase-block-list li::marker {
+  color: var(--color-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ========================================
+   PROCESS STEPS
+   ======================================== */
+
+.kbase-block-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.kbase-block-step {
+  position: relative;
+  display: flex;
+  gap: var(--spacing-4);
+}
+
+/* Connector between the numerals, so the sequence reads as one path. */
+.kbase-block-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: var(--spacing-8);
+  left: calc(var(--spacing-4) - 1px);
+  bottom: calc(-1 * var(--spacing-4));
+  width: 2px;
+  background: var(--color-primary-100);
+}
+
+.kbase-block-step-index {
+  flex-shrink: 0;
+  width: var(--spacing-8);
+  height: var(--spacing-8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--gradient-navy-surface);
+  color: var(--color-white);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.kbase-block-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding-top: var(--spacing-1);
+}
+
+.kbase-block-step-title {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.kbase-block-step-text {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+  white-space: pre-wrap;
+}
+
+/* ========================================
+   CALLOUTS
+   ======================================== */
+
+.kbase-block-callout {
+  display: flex;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--kbase-callout-hue);
+  background: var(--kbase-callout-tint);
+}
+
+.kbase-block-callout--info {
+  --kbase-callout-hue: var(--color-info);
+  --kbase-callout-tint: var(--color-info-light);
+}
+
+.kbase-block-callout--success {
+  --kbase-callout-hue: var(--color-success);
+  --kbase-callout-tint: var(--color-success-light);
+}
+
+.kbase-block-callout--warning {
+  --kbase-callout-hue: var(--color-warning);
+  --kbase-callout-tint: var(--color-warning-light);
+}
+
+.kbase-block-callout--danger {
+  --kbase-callout-hue: var(--color-error);
+  --kbase-callout-tint: var(--color-error-light);
+}
+
+.kbase-block-callout-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  color: var(--kbase-callout-hue);
+}
+
+.kbase-block-callout-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.kbase-block-callout-label {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--kbase-callout-hue);
+}
+
+.kbase-block-callout-text {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-700);
+  line-height: var(--line-height-relaxed);
+  white-space: pre-wrap;
+}
+
+/* ========================================
+   QUOTE
+   ======================================== */
+
+.kbase-block-quote {
+  margin: 0;
+  padding: var(--spacing-1) 0 var(--spacing-1) var(--spacing-5);
+  border-left: 3px solid var(--color-accent);
+}
+
+.kbase-block-quote blockquote {
+  margin: 0;
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-md);
+  font-style: italic;
+  color: var(--color-text-primary);
+  line-height: var(--line-height-relaxed);
+}
+
+.kbase-block-quote figcaption {
+  margin-top: var(--spacing-2);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--color-slate-text-muted);
+}
+
+/* ========================================
+   FIGURES & VIDEO
+   ======================================== */
+
+.kbase-block-figure,
+.kbase-block-video {
+  margin: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.kbase-block-figure img {
+  display: block;
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  background: var(--color-light-gray);
+}
+
+.kbase-block-video-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--color-primary-deep);
+}
+
+.kbase-block-video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.kbase-block-figure figcaption,
+.kbase-block-video figcaption {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-slate-text-muted);
+  background: var(--color-off-white);
+  border-top: 1px solid var(--color-border-light);
+}
+
+/* ========================================
+   LINK CARD
+   ======================================== */
+
+.kbase-block-link {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  text-decoration: none;
+  box-shadow: var(--shadow-xs);
+  transition:
+    transform var(--duration-200) var(--ease-out),
+    box-shadow var(--duration-200) var(--ease-in-out),
+    border-color var(--duration-200) var(--ease-in-out);
+}
+
+.kbase-block-link:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary-200);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.kbase-block-link:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.kbase-block-link-icon {
+  flex-shrink: 0;
+  width: var(--spacing-10);
+  height: var(--spacing-10);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--portal-tint-blue);
+  color: var(--portal-hue-blue);
+}
+
+.kbase-block-link-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  font-family: var(--font-family-secondary);
+  min-width: 0;
+}
+
+.kbase-block-link-label {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.kbase-block-link-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.kbase-block-link-host {
+  font-size: var(--font-size-xs);
+  color: var(--color-slate-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ========================================
+   DIVIDER
+   ======================================== */
+
+.kbase-block-divider {
+  position: relative;
+  height: 1px;
+  margin: var(--spacing-4) 0;
+  background: linear-gradient(90deg, transparent, var(--color-border), transparent);
+}
+
+.kbase-block-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--color-accent);
+}
+
+/* ========================================
+   RESPONSIVE & MOTION
+   ======================================== */
+
+@media (max-width: 600px) {
+  .kbase-block-link {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kbase-block-link:hover {
+    transform: none;
+  }
+}

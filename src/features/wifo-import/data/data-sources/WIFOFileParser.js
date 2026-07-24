@@ -235,13 +235,12 @@ export class WIFOFileParser {
    * @param {File} file - The file to read
    * @returns {Promise<ArrayBuffer>}
    */
-  #readFileAsArrayBuffer(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden'));
-      reader.readAsArrayBuffer(file);
-    });
+  async #readFileAsArrayBuffer(file) {
+    try {
+      return await file.arrayBuffer();
+    } catch {
+      throw new WIFOParseError('Datei konnte nicht gelesen werden');
+    }
   }
 
   /**
@@ -315,7 +314,18 @@ export class WIFOFileParser {
         continue;
       }
 
-      const record = WIFOImportRecord.fromWIFORow(i, row, columnMap);
+      // A row with more fields than the header means an unescaped delimiter
+      // shifted the columns — amounts could land in the wrong field. One
+      // missing trailing field is benign (last line without the closing
+      // separator); anything shorter lost real columns.
+      const parseIssues = [];
+      if (row.length > headerRow.length || row.length < headerRow.length - 1) {
+        parseIssues.push(
+          `Spaltenanzahl weicht ab (erwartet ${headerRow.length}, gefunden ${row.length}) — Werte können verschoben sein`
+        );
+      }
+
+      const record = WIFOImportRecord.fromWIFORow(i, row, columnMap, parseIssues);
       records.push(record);
 
       if (onProgress && i % 50 === 0) {

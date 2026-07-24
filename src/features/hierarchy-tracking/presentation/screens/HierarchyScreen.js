@@ -13,6 +13,7 @@ import {
 import { HierarchyState } from '../state/HierarchyState.js';
 import { OrganigrammView } from '../components/organisms/OrganigrammView.js';
 import { OrgSearch } from '../components/molecules/OrgSearch.js';
+import { Icon } from '../components/atoms/Icon.js';
 import { Sidebar } from '../components/organisms/Sidebar.js';
 import { NodeEditor } from '../components/molecules/NodeEditor.js';
 import { HierarchyNode } from '../../domain/entities/HierarchyNode.js';
@@ -219,8 +220,24 @@ export class HierarchyScreen {
       ]),
     ]);
 
+    // The org chart is no longer the landing page, so it needs a way back to it.
+    // Without this the only route out is the browser's back button.
+    const backButton = createElement(
+      'button',
+      {
+        className: 'btn-header-back',
+        type: 'button',
+        title: 'Zurück zur Übersicht',
+        'aria-label': 'Zurück zur Übersicht',
+        onclick: () => {
+          window.location.hash = '';
+        },
+      },
+      [new Icon({ name: 'chevronLeft', size: 20 }).element],
+    );
+
     return createElement('header', { className: 'app-header' }, [
-      createElement('div', { className: 'header-left' }, [this.#orgSearch.element]),
+      createElement('div', { className: 'header-left' }, [backButton, this.#orgSearch.element]),
       createElement('div', { className: 'header-logo' }, [
         createElement('span', { className: 'logo-text' }, ['Trialog']),
         createElement('span', { className: 'logo-divider' }, ['·']),

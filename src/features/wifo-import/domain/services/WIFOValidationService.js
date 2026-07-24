@@ -79,6 +79,18 @@ export class WIFOValidationService {
   validateRecord(record) {
     const errors = [];
 
+    // Structural problems from the file parser (e.g. column drift) make the
+    // whole row untrustworthy — money could sit in the wrong column.
+    for (const issue of record.parseIssues ?? []) {
+      errors.push(
+        new ValidationError({
+          code: VALIDATION_ERROR_CODE.PARSE_ERROR,
+          message: issue,
+          severity: VALIDATION_ERROR_SEVERITY.ERROR,
+        })
+      );
+    }
+
     // Required field validations
     this.#validateRequiredFields(record, errors);
 
@@ -100,12 +112,15 @@ export class WIFOValidationService {
     // Duplicate detection (needs employeeId mapping first)
     let duplicateInfo = null;
     if (this.#duplicateCheckEnabled && agentMapping?.id) {
-      // Create a proxy object with the actual values from the record's getters
+      // Proxy object: the agent mapping is not yet applied to the record
+      // while validation is still running, so it is passed alongside.
       const tempRecord = {
         vertrag: record.vertrag,
         vertragId: record.vertragId,
         datum: record.datum,
         netto: record.netto,
+        art: record.art,
+        fingerprint: record.fingerprint,
         kundeName: record.kundeName,
         kundeVorname: record.kundeVorname,
         mappedEmployeeId: agentMapping.id,
@@ -147,31 +162,43 @@ export class WIFOValidationService {
    */
   #checkDuplicate(record, errors) {
     const result = this.#duplicateService.checkDuplicate(record);
+    const details = {
+      duplicateType: result.duplicateType,
+      existingEntry: result.existingEntry,
+      confidence: result.confidence,
+    };
 
     if (result.isDuplicate) {
+      const reasonByType = {
+        exact_import: 'identischer WIFO-Datensatz bereits importiert',
+        contract_date_amount: 'Vertrag mit gleichem Datum und Betrag vorhanden',
+        amount_date_match: 'gleicher Betrag am gleichen Tag für denselben Kunden',
+      };
+
       errors.push(
         new ValidationError({
           code: VALIDATION_ERROR_CODE.DUPLICATE_ENTRY,
-          message: `Eintrag bereits vorhanden (${result.duplicateType === 'exact_contract' ? 'exakte Übereinstimmung' : result.duplicateType === 'contract_match' ? 'Vertragsnummer' : 'Datum & Betrag'})`,
+          message: `Eintrag bereits vorhanden (${reasonByType[result.duplicateType] ?? result.duplicateType})`,
           severity: VALIDATION_ERROR_SEVERITY.ERROR,
-          details: {
-            duplicateType: result.duplicateType,
-            existingEntry: result.existingEntry,
-            confidence: result.confidence,
-          },
+          details,
+        })
+      );
+    } else if (result.duplicateType === 'repeated_initial_commission') {
+      errors.push(
+        new ValidationError({
+          code: VALIDATION_ERROR_CODE.POTENTIAL_DUPLICATE,
+          message: 'Abschlussprovision: Vertrag hat bereits einen Eintrag',
+          severity: VALIDATION_ERROR_SEVERITY.WARNING,
+          details,
         })
       );
     } else if (result.duplicateType === 'potential_duplicate' && result.confidence > 0.5) {
       errors.push(
         new ValidationError({
           code: VALIDATION_ERROR_CODE.POTENTIAL_DUPLICATE,
-          message: `Mögliches Duplikat: Gleicher Betrag am gleichen Tag`,
+          message: 'Mögliches Duplikat: Gleicher Betrag am gleichen Tag',
           severity: VALIDATION_ERROR_SEVERITY.WARNING,
-          details: {
-            duplicateType: result.duplicateType,
-            existingEntry: result.existingEntry,
-            confidence: result.confidence,
-          },
+          details,
         })
       );
     }

@@ -1,0 +1,611 @@
+/**
+ * Knowledge Base (articles)
+ *
+ * Editorial article library: card grid and the reading shell around an article.
+ * The article's own typography lives in knowledge-blocks.css and the writing
+ * desk in knowledge-composer.css, because both are shared with other surfaces.
+ * .kbase-* namespace; shared portal chrome lives in portal-hub.css.
+ */
+
+/* ========================================
+   PANEL
+   ======================================== */
+
+.kbase-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+/* ========================================
+   CARD GRID
+   ======================================== */
+
+.kbase-grid-host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.kbase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-4);
+}
+
+/* ========================================
+   FEATURE CARD (Aufmacher)
+   ======================================== */
+
+.kbase-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  width: 100%;
+  min-height: 240px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-family-secondary);
+  background: var(--gradient-navy-surface);
+  box-shadow: var(--shadow-navy-raised);
+  transition:
+    transform var(--duration-200) var(--ease-out),
+    box-shadow var(--duration-200) var(--ease-in-out);
+}
+
+.kbase-feature:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-navy-raised-hover);
+}
+
+.kbase-feature:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.kbase-feature-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-8);
+  color: var(--color-white);
+}
+
+.kbase-feature-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.kbase-feature-summary {
+  font-size: var(--font-size-md);
+  color: rgba(255, 255, 255, 0.85);
+  line-height: var(--line-height-relaxed);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.kbase-feature-meta {
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.kbase-feature-cta {
+  margin-top: auto;
+  padding-top: var(--spacing-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent-light);
+}
+
+.kbase-feature-cta .icon {
+  display: inline-flex;
+  transition: transform var(--duration-200) var(--ease-out);
+}
+
+.kbase-feature:hover .kbase-feature-cta .icon {
+  transform: translateX(4px);
+}
+
+.kbase-feature-media {
+  position: relative;
+  overflow: hidden;
+}
+
+.kbase-feature-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Blends the photo's cut edge into the navy body instead of a hard seam. */
+.kbase-feature-media:not(.kbase-feature-media--emblem)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--color-primary) 0%, rgba(16, 39, 76, 0) 45%);
+}
+
+.kbase-feature-media--emblem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.12);
+}
+
+.kbase-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  overflow: hidden;
+  font-family: var(--font-family-secondary);
+  transition:
+    transform var(--duration-200) var(--ease-out),
+    box-shadow var(--duration-200) var(--ease-in-out),
+    border-color var(--duration-200) var(--ease-in-out);
+}
+
+.kbase-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-primary-200);
+}
+
+.kbase-card:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.kbase-card-media {
+  display: block;
+  aspect-ratio: 16 / 7;
+  background: var(--color-primary-50);
+  overflow: hidden;
+}
+
+.kbase-card-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--duration-500) var(--ease-expo-out);
+}
+
+.kbase-card:hover .kbase-card-image {
+  transform: scale(1.03);
+}
+
+.kbase-card-emblem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.kbase-card-emblem--blue   { background: var(--portal-tint-blue);   color: var(--portal-hue-blue); }
+.kbase-card-emblem--gold   { background: var(--portal-tint-gold);   color: var(--portal-hue-gold); }
+.kbase-card-emblem--green  { background: var(--portal-tint-green);  color: var(--portal-hue-green); }
+.kbase-card-emblem--purple { background: var(--portal-tint-purple); color: var(--portal-hue-purple); }
+.kbase-card-emblem--teal   { background: var(--portal-tint-teal);   color: var(--portal-hue-teal); }
+.kbase-card-emblem--slate  { background: var(--portal-tint-slate);  color: var(--portal-hue-slate); }
+
+.kbase-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4) var(--spacing-5) var(--spacing-5);
+}
+
+.kbase-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.kbase-card-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-snug);
+}
+
+.kbase-card-summary {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-normal);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.kbase-card-meta {
+  margin-top: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-slate-text-muted);
+}
+
+/* ========================================
+   CATEGORY CHIPS & TAGS
+   ======================================== */
+
+.kbase-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-2-5);
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.kbase-chip--blue   { background: var(--portal-tint-blue);   color: var(--portal-hue-blue); }
+.kbase-chip--gold   { background: var(--portal-tint-gold);   color: var(--portal-hue-gold); }
+.kbase-chip--green  { background: var(--portal-tint-green);  color: var(--portal-hue-green); }
+.kbase-chip--purple { background: var(--portal-tint-purple); color: var(--portal-hue-purple); }
+.kbase-chip--teal   { background: var(--portal-tint-teal);   color: var(--portal-hue-teal); }
+.kbase-chip--slate  { background: var(--portal-tint-slate);  color: var(--portal-hue-slate); }
+
+.kbase-chip--pinned {
+  background: var(--color-primary);
+  color: var(--color-accent-light);
+}
+
+/* On navy surfaces the tinted chips vanish; frost keeps them legible there. */
+.kbase-chip--frost {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--color-white);
+}
+
+/* ...and the pinned chip flips to gold so "Wichtig" still pops on navy. */
+.kbase-feature .kbase-chip--pinned,
+.kbase-reader-head .kbase-chip--pinned {
+  background: var(--color-accent);
+  color: var(--color-primary-deep);
+}
+
+.kbase-tag {
+  display: inline-flex;
+  padding: var(--spacing-1) var(--spacing-2-5);
+  border-radius: var(--radius-full);
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+}
+
+/* ========================================
+   READER OVERLAY
+   ======================================== */
+
+.kbase-reader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-8) var(--spacing-4);
+  overflow-y: auto;
+  background: rgba(13, 31, 60, 0.55);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  opacity: 0;
+  transition: opacity var(--duration-200) var(--ease-in-out);
+}
+
+.kbase-reader-overlay.is-open {
+  opacity: 1;
+}
+
+.kbase-reader {
+  position: relative;
+  width: 100%;
+  max-width: var(--narrow-max-width);
+  height: fit-content;
+}
+
+.kbase-reader-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  margin-left: var(--spacing-3);
+  transform: translateY(calc(-1 * var(--spacing-2)));
+  width: var(--spacing-11);
+  height: var(--spacing-11);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-full);
+  background: rgba(16, 39, 76, 0.6);
+  color: var(--color-white);
+  cursor: pointer;
+  z-index: 1;
+  transition: var(--transition-colors);
+}
+
+.kbase-reader-close:hover {
+  background: rgba(16, 39, 76, 0.85);
+}
+
+.kbase-reader-close:focus-visible {
+  outline: 2px solid var(--color-white);
+  outline-offset: 2px;
+}
+
+.kbase-reader-article {
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-2xl);
+  overflow: hidden;
+  animation: kbaseReaderEntrance var(--duration-300) var(--ease-expo-out) backwards;
+}
+
+@keyframes kbaseReaderEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Navy masthead: the article opens like a title page, not like a form.
+   The category emblem sits behind the text as a watermark. */
+.kbase-reader-head {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-8);
+  background: var(--gradient-navy-surface);
+  color: var(--color-white);
+}
+
+.kbase-reader-watermark {
+  position: absolute;
+  right: calc(-1 * var(--spacing-10));
+  bottom: calc(-1 * var(--spacing-12));
+  color: rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+
+.kbase-reader-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.kbase-reader-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-white);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+/* The flex gap owns the rhythm here; base.css paragraph margins would double it. */
+.kbase-reader-lede,
+.kbase-reader-meta {
+  margin: 0;
+}
+
+.kbase-reader-lede {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-md);
+  color: rgba(255, 255, 255, 0.85);
+  line-height: var(--line-height-relaxed);
+}
+
+.kbase-reader-meta {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.kbase-reader-admin {
+  display: flex;
+  gap: var(--spacing-2);
+  padding-top: var(--spacing-2);
+}
+
+/* The outline variant is styled for light surfaces and vanishes on navy. */
+.kbase-reader-admin .btn-outline {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: var(--color-white);
+}
+
+.kbase-reader-admin .btn-outline:hover {
+  border-color: rgba(255, 255, 255, 0.55);
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+/* ========================================
+   CONTENTS STRIP
+   ======================================== */
+
+.kbase-reader-toc {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-8);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-off-white);
+}
+
+.kbase-reader-toc-label {
+  flex-shrink: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wider);
+  text-transform: uppercase;
+  color: var(--color-slate-text-muted);
+}
+
+.kbase-reader-toc-list {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--spacing-5);
+  row-gap: var(--spacing-1);
+}
+
+.kbase-reader-toc-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-1) 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+}
+
+.kbase-reader-toc-no {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent-dark);
+}
+
+.kbase-reader-toc-link:hover .kbase-reader-toc-text {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.kbase-reader-toc-link:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+/* ========================================
+   READING PROGRESS
+   ======================================== */
+
+.kbase-reader-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-accent-dark), var(--color-accent-light));
+  transform: scaleX(0);
+  transform-origin: left;
+  z-index: 2;
+}
+
+/* Full-bleed under the masthead; the card's radius clips the corners. */
+.kbase-reader-hero {
+  margin: 0;
+}
+
+.kbase-reader-hero img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+}
+
+.kbase-reader-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+  padding: var(--spacing-6) var(--spacing-8);
+}
+
+.kbase-reader-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  padding: 0 var(--spacing-8) var(--spacing-8);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 600px) {
+  .kbase-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Aufmacher stacks: media becomes a banner above the text. */
+  .kbase-feature {
+    grid-template-columns: 1fr;
+  }
+
+  .kbase-feature-media {
+    order: -1;
+    aspect-ratio: 16 / 7;
+  }
+
+  .kbase-feature-media:not(.kbase-feature-media--emblem)::after {
+    background: linear-gradient(180deg, rgba(16, 39, 76, 0) 55%, var(--color-primary) 100%);
+  }
+
+  .kbase-feature-body {
+    padding: var(--spacing-5);
+  }
+
+  .kbase-reader-overlay {
+    padding: var(--spacing-4) var(--spacing-2);
+  }
+
+  .kbase-reader-head,
+  .kbase-reader-body {
+    padding-left: var(--spacing-5);
+    padding-right: var(--spacing-5);
+  }
+
+  .kbase-reader-toc {
+    padding-left: var(--spacing-5);
+    padding-right: var(--spacing-5);
+  }
+
+  .kbase-reader-tags {
+    padding-left: var(--spacing-5);
+    padding-right: var(--spacing-5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kbase-card:hover,
+  .kbase-feature:hover,
+  .kbase-feature:hover .kbase-feature-cta .icon {
+    transform: none;
+  }
+
+  .kbase-card:hover .kbase-card-image {
+    transform: none;
+  }
+}

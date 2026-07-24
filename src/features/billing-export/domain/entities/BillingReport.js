@@ -3,7 +3,7 @@
  * Complete billing report for an employee including all revenue sources
  */
 
-import { generateUUID } from '../../../../core/utils/index.js';
+import { generateUUID, roundCurrency } from '../../../../core/utils/index.js';
 import { ReportMetadata } from '../value-objects/ReportMetadata.js';
 import { ProvisionSummary } from '../value-objects/ProvisionSummary.js';
 import { LINE_ITEM_SOURCES } from './ReportLineItem.js';
@@ -87,21 +87,27 @@ export class BillingReport {
   }
 
   get totalProvision() {
-    return this.#ownSummary.totalProvision +
-           this.#hierarchySummary.totalProvision +
-           this.#tipProviderSummary.totalProvision;
+    return roundCurrency(
+      this.#ownSummary.totalProvision +
+      this.#hierarchySummary.totalProvision +
+      this.#tipProviderSummary.totalProvision,
+    );
   }
 
   get totalProvisionVat() {
-    return this.#ownSummary.totalProvisionVat +
-           this.#hierarchySummary.totalProvisionVat +
-           this.#tipProviderSummary.totalProvisionVat;
+    return roundCurrency(
+      this.#ownSummary.totalProvisionVat +
+      this.#hierarchySummary.totalProvisionVat +
+      this.#tipProviderSummary.totalProvisionVat,
+    );
   }
 
   get totalProvisionGross() {
-    return this.#ownSummary.totalProvisionGross +
-           this.#hierarchySummary.totalProvisionGross +
-           this.#tipProviderSummary.totalProvisionGross;
+    return roundCurrency(
+      this.#ownSummary.totalProvisionGross +
+      this.#hierarchySummary.totalProvisionGross +
+      this.#tipProviderSummary.totalProvisionGross,
+    );
   }
 
   get isSmallBusiness() {

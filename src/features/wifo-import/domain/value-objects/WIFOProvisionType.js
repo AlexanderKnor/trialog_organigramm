@@ -6,11 +6,13 @@
 export const WIFO_PROVISION_TYPE = Object.freeze({
   AP: 'AP', // Abschlussprovision (initial commission)
   BP: 'BP', // Bestandsprovision (recurring commission)
+  STORNO: 'STORNO', // Storno (clawback booking, negative amount)
 });
 
 export const WIFO_PROVISION_TYPE_DISPLAY = Object.freeze({
   [WIFO_PROVISION_TYPE.AP]: 'Abschlussprovision',
   [WIFO_PROVISION_TYPE.BP]: 'Bestandsprovision',
+  [WIFO_PROVISION_TYPE.STORNO]: 'Storno',
 });
 
 export class WIFOProvisionType {
@@ -29,10 +31,13 @@ export class WIFOProvisionType {
       return type;
     }
     const upper = type.toUpperCase().trim();
-    if (upper === 'AP' || upper.startsWith('AP')) {
+    if (upper.startsWith('STORNO')) {
+      return WIFO_PROVISION_TYPE.STORNO;
+    }
+    if (upper.startsWith('AP')) {
       return WIFO_PROVISION_TYPE.AP;
     }
-    if (upper === 'BP' || upper.startsWith('BP')) {
+    if (upper.startsWith('BP')) {
       return WIFO_PROVISION_TYPE.BP;
     }
     return upper;

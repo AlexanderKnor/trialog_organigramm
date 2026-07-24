@@ -35,6 +35,26 @@ export class LocalRevenueRepository extends IRevenueRepository {
     return entry;
   }
 
+  async saveMany(entries) {
+    for (const entry of entries) {
+      await this.#dataSource.save(entry.toJSON());
+    }
+    return entries;
+  }
+
+  async deleteMany(entryIds) {
+    for (const entryId of entryIds) {
+      await this.#dataSource.delete(entryId);
+    }
+  }
+
+  async findByImportBatchId(importBatchId) {
+    const data = await this.#dataSource.findAll();
+    return data
+      .filter((item) => item.importBatchId === importBatchId)
+      .map((item) => RevenueEntry.fromJSON(item));
+  }
+
   async update(entry) {
     const data = entry.toJSON();
     await this.#dataSource.update(data);

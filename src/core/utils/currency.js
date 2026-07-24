@@ -17,5 +17,12 @@
  */
 export function roundCurrency(value) {
   if (typeof value !== 'number' || !isFinite(value)) return 0;
-  return Number(Math.round(value + 'e2') + 'e-2');
+  const abs = Math.abs(value);
+  // Sub-cent magnitudes round to 0. This guard also keeps the string-shift trick
+  // below out of exponential-notation territory (e.g. 1e-7 -> '1e-7e2' -> NaN).
+  if (abs < 0.005) return 0;
+  // Round away from zero so negative amounts (clawbacks) are not rounded in the
+  // company's favour. abs stringifies as a plain decimal here, never exponential.
+  const rounded = Number(Math.round(abs + 'e2') + 'e-2');
+  return value < 0 ? -rounded : rounded;
 }

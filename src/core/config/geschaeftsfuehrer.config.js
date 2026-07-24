@@ -56,12 +56,22 @@ export function getGeschaeftsfuehrerConfig(id) {
 
 /**
  * Get Geschaeftsfuehrer config by email
+ *
+ * Normalizes both sides: email addresses are case-insensitive, and the value
+ * reaching us comes from whatever the user typed at the login form.
+ *
  * @param {string} email
  * @returns {Object|null}
  */
 export function getGeschaeftsfuehrerByEmail(email) {
+  if (typeof email !== 'string') {
+    return null;
+  }
+
+  const normalized = email.toLowerCase().trim();
+
   for (const config of GESCHAEFTSFUEHRER_CONFIG.values()) {
-    if (config.email === email) {
+    if (config.email.toLowerCase() === normalized) {
       return config;
     }
   }

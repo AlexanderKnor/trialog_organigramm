@@ -30,20 +30,22 @@ service cloud.firestore {
     }
 
     // Check if email is in admin list (fallback for migration)
+    // SECURITY: Exact match only. A substring match (.*x.*) let any self-registered
+    // address containing an admin email (e.g. evil-alexander-knor@outlook.de) pass.
     function isAdminEmail() {
       let email = request.auth.token.email.lower();
-      return email.matches('.*alexander-knor@outlook\\.de.*') ||
-             email.matches('.*info@trialog-makler\\.de.*') ||
-             email.matches('.*buchhaltung@trialog-makler\\.de.*') ||
-             email.matches('.*liebetrau@trialog-makler\\.de.*') ||
-             email.matches('.*lippa@trialog-makler\\.de.*');
+      return email == 'alexander-knor@outlook.de' ||
+             email == 'info@trialog-makler.de' ||
+             email == 'buchhaltung@trialog-makler.de' ||
+             email == 'liebetrau@trialog-makler.de' ||
+             email == 'lippa@trialog-makler.de';
     }
 
     // OPTIMIZED: Use Custom Claims instead of Firestore read
     // Falls back to email check if Custom Claims not yet set (during migration)
     function isAdmin() {
       return (isValidUser() && request.auth.token.role == 'admin') ||
-             (isAuthenticated() && isAdminEmail());
+             (isValidUser() && isAdminEmail());
     }
 
     // ========================================
@@ -142,6 +144,61 @@ service cloud.firestore {
 
       // Only admins can DELETE catalog entries
       allow delete: if isAdmin();
+    }
+
+    // ========================================
+    // KNOWLEDGE BOARD COLLECTION
+    // ========================================
+
+    match /knowledge_board/{docId} {
+      // All valid users can READ the knowledge board (partner product info)
+      allow read: if isValidUser();
+
+      // Only admins can CREATE knowledge entries
+      allow create: if isAdmin();
+
+      // Only admins can UPDATE knowledge entries
+      allow update: if isAdmin();
+
+      // Only admins can DELETE knowledge entries
+      allow delete: if isAdmin();
+    }
+
+    // ========================================
+    // PORTAL CONTENT COLLECTIONS
+    // Knowledge articles, learning videos, promotion.
+    // Same model as knowledge_board: everyone reads, admins write.
+    // ========================================
+
+    match /knowledge_articles/{docId} {
+      allow read: if isValidUser();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Admin-managed topic catalogs (filter chips) of both content areas.
+    match /knowledge_article_topics/{docId} {
+      allow read: if isValidUser();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /learning_videos/{docId} {
+      allow read: if isValidUser();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /learning_video_topics/{docId} {
+      allow read: if isValidUser();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /promo_campaigns/{docId} {
+      allow read: if isValidUser();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /promo_resources/{docId} {
+      allow read: if isValidUser();
+      allow create, update, delete: if isAdmin();
     }
   }
 }

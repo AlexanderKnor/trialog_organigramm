@@ -47,9 +47,8 @@ function isUserAdmin(authToken) {
  * Helper: Check if email is in admin list (for initial setup only)
  */
 function isAdminEmail(email) {
-  return ADMIN_EMAILS.some((adminEmail) =>
-    email.toLowerCase().includes(adminEmail.toLowerCase())
-  );
+  const normalized = (email || '').toLowerCase();
+  return ADMIN_EMAILS.some((adminEmail) => normalized === adminEmail.toLowerCase());
 }
 
 /**

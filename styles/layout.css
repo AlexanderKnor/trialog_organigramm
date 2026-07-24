@@ -229,6 +229,42 @@
   padding: 0;
 }
 
+/* Back to the entry point. Same gesture as .btn-back-to-org on the revenue and
+   catalog screens, but tokenized and at the 44px touch-target floor; that older
+   class is 36px and hardcoded, and its name would lie on a button leaving the
+   org chart. */
+.btn-header-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-11);
+  height: var(--spacing-11);
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: var(--transition-colors), transform var(--duration-200) var(--ease-out);
+}
+
+.btn-header-back:hover {
+  color: var(--color-white);
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateX(-2px);
+}
+
+.btn-header-back:active {
+  transform: translateX(0);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-header-back:focus-visible {
+  outline: 2px solid var(--color-white);
+  outline-offset: 2px;
+}
+
 .header-nav:empty {
   display: none;
 }

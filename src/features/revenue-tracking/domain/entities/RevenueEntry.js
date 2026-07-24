@@ -40,6 +40,8 @@ export class RevenueEntry {
   #vatRate;
   #source;
   #sourceReference;
+  #importBatchId;
+  #importMetadata;
   #manualBilling;
   #isExtraordinary;
   #extraordinaryGfId;
@@ -80,6 +82,8 @@ export class RevenueEntry {
     vatRate = 19,
     source = null,
     sourceReference = null,
+    importBatchId = null,
+    importMetadata = null,
     manualBilling = false,
     isExtraordinary = false,
     extraordinaryGfId = null,
@@ -138,9 +142,12 @@ export class RevenueEntry {
     this.#hasVAT = Boolean(hasVAT);
     this.#vatRate = this.#validateVATRate(vatRate);
 
-    // Source tracking for import duplicate detection
+    // Source tracking for import duplicate detection. importBatchId groups all
+    // entries created by one import run so a run can be audited and rolled back.
     this.#source = source ?? null;
     this.#sourceReference = sourceReference ?? null;
+    this.#importBatchId = importBatchId ?? null;
+    this.#importMetadata = importMetadata ?? null;
 
     // Manual billing override (bypasses BillingExclusionRule)
     this.#manualBilling = Boolean(manualBilling);
@@ -388,6 +395,8 @@ export class RevenueEntry {
 
   get source() { return this.#source; }
   get sourceReference() { return this.#sourceReference; }
+  get importBatchId() { return this.#importBatchId; }
+  get importMetadata() { return this.#importMetadata; }
   get manualBilling() { return this.#manualBilling; }
   get isExtraordinary() { return this.#isExtraordinary; }
   get extraordinaryGfId() { return this.#extraordinaryGfId; }
@@ -625,6 +634,8 @@ export class RevenueEntry {
       // Source tracking for import duplicate detection
       source: this.#source,
       sourceReference: this.#sourceReference,
+      importBatchId: this.#importBatchId,
+      importMetadata: this.#importMetadata,
       // Manual billing override
       manualBilling: this.#manualBilling,
       // Extraordinary revenue (Durchlaufposten)
@@ -683,6 +694,8 @@ export class RevenueEntry {
       // Source tracking (may be null for legacy/manual entries)
       source: json.source ?? null,
       sourceReference: json.sourceReference ?? null,
+      importBatchId: json.importBatchId ?? null,
+      importMetadata: json.importMetadata ?? null,
       // Manual billing override (default false for backward compatibility)
       manualBilling: json.manualBilling ?? false,
       // Extraordinary revenue (default false for backward compatibility)

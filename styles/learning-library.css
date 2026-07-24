@@ -1,0 +1,504 @@
+/**
+ * Learning Library (videos)
+ *
+ * Cinematic video grid with tinted thumbs and an overlay player.
+ * .vlib-* namespace; shared portal chrome lives in portal-hub.css.
+ */
+
+/* ========================================
+   VIDEO GRID
+   ======================================== */
+
+.vlib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-4);
+}
+
+.vlib-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  overflow: hidden;
+  font-family: var(--font-family-secondary);
+  transition:
+    transform var(--duration-200) var(--ease-out),
+    box-shadow var(--duration-200) var(--ease-in-out),
+    border-color var(--duration-200) var(--ease-in-out);
+}
+
+.vlib-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-primary-200);
+}
+
+.vlib-card:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+/* ── Thumb: lit navy plane, tinted per category ── */
+
+.vlib-card-thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  color: var(--color-white);
+}
+
+.vlib-card-thumb--blue   { background: linear-gradient(150deg, var(--color-primary) 0%, var(--portal-hue-blue) 100%); }
+.vlib-card-thumb--teal   { background: linear-gradient(150deg, var(--color-primary) 0%, var(--portal-hue-teal) 100%); }
+.vlib-card-thumb--purple { background: linear-gradient(150deg, var(--color-primary) 0%, var(--portal-hue-purple) 100%); }
+.vlib-card-thumb--gold   { background: linear-gradient(150deg, var(--color-primary) 0%, var(--portal-hue-gold) 100%); }
+.vlib-card-thumb--green  { background: linear-gradient(150deg, var(--color-primary) 0%, var(--portal-hue-green) 100%); }
+.vlib-card-thumb--slate  { background: linear-gradient(150deg, var(--color-primary) 0%, var(--portal-hue-slate) 100%); }
+
+/* Sheen across the top, same move as the navy tiles. */
+.vlib-card-thumb::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 50% 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+}
+
+/* Oversized category emblem as watermark, bleeding off the corner. */
+.vlib-card-emblem {
+  position: absolute;
+  right: calc(-1 * var(--spacing-4));
+  bottom: calc(-1 * var(--spacing-4));
+  opacity: 0.18;
+  pointer-events: none;
+  transition: transform var(--duration-300) var(--ease-out);
+}
+
+.vlib-card:hover .vlib-card-emblem {
+  transform: scale(1.08) rotate(-3deg);
+}
+
+.vlib-card-cat {
+  position: absolute;
+  top: var(--spacing-3);
+  left: var(--spacing-3);
+  padding: var(--spacing-1) var(--spacing-2-5);
+  border-radius: var(--radius-sm);
+  background: rgba(13, 31, 60, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wider);
+  text-transform: uppercase;
+}
+
+.vlib-card-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-12);
+  height: var(--spacing-12);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition:
+    background var(--duration-200) var(--ease-in-out),
+    transform var(--duration-300) var(--ease-back-out);
+}
+
+.vlib-card:hover .vlib-card-play {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.vlib-card-play svg {
+  margin-left: 2px;
+}
+
+/* ── Info ── */
+
+.vlib-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding: var(--spacing-4) var(--spacing-5) var(--spacing-5);
+}
+
+.vlib-card-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-snug);
+}
+
+.vlib-card-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-slate-text-muted);
+}
+
+/* ========================================
+   PLAYER OVERLAY
+   ======================================== */
+
+.vlib-player-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--spacing-8) var(--spacing-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Near-opaque: at 0.82 the portal behind stayed legible through the scrim and
+     the card read as a transparency, not as a surface. */
+  background: rgba(9, 22, 44, 0.94);
+  opacity: 0;
+  transition: opacity var(--duration-200) var(--ease-in-out);
+}
+
+.vlib-player-overlay.is-open {
+  opacity: 1;
+}
+
+/* While the provider plays fullscreen, nothing of ours should move. Centering
+   is what would drag the card sideways as the viewport width changes, so it is
+   dropped for the duration, and the chrome is hidden outright. The frame itself
+   must stay visible: visibility does inherit into the top layer, and hiding an
+   ancestor would take the fullscreen video with it. */
+.vlib-player-overlay.is-fullscreen {
+  justify-content: flex-start;
+  background: var(--color-primary-deep);
+}
+
+.vlib-player-overlay.is-fullscreen .vlib-player-head,
+.vlib-player-overlay.is-fullscreen .vlib-player-admin {
+  visibility: hidden;
+}
+
+.vlib-player-overlay.is-fullscreen .vlib-player {
+  box-shadow: none;
+  background: none;
+}
+
+/* One closed surface carrying header, picture and actions, in the navy idiom
+   of the org chart's root card: gradient body, hairline ring, top highlight. */
+.vlib-player {
+  position: relative;
+  width: 100%;
+  /* Card chrome plus the 16:9 picture have to fit the viewport, otherwise the
+     overlay scrolls and the player's own controls drift off screen. Width is
+     what we can give up, so bound it by the available height and keep 16:9
+     intact. The reserve covers overlay padding, header, footer and card
+     padding. */
+  max-width: clamp(20rem, calc((100dvh - 16rem) * 16 / 9), 960px);
+  /* Auto margins center the card while there is room and collapse to zero when
+     there is not, unlike align-items: center which would clip the top. */
+  margin: auto 0;
+  padding: var(--spacing-5);
+  border-radius: var(--radius-2xl);
+  background: linear-gradient(
+    165deg,
+    var(--color-primary-deep) 0%,
+    var(--color-primary) 45%,
+    var(--color-primary-highlight) 80%,
+    var(--color-primary-deep) 100%
+  );
+  box-shadow:
+    0 24px 64px rgba(3, 10, 24, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  animation: vlibPlayerEntrance var(--duration-300) var(--ease-expo-out) backwards;
+}
+
+@keyframes vlibPlayerEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.vlib-player-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+}
+
+.vlib-player-headtext {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+/* Part of the header row, not floating: over the picture it covered content,
+   above the card it needed 52px of clearance the overlay never had and got
+   clipped by the viewport edge. */
+.vlib-player-close {
+  flex-shrink: 0;
+  width: var(--spacing-11);
+  height: var(--spacing-11);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-white);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.vlib-player-close:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.vlib-player-close:focus-visible {
+  outline: 2px solid var(--color-white);
+  outline-offset: 2px;
+}
+
+/* Seated into the card with a hairline ring instead of a drop shadow: the card
+   already carries the elevation, a second shadow inside it reads as a smudge. */
+.vlib-player-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: var(--color-primary-deep);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Our own idle state, tinted like the grid card of the same category. The
+   provider's poster never appears, so its stacked badges cannot pile up on the
+   picture. */
+.vlib-player-poster {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  color: var(--color-white);
+  cursor: pointer;
+  transition: opacity var(--duration-300) var(--ease-in-out);
+}
+
+/* Stays up as a cover while the embed renders, then hands over to the player. */
+.vlib-player-poster.is-busy {
+  cursor: progress;
+}
+
+.vlib-player-poster.is-gone {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vlib-player-poster-emblem {
+  position: absolute;
+  opacity: 0.14;
+}
+
+.vlib-player-poster-play {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Optical centering: a triangle's mass sits left of its bounding box. */
+  padding-left: 0.2em;
+  width: var(--spacing-16);
+  height: var(--spacing-16);
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  color: var(--color-primary);
+  box-shadow: 0 12px 32px rgba(3, 10, 24, 0.45);
+  transition:
+    transform var(--duration-200) var(--ease-out),
+    box-shadow var(--duration-200) var(--ease-out);
+}
+
+.vlib-player-poster:hover .vlib-player-poster-play {
+  transform: scale(1.06);
+  box-shadow: 0 16px 40px rgba(3, 10, 24, 0.55);
+}
+
+/* The play circle turns into the loading ring: same place, same size, so the
+   press does not make the affordance jump. */
+.vlib-player-poster.is-busy .vlib-player-poster-play {
+  padding-left: 0;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--color-white);
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.vlib-player-poster.is-busy .vlib-player-poster-play svg {
+  display: none;
+}
+
+/* Guarded: the duration tokens collapse to 0ms under reduced motion, and an
+   infinite animation of zero length is a ring that never turns. */
+@media (prefers-reduced-motion: no-preference) {
+  .vlib-player-poster.is-busy .vlib-player-poster-play {
+    animation: vlibSpin var(--duration-700) linear infinite;
+  }
+}
+
+.vlib-player-poster:focus-visible {
+  outline: 2px solid var(--color-white);
+  outline-offset: -4px;
+}
+
+@keyframes vlibSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.vlib-player-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* In fullscreen the iframe moves to the top layer, where the browser's own
+   rules would size it to the screen. Author styles beat the UA sheet no matter
+   the specificity, so the absolute geometry above kept winning and the video
+   was animated out of a box that no longer matched the frame, which read as the
+   picture sliding sideways before it filled the screen. The element requesting
+   fullscreen sits inside the provider's document, and every iframe in the chain
+   matches :fullscreen, so this rule catches it. */
+.vlib-player-frame iframe:fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.vlib-player-frame iframe::backdrop {
+  background: var(--color-primary-deep, #0d1f3c);
+}
+
+.vlib-player-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-tight);
+  /* base.css paints headings navy; on the dark card that is invisible. */
+  color: var(--color-white);
+  overflow-wrap: anywhere;
+}
+
+/* The flex gap owns the rhythm here; base.css paragraph margins would double it. */
+.vlib-player-sub {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.vlib-player-admin {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* components.css builds the outline variant for light surfaces: navy text on a
+   navy border at 20% opacity. On this card that is navy on navy and the button
+   disappears. Same shape, inverted for the dark surface. */
+.vlib-player-admin .btn-outline {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: var(--color-white);
+}
+
+.vlib-player-admin .btn-outline:hover {
+  border-color: rgba(255, 255, 255, 0.55);
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+/* ========================================
+   EDITOR
+   ======================================== */
+
+.vlib-editor-hint {
+  margin: calc(-1 * var(--spacing-2)) 0 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-slate-text-muted);
+}
+
+.vlib-editor-hint--ok {
+  color: var(--color-success-dark);
+}
+
+.vlib-editor-hint--warn {
+  color: var(--color-warning-dark);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 600px) {
+  .vlib-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vlib-player-overlay {
+    padding: var(--spacing-6) var(--spacing-2);
+  }
+
+  .vlib-player {
+    padding: var(--spacing-4);
+  }
+
+  .vlib-player-admin {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vlib-card:hover {
+    transform: none;
+  }
+
+  .vlib-card:hover .vlib-card-emblem,
+  .vlib-card:hover .vlib-card-play {
+    transform: translate(-50%, -50%);
+  }
+
+  .vlib-card:hover .vlib-card-emblem {
+    transform: none;
+  }
+}
