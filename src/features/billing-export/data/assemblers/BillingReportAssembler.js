@@ -21,7 +21,14 @@ export class BillingReportAssembler {
 
   static createOwnLineItem(entry, employeeDetails) {
     const provisionPercentage = BillingReportAssembler.#getEffectiveOwnerProvision(entry, employeeDetails);
-    const provisionAmount = roundCurrency((entry.grossAmount || entry.provisionAmount || 0) * (provisionPercentage / 100));
+    // VAT-exempt owners (Kleinunternehmer / not VAT-liable) cannot charge or offset
+    // VAT, so their provision is based on the NET revenue. VAT-liable owners compute
+    // on gross and the embedded VAT is extracted in #calculateProvisionVat.
+    const isVatExempt = employeeDetails?.isVatExempt ?? false;
+    const baseAmount = (entry.hasVAT && isVatExempt)
+      ? (entry.netAmount || entry.provisionAmount || 0)
+      : (entry.grossAmount || entry.provisionAmount || 0);
+    const provisionAmount = roundCurrency(baseAmount * (provisionPercentage / 100));
     const { provisionVatRate, provisionVatAmount, provisionGrossAmount } =
       BillingReportAssembler.#calculateProvisionVat(provisionAmount, employeeDetails, entry.hasVAT, entry.vatRate);
 
@@ -54,7 +61,14 @@ export class BillingReportAssembler {
   static createHierarchyLineItem(hierarchicalEntry, employeeDetails) {
     const entry = hierarchicalEntry.originalEntry;
     const provisionPercentage = hierarchicalEntry.managerProvisionPercentage || 0;
-    const provisionAmount = hierarchicalEntry.managerProvisionAmount || 0;
+    // managerProvisionAmount is pre-computed on gross revenue. VAT-exempt managers
+    // cannot charge or offset VAT, so their provision must be based on net revenue
+    // (gross / (1 + rate)) — mirrors the net base used for VAT-exempt owners.
+    const isVatExempt = employeeDetails?.isVatExempt ?? false;
+    const rawProvisionAmount = hierarchicalEntry.managerProvisionAmount || 0;
+    const provisionAmount = (entry.hasVAT && isVatExempt)
+      ? roundCurrency(rawProvisionAmount / (1 + (entry.vatRate || 19) / 100))
+      : rawProvisionAmount;
     const { provisionVatRate, provisionVatAmount, provisionGrossAmount } =
       BillingReportAssembler.#calculateProvisionVat(provisionAmount, employeeDetails, entry.hasVAT, entry.vatRate);
 

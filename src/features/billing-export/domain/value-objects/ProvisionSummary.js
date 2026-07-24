@@ -25,13 +25,15 @@ export class ProvisionSummary {
     totalProvisionGross = 0,
     categoryBreakdown = {},
   } = {}) {
+    // Round on construction so accumulated float drift from summing many line
+    // items never reaches the PDF. Covers fromLineItems, add and fromJSON alike.
     this.#entryCount = entryCount;
-    this.#totalNet = totalNet;
-    this.#totalVat = totalVat;
-    this.#totalGross = totalGross;
-    this.#totalProvision = totalProvision;
-    this.#totalProvisionVat = totalProvisionVat;
-    this.#totalProvisionGross = totalProvisionGross;
+    this.#totalNet = roundCurrency(totalNet);
+    this.#totalVat = roundCurrency(totalVat);
+    this.#totalGross = roundCurrency(totalGross);
+    this.#totalProvision = roundCurrency(totalProvision);
+    this.#totalProvisionVat = roundCurrency(totalProvisionVat);
+    this.#totalProvisionGross = roundCurrency(totalProvisionGross);
     this.#categoryBreakdown = { ...categoryBreakdown };
   }
 

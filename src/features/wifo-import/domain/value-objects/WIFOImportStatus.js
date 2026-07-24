@@ -12,6 +12,7 @@ export const WIFO_IMPORT_STATUS = Object.freeze({
   COMPLETED: 'completed',
   FAILED: 'failed',
   PARTIALLY_COMPLETED: 'partiallyCompleted',
+  ROLLED_BACK: 'rolledBack',
 });
 
 export const WIFO_IMPORT_STATUS_DISPLAY = Object.freeze({
@@ -23,6 +24,7 @@ export const WIFO_IMPORT_STATUS_DISPLAY = Object.freeze({
   [WIFO_IMPORT_STATUS.COMPLETED]: 'Abgeschlossen',
   [WIFO_IMPORT_STATUS.FAILED]: 'Fehlgeschlagen',
   [WIFO_IMPORT_STATUS.PARTIALLY_COMPLETED]: 'Teilweise importiert',
+  [WIFO_IMPORT_STATUS.ROLLED_BACK]: 'Rückgängig gemacht',
 });
 
 export class WIFOImportStatus {
@@ -120,5 +122,9 @@ export class WIFOImportStatus {
 
   static partiallyCompleted() {
     return new WIFOImportStatus(WIFO_IMPORT_STATUS.PARTIALLY_COMPLETED);
+  }
+
+  static rolledBack() {
+    return new WIFOImportStatus(WIFO_IMPORT_STATUS.ROLLED_BACK);
   }
 }

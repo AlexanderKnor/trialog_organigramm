@@ -7,6 +7,20 @@
 import { generateUUID } from '../../../../core/utils/index.js';
 import { WIFOImportStatus, WIFO_IMPORT_STATUS } from '../value-objects/WIFOImportStatus.js';
 import { RECORD_VALIDATION_STATUS } from '../value-objects/RecordValidationStatus.js';
+import { WIFOImportRecord } from './WIFOImportRecord.js';
+
+/**
+ * Human-readable batch ID, stamped as importBatchId on every revenue entry
+ * the batch creates. Readable in the database ("wifo-20260717-142530-a3f2"),
+ * sortable by time, and the handle for rolling an import back.
+ */
+function generateImportBatchId(now = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0');
+  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const suffix = generateUUID().slice(0, 4);
+  return `wifo-${date}-${time}-${suffix}`;
+}
 
 export class WIFOImportBatch {
   #id;
@@ -46,7 +60,7 @@ export class WIFOImportBatch {
     completedAt = null,
     errorMessage = null,
   }) {
-    this.#id = id || generateUUID();
+    this.#id = id || generateImportBatchId();
     this.#fileName = fileName;
     this.#fileSize = fileSize;
     this.#uploadedAt = uploadedAt instanceof Date ? uploadedAt : new Date(uploadedAt);
@@ -114,7 +128,9 @@ export class WIFOImportBatch {
   }
 
   get canImport() {
-    return this.#status.canImport && this.#validRecords > 0;
+    // Records with warnings are importable too; a batch consisting only of
+    // fuzzy-matched rows must not be blocked.
+    return this.#status.canImport && this.importableRecords > 0;
   }
 
   // Records
@@ -271,6 +287,10 @@ export class WIFOImportBatch {
     this.#completedAt = new Date();
   }
 
+  markRolledBack() {
+    this.#status = WIFOImportStatus.rolledBack();
+  }
+
   #recalculateStatistics() {
     let valid = 0;
     let invalid = 0;
@@ -358,8 +378,6 @@ export class WIFOImportBatch {
   }
 
   static fromJSON(json) {
-    const { WIFOImportRecord } = require('./WIFOImportRecord.js');
-
     return new WIFOImportBatch({
       id: json.id,
       fileName: json.fileName,

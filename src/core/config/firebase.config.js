@@ -19,6 +19,13 @@ export const FIRESTORE_COLLECTIONS = {
   TRACKING_EVENTS: 'tracking_events',
   REVENUE_ENTRIES: 'revenue_entries',
   PRODUCT_CATALOG: 'product_catalog',
+  KNOWLEDGE_BOARD: 'knowledge_board',
+  KNOWLEDGE_ARTICLES: 'knowledge_articles',
+  KNOWLEDGE_ARTICLE_TOPICS: 'knowledge_article_topics',
+  LEARNING_VIDEOS: 'learning_videos',
+  LEARNING_VIDEO_TOPICS: 'learning_video_topics',
+  PROMO_CAMPAIGNS: 'promo_campaigns',
+  PROMO_RESOURCES: 'promo_resources',
 };
 
 export const AUTH_CONFIG = {

@@ -23,6 +23,7 @@ export const VALIDATION_ERROR_CODE = Object.freeze({
   UNKNOWN_PROVIDER: 'unknownProvider',
   FUZZY_MATCH: 'fuzzyMatch',
   POTENTIAL_DUPLICATE: 'potentialDuplicate',
+  PARSE_ERROR: 'parseError',
 });
 
 export const VALIDATION_ERROR_MESSAGES = Object.freeze({
@@ -39,6 +40,7 @@ export const VALIDATION_ERROR_MESSAGES = Object.freeze({
   [VALIDATION_ERROR_CODE.UNKNOWN_PROVIDER]: 'Anbieter nicht gefunden',
   [VALIDATION_ERROR_CODE.FUZZY_MATCH]: 'Mitarbeiter durch Ähnlichkeitsabgleich gefunden',
   [VALIDATION_ERROR_CODE.POTENTIAL_DUPLICATE]: 'Mögliches Duplikat erkannt',
+  [VALIDATION_ERROR_CODE.PARSE_ERROR]: 'Zeile konnte nicht zuverlässig gelesen werden',
 });
 
 export class ValidationError {

@@ -227,9 +227,11 @@ export class EmployeeDetails {
       isSmallBusiness: taxInfo.isSmallBusiness || false,
       isVatLiable: taxInfo.isVatLiable ?? true,
       careerLevelName: careerLevel.name || careerLevel.displayName || '',
-      bankProvision: hierarchyNode?.bankProvision || careerLevel.bankProvision || 0,
-      insuranceProvision: hierarchyNode?.insuranceProvision || careerLevel.insuranceProvision || 0,
-      realEstateProvision: hierarchyNode?.realEstateProvision || careerLevel.realEstateProvision || 0,
+      // Use ?? so an explicit 0% rate on the hierarchy node is respected and does
+      // not silently fall through to the career-level default.
+      bankProvision: hierarchyNode?.bankProvision ?? careerLevel.bankProvision ?? 0,
+      insuranceProvision: hierarchyNode?.insuranceProvision ?? careerLevel.insuranceProvision ?? 0,
+      realEstateProvision: hierarchyNode?.realEstateProvision ?? careerLevel.realEstateProvision ?? 0,
       hasDirectPaymentGewo,
     });
   }

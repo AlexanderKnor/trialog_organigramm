@@ -53,6 +53,83 @@ export class RevenueService {
     return entry;
   }
 
+  /**
+   * Bulk variant of addEntry for imports.
+   *
+   * All entries are constructed before anything is written: customer numbers
+   * are assigned sequentially per employee from a single max-query (addEntry's
+   * per-entry read races under concurrent imports), provision snapshots are
+   * captured once per employee and provision type, and rows whose construction
+   * fails are returned as failures without touching the database. Persistence
+   * goes through saveMany, which guarantees a write failure leaves no partial
+   * data behind.
+   *
+   * @param {Array<{employeeId: string, entryData: Object}>} items
+   * @returns {Promise<{created: Array<{index: number, entry: RevenueEntry}>,
+   *                    failures: Array<{index: number, error: Error}>}>}
+   */
+  async addEntriesBulk(items) {
+    const nextCustomerNumbers = new Map();
+    const snapshotCache = new Map();
+    const created = [];
+    const failures = [];
+
+    for (let index = 0; index < items.length; index++) {
+      const { employeeId, entryData } = items[index];
+
+      try {
+        if (!nextCustomerNumbers.has(employeeId)) {
+          nextCustomerNumbers.set(
+            employeeId,
+            await this.#revenueRepository.getNextCustomerNumber(employeeId),
+          );
+        }
+
+        const provisionType =
+          entryData.provisionType || this.#inferProvisionType(entryData.category);
+        const snapshotKey = `${employeeId}:${provisionType}`;
+        if (!snapshotCache.has(snapshotKey)) {
+          snapshotCache.set(
+            snapshotKey,
+            await this.#captureProvisionSnapshots(employeeId, entryData),
+          );
+        }
+
+        const entry = new RevenueEntry({
+          ...entryData,
+          employeeId,
+          customerNumber: nextCustomerNumbers.get(employeeId),
+          ...snapshotCache.get(snapshotKey),
+        });
+
+        nextCustomerNumbers.set(employeeId, entry.customerNumber + 1);
+        created.push({ index, entry });
+      } catch (error) {
+        failures.push({ index, error });
+      }
+    }
+
+    await this.#revenueRepository.saveMany(created.map(({ entry }) => entry));
+
+    Logger.log(`✓ Bulk import: ${created.length} entries saved, ${failures.length} rejected`);
+    return { created, failures };
+  }
+
+  /**
+   * Delete every entry created by one import run.
+   * @returns {Promise<number>} number of deleted entries
+   */
+  async rollbackImportBatch(importBatchId) {
+    const entries = await this.#revenueRepository.findByImportBatchId(importBatchId);
+    if (entries.length === 0) {
+      return 0;
+    }
+
+    await this.#revenueRepository.deleteMany(entries.map((entry) => entry.id));
+    Logger.log(`✓ Rolled back import batch ${importBatchId}: ${entries.length} entries deleted`);
+    return entries.length;
+  }
+
   async updateEntry(entryId, updates) {
     const entry = await this.#revenueRepository.findById(entryId);
     entry.update(updates);
@@ -198,10 +275,34 @@ export class RevenueService {
       return [];
     }
 
+    // One query + grouping instead of one query per person, as in
+    // getRevenueDataForTree. This backs the admin entry point now, so those
+    // sequential round-trips would be paid on every page load.
+    const entriesByEmployee = this.#groupEntriesByEmployee(await this.#revenueRepository.findAll());
+
+    const companyEntries = this.#buildCompanyEntries(tree, company, entriesByEmployee);
+
+    // Sort by hierarchy depth, then by customer number
+    companyEntries.sort((a, b) => {
+      const depthCompare = a.hierarchyDepth - b.hierarchyDepth;
+      if (depthCompare !== 0) return depthCompare;
+      return a.originalEntry.customerNumber - b.originalEntry.customerNumber;
+    });
+
+    return companyEntries;
+  }
+
+  /**
+   * Cascade every entry up to the company and keep those where the company
+   * retains a share. Single source of the company-view math: the dashboard,
+   * the org chart root card and (indirectly) billing all agree because they
+   * all pass through here.
+   */
+  #buildCompanyEntries(tree, company, entriesByEmployee) {
     const companyEntries = [];
 
-    // Load direct company entries (company's own revenue, no cascade)
-    const companyDirectEntries = await this.#revenueRepository.findByEmployeeId(companyId);
+    // Direct company entries (company's own revenue, no cascade)
+    const companyDirectEntries = entriesByEmployee.get(company.id) || [];
     for (const entry of companyDirectEntries) {
       const companyEntry = CompanyRevenueEntry.calculate({
         entry,
@@ -217,7 +318,7 @@ export class RevenueService {
     }
 
     // Get all employees in the organization (excluding root)
-    const allEmployees = this.#getAllEmployeesRecursive(tree, companyId);
+    const allEmployees = this.#getAllEmployeesRecursive(tree, company.id);
 
     // Add Geschäftsführer to the list
     const geschaeftsfuehrer = GESCHAEFTSFUEHRER_IDS.map(id => buildGeschaeftsfuehrerNode(id));
@@ -225,7 +326,7 @@ export class RevenueService {
     const allPersons = [...allEmployees, ...geschaeftsfuehrer];
 
     for (const employee of allPersons) {
-      const entries = await this.#revenueRepository.findByEmployeeId(employee.id);
+      const entries = entriesByEmployee.get(employee.id) || [];
       const isGeschaeftsfuehrer = isGeschaeftsfuehrerId(employee.id);
 
       for (const entry of entries) {
@@ -238,7 +339,7 @@ export class RevenueService {
           directSubordinate = employee;
         } else {
           // Build hierarchy path from employee to company
-          hierarchyPath = this.#getHierarchyPath(tree, employee.id, companyId);
+          hierarchyPath = this.#getHierarchyPath(tree, employee.id, company.id);
 
           if (hierarchyPath.length < 2) {
             continue; // Invalid path
@@ -265,21 +366,24 @@ export class RevenueService {
       }
     }
 
-    // Sort by hierarchy depth, then by customer number
-    companyEntries.sort((a, b) => {
-      const depthCompare = a.hierarchyDepth - b.hierarchyDepth;
-      if (depthCompare !== 0) return depthCompare;
-      return a.originalEntry.customerNumber - b.originalEntry.customerNumber;
-    });
-
     return companyEntries;
   }
 
   /**
-   * Check if an employee ID belongs to a Geschäftsführer
+   * Group entries by owning employee for O(1) lookup. The companion to a single
+   * findAll(): together they replace one Firestore query per employee.
    */
-  #isGeschaeftsfuehrer(employeeId) {
-    return isGeschaeftsfuehrerId(employeeId);
+  #groupEntriesByEmployee(entries) {
+    const entriesByEmployee = new Map();
+    for (const entry of entries) {
+      const bucket = entriesByEmployee.get(entry.employeeId);
+      if (bucket) {
+        bucket.push(entry);
+      } else {
+        entriesByEmployee.set(entry.employeeId, [entry]);
+      }
+    }
+    return entriesByEmployee;
   }
 
   /**
@@ -302,7 +406,7 @@ export class RevenueService {
       Logger.log('   Provision type:', provisionType);
 
       // Check if employee is a Geschäftsführer (not in tree, hardcoded data)
-      if (this.#isGeschaeftsfuehrer(employeeId)) {
+      if (isGeschaeftsfuehrerId(employeeId)) {
         const gfData = this.#getGeschaeftsfuehrerData(employeeId);
         Logger.log('   ✓ Geschäftsführer detected:', gfData.name);
 
@@ -471,9 +575,6 @@ export class RevenueService {
     }
 
     const revenueDataMap = new Map();
-    let totalCompanyRevenue = 0;
-    let totalCompanyEntries = 0;
-    let totalEmployeeProvisions = 0;
 
     // Get all employees (excluding root)
     const allEmployees = this.#getAllEmployeesRecursive(tree, tree.rootId);
@@ -486,16 +587,10 @@ export class RevenueService {
     const allEntries = await this.#revenueRepository.findAll();
 
     // Group entries by employeeId and tipProviderId for O(1) lookup
-    const entriesByEmployee = new Map();
+    const entriesByEmployee = this.#groupEntriesByEmployee(allEntries);
     const entriesByTipProvider = new Map();
 
     for (const entry of allEntries) {
-      // Group by employeeId (owner)
-      if (!entriesByEmployee.has(entry.employeeId)) {
-        entriesByEmployee.set(entry.employeeId, []);
-      }
-      entriesByEmployee.get(entry.employeeId).push(entry);
-
       // Group by each tip provider (multi-tip-provider support)
       for (const tp of entry.tipProviders) {
         if (!entriesByTipProvider.has(tp.id)) {
@@ -565,11 +660,6 @@ export class RevenueService {
         tipProviderProvision,
         tipProviderEntryCount,
       });
-
-      // Accumulate for company total
-      totalCompanyRevenue += monthlyRevenue;
-      totalCompanyEntries += activeEntryCount;
-      totalEmployeeProvisions += employeeProvision;
     }
 
     // Include direct company entries (root node's own revenue)
@@ -587,20 +677,42 @@ export class RevenueService {
       directCompanyEntries++;
     }
 
-    totalCompanyRevenue += directCompanyRevenue;
-    totalCompanyEntries += directCompanyEntries;
+    // Root aggregate via the SAME cascade math the company dashboard and
+    // billing use. The previous shortcut (total revenue minus direct owner
+    // provisions) silently credited every intermediate manager share and every
+    // tip provision to the company, so org chart and dashboard disagreed.
+    const filteredByEmployee = new Map();
+    for (const [employeeId, employeeEntries] of entriesByEmployee) {
+      filteredByEmployee.set(employeeId, this.#filterEntriesByMonth(employeeEntries, month, year));
+    }
 
-    // Company provision = total revenue - all employee provisions
-    const companyProvision = totalCompanyRevenue - totalEmployeeProvisions;
+    const companyNode = tree.getNode(tree.rootId);
+    const companyEntries = this.#buildCompanyEntries(tree, companyNode, filteredByEmployee);
+
+    let totalRevenue = 0;
+    let companyProvision = 0;
+    let totalEntries = 0;
+
+    for (const companyEntry of companyEntries) {
+      const status = companyEntry.originalEntry?.status?.type;
+      if (status === REVENUE_STATUS_TYPES.REJECTED ||
+          status === REVENUE_STATUS_TYPES.CANCELLED) {
+        continue;
+      }
+
+      totalRevenue += companyEntry.originalEntry.provisionAmount || 0;
+      companyProvision += companyEntry.companyProvisionAmount || 0;
+      totalEntries++;
+    }
 
     // Set root node data with total company revenue and company provision
     revenueDataMap.set(tree.rootId, {
       monthlyRevenue: directCompanyRevenue,
       entryCount: directCompanyEntries,
       employeeProvision: 0,
-      totalRevenue: totalCompanyRevenue,
-      totalEntries: totalCompanyEntries,
-      companyProvision: companyProvision,
+      totalRevenue,
+      totalEntries,
+      companyProvision,
       totalEmployees: allEmployees.length,
     });
 

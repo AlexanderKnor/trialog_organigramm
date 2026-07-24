@@ -1,0 +1,788 @@
+/**
+ * Knowledge Base — article composer
+ *
+ * The full-screen writing desk. Three zones: a navy command bar, a document
+ * canvas that behaves like a sheet of paper, and a side rail for metadata.
+ * The canvas and the rail scroll independently — html/body are locked to
+ * overflow: hidden in base.css, so every overlay carries its own scrolling.
+ *
+ * .kbcomp-* namespace. The preview inside the canvas deliberately reuses the
+ * reader's classes (.kbase-reader-*, .kbase-block-*) instead of restyling
+ * anything, so the preview cannot drift from the published article.
+ */
+
+/* ========================================
+   SHELL
+   ======================================== */
+
+.kbcomp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--color-primary-deep);
+  opacity: 0;
+  transition: opacity var(--duration-200) var(--ease-in-out);
+}
+
+.kbcomp-overlay.is-open {
+  opacity: 1;
+}
+
+.kbcomp {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-background);
+}
+
+/* ========================================
+   COMMAND BAR
+   ======================================== */
+
+.kbcomp-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-5);
+  background: var(--gradient-navy-surface);
+  color: var(--color-white);
+  box-shadow: var(--shadow-navy-raised);
+}
+
+.kbcomp-bar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+
+.kbcomp-close {
+  flex-shrink: 0;
+  width: var(--spacing-11);
+  height: var(--spacing-11);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-white);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.kbcomp-close:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.kbcomp-close:focus-visible,
+.kbcomp-preview-toggle:focus-visible {
+  outline: 2px solid var(--color-white);
+  outline-offset: 2px;
+}
+
+.kbcomp-bar-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kbcomp-eyebrow {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-widest);
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.kbcomp-bar-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kbcomp-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.kbcomp-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-9);
+  padding: 0 var(--spacing-4);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-white);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.kbcomp-preview-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.kbcomp-preview-toggle.is-active {
+  background: var(--color-white);
+  border-color: var(--color-white);
+  color: var(--color-primary);
+}
+
+/* The ghost variant is styled for light surfaces and would vanish on navy. */
+.kbcomp-bar-actions .btn-ghost {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.kbcomp-bar-actions .btn-ghost:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: var(--color-white);
+}
+
+.kbcomp-bar-actions .btn.is-busy {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* ========================================
+   ERROR STRIP
+   ======================================== */
+
+.kbcomp-error {
+  flex-shrink: 0;
+  margin: 0;
+  padding: var(--spacing-3) var(--spacing-5);
+  background: var(--color-error-light);
+  color: var(--color-error-dark);
+  border-bottom: 1px solid var(--color-error);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ========================================
+   BODY LAYOUT
+   ======================================== */
+
+.kbcomp-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.kbcomp-canvas {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--spacing-8) var(--spacing-6) var(--spacing-16);
+}
+
+.kbcomp-sheet,
+.kbcomp-preview {
+  width: 100%;
+  max-width: var(--narrow-max-width);
+  margin: 0 auto;
+}
+
+/* The hidden attribute is a UA rule and loses against any class that sets
+   display, so every element toggled through it needs this line. */
+.kbcomp-sheet[hidden],
+.kbcomp-preview-image[hidden] {
+  display: none;
+}
+
+.kbcomp-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-8);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xl);
+}
+
+/* ========================================
+   TITLE & LEDE
+   ======================================== */
+
+.kbcomp-title-field,
+.kbcomp-summary-field {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+}
+
+/* base.css rings every focused field. On the sheet the caret is the focus
+   indicator; a ring around the headline would make the page look like a form. */
+.kbcomp-title-field:focus,
+.kbcomp-summary-field:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.kbcomp-title-field {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--color-text-primary);
+}
+
+.kbcomp-summary-field {
+  padding-bottom: var(--spacing-4);
+  border-bottom: 1px solid var(--color-border-light);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.kbcomp-title-field::placeholder,
+.kbcomp-summary-field::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ========================================
+   BLOCK CARDS
+   ======================================== */
+
+.kbcomp-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.kbcomp-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4) var(--spacing-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-off-white);
+  transition:
+    border-color var(--duration-200) var(--ease-in-out),
+    box-shadow var(--duration-200) var(--ease-in-out),
+    background-color var(--duration-200) var(--ease-in-out);
+}
+
+.kbcomp-block:focus-within {
+  border-color: var(--color-primary-300);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.kbcomp-block.is-invalid {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.kbcomp-block-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.kbcomp-block-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--color-primary);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.kbcomp-block-no {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-muted);
+}
+
+.kbcomp-block-tools {
+  display: flex;
+  gap: var(--spacing-1);
+  margin-left: auto;
+}
+
+.kbcomp-block-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2-5);
+}
+
+/* Present at all times, quiet until the block is worked on — a hover-only
+   affordance would be invisible to keyboard and touch. */
+.kbcomp-block-foot {
+  display: flex;
+  justify-content: center;
+  padding-bottom: var(--spacing-2);
+}
+
+.kbcomp-block-foot .kbcomp-ghost-btn {
+  min-height: var(--spacing-7);
+  padding: 0 var(--spacing-2-5);
+  font-size: var(--font-size-2xs);
+  opacity: 0.5;
+  transition: opacity var(--duration-150) var(--ease-in-out), var(--transition-colors);
+}
+
+.kbcomp-block:hover .kbcomp-block-foot .kbcomp-ghost-btn,
+.kbcomp-block:focus-within .kbcomp-block-foot .kbcomp-ghost-btn {
+  opacity: 1;
+}
+
+/* ========================================
+   TOOLS & GHOST BUTTONS
+   ======================================== */
+
+.kbcomp-tool {
+  width: var(--spacing-9);
+  height: var(--spacing-9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-slate-500);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.kbcomp-tool:hover:not(:disabled) {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.kbcomp-tool:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.kbcomp-tool:focus-visible,
+.kbcomp-ghost-btn:focus-visible,
+.kbcomp-palette-card:focus-visible,
+.kbcomp-segment:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.kbcomp-ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-9);
+  padding: 0 var(--spacing-3);
+  border: 1px dashed var(--color-gray-300);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.kbcomp-ghost-btn:hover {
+  border-color: var(--color-primary-300);
+  color: var(--color-primary);
+  background: var(--color-primary-50);
+}
+
+/* Fine-grained tools are fine with a mouse; a finger needs the full target. */
+@media (pointer: coarse) {
+  .kbcomp-tool,
+  .kbcomp-ghost-btn {
+    min-height: var(--spacing-11);
+    min-width: var(--spacing-11);
+  }
+}
+
+/* ========================================
+   FIELDS
+   ======================================== */
+
+.kbcomp-field {
+  width: 100%;
+  padding: var(--spacing-2-5) var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  transition: var(--transition-colors), box-shadow var(--duration-150) var(--ease-in-out);
+}
+
+.kbcomp-field:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: var(--glow-focus);
+}
+
+.kbcomp-field::placeholder {
+  color: var(--color-text-muted);
+}
+
+.kbcomp-field--area {
+  resize: none;
+  overflow: hidden;
+  min-height: var(--spacing-16);
+}
+
+.kbcomp-field--title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.kbcomp-field--quote {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-base);
+  font-style: italic;
+}
+
+.kbcomp-labelled {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1-5);
+}
+
+.kbcomp-field-label {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wider);
+  text-transform: uppercase;
+  color: var(--color-slate-text-muted);
+}
+
+.kbcomp-field-hint {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-slate-text-muted);
+}
+
+.kbcomp-preview-image {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+/* ========================================
+   SEGMENTED CONTROL
+   ======================================== */
+
+.kbcomp-segmented {
+  display: inline-flex;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1);
+  border-radius: var(--radius-md);
+  background: var(--color-gray-100);
+  align-self: flex-start;
+  flex-wrap: wrap;
+}
+
+.kbcomp-segment {
+  min-height: var(--spacing-8);
+  padding: 0 var(--spacing-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.kbcomp-segment:hover {
+  color: var(--color-primary);
+}
+
+.kbcomp-segment.is-active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ========================================
+   ITEM ROWS (list points, process steps)
+   ======================================== */
+
+.kbcomp-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.kbcomp-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.kbcomp-item--step {
+  align-items: flex-start;
+}
+
+.kbcomp-item-index {
+  flex-shrink: 0;
+  width: var(--spacing-6);
+  height: var(--spacing-6);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-50);
+  color: var(--color-primary);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.kbcomp-item--step .kbcomp-item-index {
+  margin-top: var(--spacing-2);
+}
+
+.kbcomp-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+/* ========================================
+   INSERT PALETTE
+   ======================================== */
+
+.kbcomp-palette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  border: 1px dashed var(--color-gray-300);
+  border-radius: var(--radius-lg);
+  background: var(--color-light-gray);
+}
+
+.kbcomp-palette.is-inline {
+  border-color: var(--color-secondary);
+  background: var(--portal-tint-blue);
+}
+
+.kbcomp-palette-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wider);
+  text-transform: uppercase;
+  color: var(--color-slate-text-muted);
+}
+
+.kbcomp-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-2);
+}
+
+.kbcomp-palette-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--duration-150) var(--ease-out),
+    border-color var(--duration-150) var(--ease-in-out),
+    box-shadow var(--duration-150) var(--ease-in-out);
+}
+
+.kbcomp-palette-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary-300);
+  box-shadow: var(--shadow-md);
+}
+
+.kbcomp-palette-icon {
+  display: inline-flex;
+  color: var(--color-secondary);
+}
+
+.kbcomp-palette-label {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.kbcomp-palette-hint {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  color: var(--color-slate-text-muted);
+  line-height: var(--line-height-snug);
+}
+
+/* ========================================
+   SIDE RAIL
+   ======================================== */
+
+.kbcomp-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  padding: var(--spacing-6) var(--spacing-5);
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.kbcomp-rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.kbcomp-rail-title {
+  margin: 0;
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  padding-bottom: var(--spacing-2);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.kbcomp-checkline {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2-5);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-700);
+  cursor: pointer;
+}
+
+.kbcomp-checkbox {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  accent-color: var(--color-primary);
+}
+
+.kbcomp-rail-foot {
+  margin-top: auto;
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.kbcomp-rail-count {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-slate-text-muted);
+}
+
+/* ========================================
+   PREVIEW
+   ======================================== */
+
+.kbcomp-preview .kbase-reader-article {
+  box-shadow: var(--shadow-xl);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 900px) {
+  /* One column: the body itself scrolls, the two panes no longer do. */
+  .kbcomp-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .kbcomp-canvas,
+  .kbcomp-rail {
+    overflow: visible;
+  }
+
+  .kbcomp-rail {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+@media (max-width: 600px) {
+  .kbcomp-bar {
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+  }
+
+  /* Three actions do not fit one narrow row; wrapping beats clipping the
+     primary action off the screen edge. */
+  .kbcomp-bar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .kbcomp-bar-actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .kbcomp-canvas {
+    padding: var(--spacing-4) var(--spacing-3) var(--spacing-12);
+  }
+
+  .kbcomp-sheet {
+    padding: var(--spacing-5) var(--spacing-4);
+  }
+
+  .kbcomp-preview-toggle {
+    padding: 0 var(--spacing-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kbcomp-palette-card:hover {
+    transform: none;
+  }
+}

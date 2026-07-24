@@ -9,8 +9,7 @@ import {
   RecordValidationStatus,
   RECORD_VALIDATION_STATUS,
 } from '../value-objects/RecordValidationStatus.js';
-import { WIFOProvisionType } from '../value-objects/WIFOProvisionType.js';
-import { WIFOCategory } from '../value-objects/WIFOCategory.js';
+import { ValidationError } from '../value-objects/ValidationError.js';
 
 /**
  * Parse a numeric value that may be in German format (comma as decimal separator)
@@ -35,6 +34,13 @@ function parseGermanNumber(value) {
   if (str.includes(',')) {
     const normalized = str.replace(/\./g, '').replace(',', '.');
     const num = parseFloat(normalized);
+    return isNaN(num) ? null : num;
+  }
+
+  // Dots without a comma: "1.234" is a German thousands separator (1234),
+  // not an English decimal — the groups-of-three pattern disambiguates.
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(str)) {
+    const num = parseFloat(str.replace(/\./g, ''));
     return isNaN(num) ? null : num;
   }
 
@@ -73,6 +79,7 @@ export class WIFOImportRecord {
   // Validation state
   #validationStatus;
   #validationErrors;
+  #parseIssues;
 
   // Mapping state
   #mappedEmployeeId;
@@ -106,6 +113,7 @@ export class WIFOImportRecord {
     erstelldatum = null,
     validationStatus = RECORD_VALIDATION_STATUS.PENDING,
     validationErrors = [],
+    parseIssues = [],
     mappedEmployeeId = null,
     mappedEmployeeName = null,
     mappedCategoryType = null,
@@ -143,6 +151,7 @@ export class WIFOImportRecord {
         ? validationStatus
         : new RecordValidationStatus(validationStatus);
     this.#validationErrors = validationErrors;
+    this.#parseIssues = parseIssues;
 
     // Mapping
     this.#mappedEmployeeId = mappedEmployeeId;
@@ -250,6 +259,32 @@ export class WIFOImportRecord {
     return this.#erstelldatum;
   }
 
+  /**
+   * Stable identity of this WIFO row across imports, stored as the revenue
+   * entry's sourceReference. Lauf (the WIFO settlement run) is part of the
+   * key, so the same contract in next month's run is a new booking while
+   * re-uploading the same file matches exactly.
+   */
+  get fingerprint() {
+    return [
+      'wifo',
+      this.#lauf ?? '',
+      this.#vertragId || this.#vertrag || '',
+      this.#formatDateKey(this.#datum),
+      this.#netto !== null && this.#netto !== undefined ? this.#netto.toFixed(2) : '',
+      (this.#art || '').toUpperCase(),
+    ].join(':');
+  }
+
+  #formatDateKey(date) {
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return '';
+    }
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+  }
+
   // Validation
   get validationStatus() {
     return this.#validationStatus;
@@ -257,6 +292,11 @@ export class WIFOImportRecord {
 
   get validationErrors() {
     return [...this.#validationErrors];
+  }
+
+  /** Structural problems found while parsing the file row (e.g. column drift). */
+  get parseIssues() {
+    return [...this.#parseIssues];
   }
 
   get hasErrors() {
@@ -351,6 +391,7 @@ export class WIFOImportRecord {
       erstelldatum: this.#erstelldatum?.toISOString?.() ?? this.#erstelldatum,
       validationStatus: this.#validationStatus.toJSON(),
       validationErrors: this.#validationErrors.map((e) => e.toJSON()),
+      parseIssues: [...this.#parseIssues],
       mappedEmployeeId: this.#mappedEmployeeId,
       mappedEmployeeName: this.#mappedEmployeeName,
       mappedCategoryType: this.#mappedCategoryType,
@@ -359,8 +400,6 @@ export class WIFOImportRecord {
   }
 
   static fromJSON(json) {
-    const { ValidationError } = require('../value-objects/ValidationError.js');
-
     return new WIFOImportRecord({
       id: json.id,
       rowNumber: json.rowNumber,
@@ -387,6 +426,7 @@ export class WIFOImportRecord {
       erstelldatum: json.erstelldatum ? new Date(json.erstelldatum) : null,
       validationStatus: json.validationStatus,
       validationErrors: json.validationErrors?.map((e) => ValidationError.fromJSON(e)) || [],
+      parseIssues: json.parseIssues || [],
       mappedEmployeeId: json.mappedEmployeeId,
       mappedEmployeeName: json.mappedEmployeeName,
       mappedCategoryType: json.mappedCategoryType,
@@ -397,7 +437,7 @@ export class WIFOImportRecord {
   /**
    * Factory: Create from raw WIFO Excel row
    */
-  static fromWIFORow(rowNumber, rowData, columnMap) {
+  static fromWIFORow(rowNumber, rowData, columnMap, parseIssues = []) {
     const getValue = (key) => {
       const index = columnMap[key];
       return index !== undefined ? rowData[index] : null;
@@ -453,6 +493,7 @@ export class WIFOImportRecord {
       vertragId: getValue('Vertrag ID')?.toString() ?? null,
       lauf: getValue('Lauf')?.toString() ?? null,
       erstelldatum: parseExcelDate(getValue('Erstelldatum')),
+      parseIssues,
     });
   }
 }

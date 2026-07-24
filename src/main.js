@@ -28,7 +28,26 @@ import { UserFirestoreDataSource } from './features/user-profile/data/data-sourc
 import { FirebaseUserRepository } from './features/user-profile/data/repositories/FirebaseUserRepository.js';
 import { ProfileService } from './features/user-profile/domain/services/ProfileService.js';
 import { ProfileScreen } from './features/user-profile/presentation/screens/ProfileScreen.js';
+import { ArticleFirestoreDataSource } from './features/knowledge-base/data/data-sources/ArticleFirestoreDataSource.js';
+import { FirebaseArticleRepository } from './features/knowledge-base/data/repositories/FirebaseArticleRepository.js';
+import { ArticleService } from './features/knowledge-base/domain/services/ArticleService.js';
+import { KnowledgeBaseScreen } from './features/knowledge-base/presentation/screens/KnowledgeBaseScreen.js';
+import { VideoFirestoreDataSource } from './features/learning-library/data/data-sources/VideoFirestoreDataSource.js';
+import { FirebaseVideoRepository } from './features/learning-library/data/repositories/FirebaseVideoRepository.js';
+import { LearningLibraryService } from './features/learning-library/domain/services/LearningLibraryService.js';
+import { LearningLibraryScreen } from './features/learning-library/presentation/screens/LearningLibraryScreen.js';
+import { DEFAULT_ARTICLE_TOPICS } from './features/knowledge-base/domain/value-objects/ArticleCategory.js';
+import { DEFAULT_VIDEO_TOPICS } from './features/learning-library/domain/value-objects/VideoCategory.js';
+import { TopicFirestoreDataSource } from './shared/topics/data/TopicFirestoreDataSource.js';
+import { FirebaseTopicRepository } from './shared/topics/data/FirebaseTopicRepository.js';
+import { TopicCatalogService } from './shared/topics/domain/TopicCatalogService.js';
+import { PromotionFirestoreDataSource } from './features/promotion/data/data-sources/PromotionFirestoreDataSource.js';
+import { FirebasePromotionRepository } from './features/promotion/data/repositories/FirebasePromotionRepository.js';
+import { PromotionService } from './features/promotion/domain/services/PromotionService.js';
+import { PromotionScreen } from './features/promotion/presentation/screens/PromotionScreen.js';
+import { HomeScreen } from './features/home/presentation/screens/index.js';
 import { APP_CONFIG } from './core/config/index.js';
+import { FIRESTORE_COLLECTIONS } from './core/config/firebase.config.js';
 import { Logger } from './core/utils/logger.js';
 
 class Application {
@@ -36,6 +55,11 @@ class Application {
   #revenueService;
   #catalogService;
   #profileService;
+  #articleService;
+  #articleTopicService;
+  #learningLibraryService;
+  #videoTopicService;
+  #promotionService;
   #currentScreen;
   #loginScreen;
   #currentTreeId;
@@ -189,6 +213,30 @@ class Application {
       this.#profileService = new ProfileService(userRepository);
       Logger.log('✓ Profile Service initialized with Firebase');
 
+      // Initialize portal content services (articles, videos, promotion)
+      this.#articleService = new ArticleService(
+        new FirebaseArticleRepository(new ArticleFirestoreDataSource())
+      );
+      this.#articleTopicService = new TopicCatalogService(
+        new FirebaseTopicRepository(
+          new TopicFirestoreDataSource(FIRESTORE_COLLECTIONS.KNOWLEDGE_ARTICLE_TOPICS)
+        ),
+        { defaults: DEFAULT_ARTICLE_TOPICS }
+      );
+      this.#learningLibraryService = new LearningLibraryService(
+        new FirebaseVideoRepository(new VideoFirestoreDataSource())
+      );
+      this.#videoTopicService = new TopicCatalogService(
+        new FirebaseTopicRepository(
+          new TopicFirestoreDataSource(FIRESTORE_COLLECTIONS.LEARNING_VIDEO_TOPICS)
+        ),
+        { defaults: DEFAULT_VIDEO_TOPICS }
+      );
+      this.#promotionService = new PromotionService(
+        new FirebasePromotionRepository(new PromotionFirestoreDataSource())
+      );
+      Logger.log('✓ Portal content services initialized with Firebase');
+
       // Run automatic migration (only on first app start)
       await this.#runCatalogMigration();
 
@@ -329,6 +377,22 @@ class Application {
     window.navigateToProfile = () => {
       window.location.hash = 'profile';
     };
+
+    window.navigateToOrg = () => {
+      window.location.hash = 'org';
+    };
+
+    window.navigateToKnowledge = () => {
+      window.location.hash = 'knowledge';
+    };
+
+    window.navigateToVideos = () => {
+      window.location.hash = 'videos';
+    };
+
+    window.navigateToPromotion = () => {
+      window.location.hash = 'promotion';
+    };
   }
 
   async #handleRoute() {
@@ -365,8 +429,16 @@ class Application {
       await this.#showCatalogScreen();
     } else if (parts[0] === 'profile') {
       await this.#showProfileScreen();
-    } else {
+    } else if (parts[0] === 'org') {
       await this.#showHierarchyScreen();
+    } else if (parts[0] === 'knowledge') {
+      await this.#showKnowledgeBaseScreen();
+    } else if (parts[0] === 'videos') {
+      await this.#showLearningLibraryScreen();
+    } else if (parts[0] === 'promotion') {
+      await this.#showPromotionScreen();
+    } else {
+      await this.#showHomeScreen();
     }
 
     // Wait a moment for rendering to complete
@@ -397,6 +469,68 @@ class Application {
 
   #wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async #showHomeScreen() {
+    // SECURITY: Verify authentication before showing screen.
+    // Home IS the '' route, so the usual `hash = ''` redirect would be a no-op
+    // that leaves a blank screen. Bail out instead and let the auth state change
+    // bring up the login screen, same as #handleRoute() does on a failed verify.
+    if (!authService.isAuthenticated()) {
+      Logger.error('🔒 SECURITY: Not authenticated - aborting home render');
+      return;
+    }
+
+    this.#currentScreen = new HomeScreen(
+      '#app',
+      this.#hierarchyService,
+      this.#revenueService,
+    );
+    await this.#currentScreen.mount();
+  }
+
+  async #showKnowledgeBaseScreen() {
+    // SECURITY: Verify authentication before showing screen
+    if (!authService.isAuthenticated()) {
+      Logger.error('🔒 SECURITY: Not authenticated - redirecting to login');
+      window.location.hash = '';
+      return;
+    }
+
+    this.#currentScreen = new KnowledgeBaseScreen(
+      '#app',
+      this.#articleService,
+      this.#articleTopicService
+    );
+    await this.#currentScreen.mount();
+  }
+
+  async #showLearningLibraryScreen() {
+    // SECURITY: Verify authentication before showing screen
+    if (!authService.isAuthenticated()) {
+      Logger.error('🔒 SECURITY: Not authenticated - redirecting to login');
+      window.location.hash = '';
+      return;
+    }
+
+    this.#currentScreen = new LearningLibraryScreen(
+      '#app',
+      this.#learningLibraryService,
+      this.#videoTopicService
+    );
+    await this.#currentScreen.mount();
+  }
+
+  async #showPromotionScreen() {
+    // SECURITY: Verify authentication before showing screen
+    if (!authService.isAuthenticated()) {
+      Logger.error('🔒 SECURITY: Not authenticated - redirecting to login');
+      window.location.hash = '';
+      return;
+    }
+
+    this.#currentScreen = new PromotionScreen('#app', this.#promotionService);
+    await this.#currentScreen.mount();
   }
 
   async #showHierarchyScreen() {

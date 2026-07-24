@@ -20,6 +20,19 @@ export class IRevenueRepository {
     throw new Error('Method not implemented');
   }
 
+  /** Persist many entries at once; a failure must not leave partial data behind. */
+  async saveMany(entries) {
+    throw new Error('Method not implemented');
+  }
+
+  async deleteMany(entryIds) {
+    throw new Error('Method not implemented');
+  }
+
+  async findByImportBatchId(importBatchId) {
+    throw new Error('Method not implemented');
+  }
+
   async update(entry) {
     throw new Error('Method not implemented');
   }

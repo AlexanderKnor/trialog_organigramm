@@ -1,0 +1,10 @@
+{
+  "name": "trialog-organigramm",
+  "version": "1.0.1",
+  "description": "Trialog Organigramm & Umsatzverwaltung (frontend)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

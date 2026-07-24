@@ -1,0 +1,298 @@
+/**
+ * Portal Dashboard & Shared Portal Chrome
+ *
+ * The dashboard's gradient shortcut cards plus everything the content screens
+ * (knowledge base, learning library, promotion) share: toolbar, filter chips,
+ * empty states, wide dialog variant. The application frame itself lives in
+ * portal-shell.css. Fresh .portal-* namespace, no !important.
+ */
+
+:root {
+  /* Decorative category hues for portal content. The corporate palette is
+     navy + gold; content categorization needs a few more voices, so they are
+     minted here ONCE as tokens (never inline) and kept muted enough to sit
+     under the navy/gold lead. */
+  --portal-hue-blue: var(--color-secondary);
+  --portal-hue-gold: var(--color-accent-dark);
+  --portal-hue-green: var(--color-success);
+  --portal-hue-purple: #5b4a8a;
+  --portal-hue-teal: #0f6f7c;
+  --portal-hue-slate: var(--color-slate-600);
+
+  --portal-tint-blue: rgba(42, 82, 152, 0.1);
+  --portal-tint-gold: rgba(212, 168, 83, 0.14);
+  --portal-tint-green: rgba(5, 150, 105, 0.1);
+  --portal-tint-purple: rgba(91, 74, 138, 0.1);
+  --portal-tint-teal: rgba(15, 111, 124, 0.1);
+  --portal-tint-slate: rgba(71, 85, 105, 0.1);
+
+  /* Area identity gradients for the dashboard shortcut cards, straight from
+     the customer's approved demo. Deep start, saturated end, white type. */
+  --portal-grad-slate: linear-gradient(135deg, #1c2b3a, #2d4a6e);
+  --portal-grad-gold: linear-gradient(135deg, #6d5416, var(--color-accent-dark));
+  --portal-grad-teal: linear-gradient(135deg, #0f4c5c, #1a8fa0);
+  --portal-grad-purple: linear-gradient(135deg, #2d1b6e, #5b35c4);
+}
+
+/* ========================================
+   DASHBOARD SHORTCUT CARDS
+   ======================================== */
+
+.portal-shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--spacing-4);
+}
+
+.portal-shortcut {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2-5);
+  min-height: 160px;
+  padding: var(--spacing-5);
+  border-radius: var(--radius-2xl);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-white);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  transition:
+    transform var(--duration-200) var(--ease-out),
+    box-shadow var(--duration-200) var(--ease-in-out);
+}
+
+.portal-shortcut--slate  { background: var(--portal-grad-slate); }
+.portal-shortcut--gold   { background: var(--portal-grad-gold); }
+.portal-shortcut--teal   { background: var(--portal-grad-teal); }
+.portal-shortcut--purple { background: var(--portal-grad-purple); }
+
+/* Soft light bubble in the top corner, the demo's signature decoration. */
+.portal-shortcut::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 90px;
+  height: 90px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.portal-shortcut:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-xl);
+}
+
+.portal-shortcut:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.portal-shortcut-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-10);
+  height: var(--spacing-10);
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+/* base.css paints headings navy; these sit on gradient surfaces. */
+.portal-shortcut-title {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-white);
+  line-height: var(--line-height-tight);
+}
+
+.portal-shortcut-sub {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-snug);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.portal-shortcut-arrow {
+  display: inline-flex;
+  margin-top: auto;
+  align-self: flex-end;
+  color: rgba(255, 255, 255, 0.55);
+  transition: transform var(--duration-200) var(--ease-out), color var(--duration-150) var(--ease-in-out);
+}
+
+.portal-shortcut:hover .portal-shortcut-arrow {
+  transform: translateX(4px);
+  color: var(--color-white);
+}
+
+/* Wide variant for the block/video editors. Unlike .dialog-wide (which is
+   AddRevenueDialog-specific and forces overflow: visible for its inner
+   scroller), this keeps .dialog-content's own scrolling intact. */
+.dialog-content.portal-dialog-wide {
+  max-width: 640px;
+}
+
+/* ========================================
+   TOOLBAR & FILTER CHIPS
+   ======================================== */
+
+.portal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.portal-chiprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.portal-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-11);
+  padding: 0 var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-colors), box-shadow var(--duration-150) var(--ease-in-out);
+}
+
+.portal-filter-chip:hover {
+  border-color: var(--color-primary-300);
+  color: var(--color-primary);
+}
+
+.portal-filter-chip:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.portal-filter-chip.is-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+  box-shadow: var(--shadow-primary);
+}
+
+.portal-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--spacing-6);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.portal-filter-chip.is-active .portal-filter-count {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--color-white);
+}
+
+/* ========================================
+   STATES (empty / error / no results)
+   ======================================== */
+
+.portal-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-16) var(--spacing-6);
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+.portal-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-14);
+  height: var(--spacing-14);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-50);
+  color: var(--color-primary-400);
+}
+
+.portal-state-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.portal-state-message {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: var(--narrow-max-width);
+}
+
+/* Inline save errors inside portal editors. */
+.portal-editor-error {
+  margin: var(--spacing-2) 0 0;
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  background: var(--color-error-light);
+  color: var(--color-error-dark);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 600px) {
+  .portal-shortcut {
+    min-height: 0;
+  }
+
+  .portal-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Hover lift is meaningless on touch; a press response is not. */
+@media (hover: none) {
+  .portal-shortcut:hover {
+    transform: none;
+  }
+
+  .portal-shortcut:active {
+    transform: scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-shortcut:hover {
+    transform: none;
+  }
+
+  .portal-shortcut:hover .portal-shortcut-arrow {
+    transform: none;
+  }
+}

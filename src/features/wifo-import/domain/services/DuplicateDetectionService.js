@@ -1,6 +1,12 @@
 /**
  * Domain Service: DuplicateDetectionService
- * Detects duplicate entries during WIFO import
+ * Detects duplicate entries during WIFO import.
+ *
+ * A contract number alone is NOT a duplicate signal: Bestandsprovisionen
+ * recur monthly for the same contract, so every follow-up settlement run
+ * legitimately repeats the contract numbers of the previous one. Duplicates
+ * are therefore detected via the row fingerprint (which includes the WIFO
+ * Lauf) and via contract + date + amount coincidence.
  */
 
 import { Logger } from '../../../../core/utils/logger.js';
@@ -22,144 +28,126 @@ export class DuplicateDetectionService {
     this.#existingEntries = entries;
     this.#entryIndex.clear();
 
-    let contractKeys = 0;
-    let sourceKeys = 0;
-    let amountKeys = 0;
-
     for (const entry of entries) {
-      // Primary key: contract number + employee
       if (entry.contractNumber) {
-        const contractKey = this.#createContractKey(
-          entry.contractNumber,
-          entry.employeeId
+        this.#addToIndex(
+          this.#createContractKey(entry.contractNumber, entry.employeeId),
+          entry
         );
-        if (!this.#entryIndex.has(contractKey)) {
-          this.#entryIndex.set(contractKey, []);
-        }
-        this.#entryIndex.get(contractKey).push(entry);
-        contractKeys++;
       }
 
-      // Secondary key: source reference (for WIFO imported entries)
       const json = entry.toJSON ? entry.toJSON() : entry;
       if (json.sourceReference) {
-        const sourceKey = this.#createSourceKey(json.sourceReference, entry.employeeId);
-        if (!this.#entryIndex.has(sourceKey)) {
-          this.#entryIndex.set(sourceKey, []);
-        }
-        this.#entryIndex.get(sourceKey).push(entry);
-        sourceKeys++;
+        this.#addToIndex(this.#createSourceKey(json.sourceReference), entry);
       }
 
-      // Tertiary key: date + amount + employee (for fuzzy duplicate detection)
-      const amountKey = this.#createAmountKey(
-        entry.entryDate || entry.createdAt,
-        entry.provisionAmount,
-        entry.employeeId
+      this.#addToIndex(
+        this.#createAmountKey(
+          entry.entryDate || entry.createdAt,
+          entry.provisionAmount,
+          entry.employeeId
+        ),
+        entry
       );
-      if (!this.#entryIndex.has(amountKey)) {
-        this.#entryIndex.set(amountKey, []);
-      }
-      this.#entryIndex.get(amountKey).push(entry);
-      amountKeys++;
     }
 
-    Logger.log(`✓ Built duplicate index: ${contractKeys} contract keys, ${sourceKeys} source keys, ${amountKeys} amount keys`);
-    Logger.log(`   Total unique keys in index: ${this.#entryIndex.size}`);
+    Logger.log(`✓ Built duplicate index over ${entries.length} entries (${this.#entryIndex.size} keys)`);
+  }
+
+  #addToIndex(key, entry) {
+    if (!this.#entryIndex.has(key)) {
+      this.#entryIndex.set(key, []);
+    }
+    this.#entryIndex.get(key).push(entry);
   }
 
   /**
    * Check if a WIFO record is a potential duplicate
-   * @param {WIFOImportRecord} record - The record to check
+   * @param {Object} record - Record fields incl. fingerprint, art and mappedEmployeeId
    * @returns {{isDuplicate: boolean, duplicateType: string|null, existingEntry: Object|null, confidence: number}}
    */
-  #debugLogCount = 0;
-
   checkDuplicate(record) {
     if (!record.mappedEmployeeId) {
       return { isDuplicate: false, duplicateType: null, existingEntry: null, confidence: 0 };
     }
 
-    const shouldLog = this.#debugLogCount < 3; // Only log first 3 records
-    if (shouldLog) {
-      this.#debugLogCount++;
-      Logger.log(`🔍 Checking duplicate for record:`, {
-        vertrag: record.vertrag,
-        mappedEmployeeId: record.mappedEmployeeId,
-        datum: record.datum,
-        netto: record.netto,
-      });
-    }
-
-    // Check 1: Exact contract/vertrag match (highest confidence)
-    const vertragId = record.vertrag || record.vertragId;
-    if (vertragId) {
-      const sourceKey = this.#createSourceKey(vertragId, record.mappedEmployeeId);
-      const sourceMatches = this.#entryIndex.get(sourceKey);
-
-      if (shouldLog) {
-        Logger.log(`   Source key: ${sourceKey}, matches: ${sourceMatches?.length || 0}`);
-      }
-
+    // Check 1: Row fingerprint — the same WIFO row was imported before
+    // (re-uploaded file or overlapping export). Not scoped to the employee,
+    // so a corrected agent mapping cannot hide a re-import.
+    if (record.fingerprint) {
+      const sourceMatches = this.#entryIndex.get(this.#createSourceKey(record.fingerprint));
       if (sourceMatches && sourceMatches.length > 0) {
-        Logger.log(`   ✓ DUPLICATE FOUND (source match)`);
         return {
           isDuplicate: true,
-          duplicateType: 'exact_contract',
+          duplicateType: 'exact_import',
           existingEntry: this.#entryToSummary(sourceMatches[0]),
           confidence: 1.0,
         };
       }
     }
 
-    // Check 2: Contract number match
-    if (vertragId) {
-      const contractKey = this.#createContractKey(vertragId, record.mappedEmployeeId);
-      const contractMatches = this.#entryIndex.get(contractKey);
+    const vertragId = record.vertrag || record.vertragId;
 
-      if (shouldLog) {
-        Logger.log(`   Contract key: ${contractKey}, matches: ${contractMatches?.length || 0}`);
-      }
-
-      if (contractMatches && contractMatches.length > 0) {
-        Logger.log(`   ✓ DUPLICATE FOUND (contract match)`);
-        return {
-          isDuplicate: true,
-          duplicateType: 'contract_match',
-          existingEntry: this.#entryToSummary(contractMatches[0]),
-          confidence: 0.95,
-        };
-      }
-    }
-
-    // Check 3: Same date + amount + employee (potential duplicate)
+    // Check 2: Same date + amount for the employee. Together with a matching
+    // contract number this is a near-certain duplicate; with only a similar
+    // customer name it is still treated as one.
     if (record.datum && record.netto !== null) {
       const amountKey = this.#createAmountKey(record.datum, record.netto, record.mappedEmployeeId);
-      const amountMatches = this.#entryIndex.get(amountKey);
+      const amountMatches = this.#entryIndex.get(amountKey) || [];
 
-      if (amountMatches && amountMatches.length > 0) {
-        // Further verification: check customer name similarity
-        for (const match of amountMatches) {
-          const nameSimilarity = this.#calculateNameSimilarity(
-            record.kundeName || record.kundeVorname,
-            match.customerName
-          );
+      for (const match of amountMatches) {
+        const sameContract =
+          vertragId &&
+          match.contractNumber &&
+          this.#normalize(match.contractNumber) === this.#normalize(vertragId);
 
-          if (nameSimilarity > 0.7) {
-            return {
-              isDuplicate: true,
-              duplicateType: 'amount_date_match',
-              existingEntry: this.#entryToSummary(match),
-              confidence: 0.8 + nameSimilarity * 0.15, // Max 0.95
-            };
-          }
+        if (sameContract) {
+          return {
+            isDuplicate: true,
+            duplicateType: 'contract_date_amount',
+            existingEntry: this.#entryToSummary(match),
+            confidence: 0.98,
+          };
         }
 
+        const nameSimilarity = this.#calculateNameSimilarity(
+          record.kundeName || record.kundeVorname,
+          match.customerName
+        );
+        if (nameSimilarity > 0.7) {
+          return {
+            isDuplicate: true,
+            duplicateType: 'amount_date_match',
+            existingEntry: this.#entryToSummary(match),
+            confidence: 0.8 + nameSimilarity * 0.15, // Max 0.95
+          };
+        }
+      }
+
+      if (amountMatches.length > 0) {
         // Date + amount match but different customer - still flag as potential
         return {
           isDuplicate: false,
           duplicateType: 'potential_duplicate',
           existingEntry: this.#entryToSummary(amountMatches[0]),
+          confidence: 0.6,
+        };
+      }
+    }
+
+    // Check 3: Abschlussprovision for a contract that already has an entry.
+    // AP is a one-time commission, so a repeated contract is suspicious there
+    // — unlike recurring Bestandsprovisionen, which repeat by design.
+    const isInitialCommission = (record.art || '').toUpperCase().startsWith('AP');
+    if (isInitialCommission && vertragId) {
+      const contractMatches = this.#entryIndex.get(
+        this.#createContractKey(vertragId, record.mappedEmployeeId)
+      );
+      if (contractMatches && contractMatches.length > 0) {
+        return {
+          isDuplicate: false,
+          duplicateType: 'repeated_initial_commission',
+          existingEntry: this.#entryToSummary(contractMatches[0]),
           confidence: 0.6,
         };
       }
@@ -224,13 +212,16 @@ export class DuplicateDetectionService {
   }
 
   /**
-   * Create source reference lookup key
-   * @param {string} sourceRef - Source reference (WIFO vertrag ID)
-   * @param {string} employeeId - Employee ID
+   * Create source reference lookup key (row fingerprint, employee-independent)
+   * @param {string} sourceRef - Source reference (WIFO row fingerprint)
    * @returns {string}
    */
-  #createSourceKey(sourceRef, employeeId) {
-    return `source:${(sourceRef || '').toString().toLowerCase().trim()}:${employeeId}`;
+  #createSourceKey(sourceRef) {
+    return `source:${this.#normalize(sourceRef)}`;
+  }
+
+  #normalize(value) {
+    return (value ?? '').toString().toLowerCase().trim();
   }
 
   /**

@@ -1,0 +1,316 @@
+/**
+ * Topic Manager
+ *
+ * Admin dialog for the topic catalogs of knowledge base and learning library
+ * (.topicmgr-*), plus the manage chip that opens it from the filter row.
+ * Tints reference the portal hue/tint tokens from portal-hub.css so a topic's
+ * colors here match its chips, emblems and thumbs exactly.
+ */
+
+/* ========================================
+   MANAGE CHIP (in the filter row)
+   ======================================== */
+
+.portal-filter-chip--manage {
+  border-style: dashed;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.portal-filter-chip--manage:hover {
+  border-style: solid;
+}
+
+/* ========================================
+   DIALOG FRAME
+   ======================================== */
+
+.topicmgr-intro {
+  margin: var(--spacing-2) 0 var(--spacing-5);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.topicmgr-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.topicmgr-actions {
+  margin-top: var(--spacing-5);
+}
+
+/* ========================================
+   TOPIC ROW
+   ======================================== */
+
+.topicmgr-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.topicmgr-row.is-invalid {
+  border-color: var(--color-error);
+}
+
+.topicmgr-reorder {
+  display: flex;
+  flex-direction: column;
+}
+
+.topicmgr-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-7);
+  height: var(--spacing-6);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.topicmgr-tool:hover:not(:disabled) {
+  background: var(--color-slate-100);
+  color: var(--color-primary);
+}
+
+.topicmgr-tool:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 1px;
+}
+
+.topicmgr-tool:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.topicmgr-disc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--spacing-10);
+  height: var(--spacing-10);
+  border-radius: var(--radius-full);
+}
+
+.topicmgr-disc--blue   { background: var(--portal-tint-blue);   color: var(--portal-hue-blue); }
+.topicmgr-disc--gold   { background: var(--portal-tint-gold);   color: var(--portal-hue-gold); }
+.topicmgr-disc--green  { background: var(--portal-tint-green);  color: var(--portal-hue-green); }
+.topicmgr-disc--purple { background: var(--portal-tint-purple); color: var(--portal-hue-purple); }
+.topicmgr-disc--teal   { background: var(--portal-tint-teal);   color: var(--portal-hue-teal); }
+.topicmgr-disc--slate  { background: var(--portal-tint-slate);  color: var(--portal-hue-slate); }
+
+.topicmgr-rowmain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  min-width: 0;
+  flex: 1;
+}
+
+.topicmgr-rowlabel {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topicmgr-rowmeta {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-muted);
+}
+
+.topicmgr-rowactions {
+  display: flex;
+  gap: var(--spacing-1);
+}
+
+.topicmgr-rowactions .topicmgr-tool {
+  width: var(--spacing-9);
+  height: var(--spacing-9);
+}
+
+/* ========================================
+   INLINE EDITOR
+   ======================================== */
+
+.topicmgr-editor {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  border-color: var(--color-primary-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.topicmgr-editor-head {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.topicmgr-field {
+  flex: 1;
+  min-width: 0;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}
+
+.topicmgr-choicegroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.topicmgr-choicetitle {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.topicmgr-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.topicmgr-swatch {
+  width: var(--spacing-7);
+  height: var(--spacing-7);
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: transform var(--duration-150) var(--ease-in-out), box-shadow var(--duration-150) var(--ease-in-out);
+}
+
+.topicmgr-swatch--blue   { background: var(--portal-hue-blue); }
+.topicmgr-swatch--gold   { background: var(--portal-hue-gold); }
+.topicmgr-swatch--green  { background: var(--portal-hue-green); }
+.topicmgr-swatch--purple { background: var(--portal-hue-purple); }
+.topicmgr-swatch--teal   { background: var(--portal-hue-teal); }
+.topicmgr-swatch--slate  { background: var(--portal-hue-slate); }
+
+.topicmgr-swatch:hover {
+  transform: scale(1.1);
+}
+
+.topicmgr-swatch.is-selected {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary);
+}
+
+.topicmgr-swatch:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.topicmgr-iconchoice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-10);
+  height: var(--spacing-10);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.topicmgr-iconchoice:hover {
+  border-color: var(--color-primary-300);
+  color: var(--color-primary);
+}
+
+.topicmgr-iconchoice:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 1px;
+}
+
+.topicmgr-iconchoice.is-selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+/* ========================================
+   ADD BUTTON
+   ======================================== */
+
+.topicmgr-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  width: 100%;
+  min-height: var(--spacing-11);
+  margin-top: var(--spacing-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.topicmgr-add:hover:not(:disabled) {
+  border-color: var(--color-primary-300);
+  border-style: solid;
+  color: var(--color-primary);
+}
+
+.topicmgr-add:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.topicmgr-add:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ========================================
+   TOUCH & MOTION
+   ======================================== */
+
+@media (pointer: coarse) {
+  .topicmgr-tool,
+  .topicmgr-swatch,
+  .topicmgr-iconchoice {
+    min-width: var(--spacing-11);
+    min-height: var(--spacing-11);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topicmgr-swatch:hover {
+    transform: none;
+  }
+}

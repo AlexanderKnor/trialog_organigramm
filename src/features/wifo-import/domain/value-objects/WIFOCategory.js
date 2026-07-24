@@ -62,6 +62,22 @@ export class WIFOCategory {
       return upper;
     }
 
+    // WIFO Sparten codes seen in real Courtageabrechnungen. Exact matches
+    // only — short codes like "HR" must not be substring-matched.
+    const codeMap = {
+      'PHV': WIFO_CATEGORY.SHU, // Privathaftpflicht
+      'HR': WIFO_CATEGORY.SHU, // Hausrat
+      'UV': WIFO_CATEGORY.SHU, // Unfall
+      'WGV': WIFO_CATEGORY.SHU, // Wohngebäude
+      'GHV': WIFO_CATEGORY.SHU, // Gebäude-/Gewässerschadenhaftpflicht
+      'GLAS': WIFO_CATEGORY.SHU, // Glasversicherung
+      'GSV': WIFO_CATEGORY.SHU, // Gewässerschaden
+      'H-KV': WIFO_CATEGORY.PKV, // Krankenversicherung (Zusatz)
+    };
+    if (codeMap[upper]) {
+      return codeMap[upper];
+    }
+
     // Common aliases and variations
     const aliasMap = {
       'PRIVATE KRANKENVERSICHERUNG': WIFO_CATEGORY.PKV,

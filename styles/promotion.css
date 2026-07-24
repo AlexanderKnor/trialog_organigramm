@@ -1,0 +1,545 @@
+/**
+ * Promotion & Marketing
+ *
+ * Campaign hero on the lit navy surface, gold CTA, material shelves.
+ * .promo-* namespace; shared portal chrome lives in portal-hub.css.
+ */
+
+/* ========================================
+   SECTION STRUCTURE
+   ======================================== */
+
+.promo-campaigns,
+.promo-resources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.promo-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+
+.promo-section-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.promo-subsection-title {
+  margin-top: var(--spacing-2);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wider);
+  text-transform: uppercase;
+  color: var(--color-slate-text-muted);
+}
+
+/* ========================================
+   CAMPAIGN HERO
+   ======================================== */
+
+.promo-hero {
+  display: flex;
+  gap: var(--spacing-5);
+  padding: var(--spacing-8);
+  border-radius: var(--radius-2xl);
+  background: var(--gradient-navy-surface);
+  box-shadow: var(--shadow-navy-raised);
+  color: var(--color-white);
+  position: relative;
+  overflow: hidden;
+}
+
+.promo-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 50% 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+}
+
+.promo-hero-emblem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-14);
+  height: var(--spacing-14);
+  flex-shrink: 0;
+  border-radius: var(--radius-xl);
+  background: rgba(212, 168, 83, 0.16);
+  border: 1px solid rgba(212, 168, 83, 0.35);
+  color: var(--color-accent-light);
+  position: relative;
+}
+
+.promo-hero-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  position: relative;
+  min-width: 0;
+}
+
+.promo-hero-kicker {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-widest);
+  text-transform: uppercase;
+  color: var(--color-accent-light);
+}
+
+.promo-hero-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-tight);
+  /* base.css paints headings navy; on the navy hero that is invisible. */
+  color: var(--color-white);
+}
+
+/* The flex gap owns the rhythm here; base.css paragraph margins would double it. */
+.promo-hero-focus,
+.promo-hero-description,
+.promo-hero-meta {
+  margin: 0;
+}
+
+.promo-hero-focus {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.promo-hero-description {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.78);
+  line-height: var(--line-height-relaxed);
+  white-space: pre-wrap;
+  max-width: var(--narrow-max-width);
+}
+
+.promo-hero-meta {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.promo-hero-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-3);
+}
+
+.promo-hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--spacing-11);
+  padding: 0 var(--spacing-6);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-primary);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+  box-shadow: var(--shadow-accent);
+  transition:
+    background var(--duration-150) var(--ease-in-out),
+    transform var(--duration-200) var(--ease-out);
+}
+
+.promo-hero-cta:hover {
+  background: var(--color-accent-light);
+  transform: translateY(-1px);
+}
+
+.promo-hero-cta:focus-visible {
+  outline: 2px solid var(--color-white);
+  outline-offset: 2px;
+}
+
+.promo-hero-admin {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+/* Admin icon buttons inside the hero sit on navy and need the light treatment. */
+.promo-hero-admin .promo-icon-btn {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-white);
+}
+
+.promo-hero-admin .promo-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--color-white);
+}
+
+/* ========================================
+   CAMPAIGN ROWS (upcoming / ended)
+   ======================================== */
+
+.promo-campaign-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.promo-campaign-row--ended {
+  opacity: 0.65;
+}
+
+.promo-campaign-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+.promo-campaign-row-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.promo-campaign-row-meta {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-slate-text-muted);
+}
+
+.promo-campaign-row-admin {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+/* ========================================
+   MATERIAL SHELVES
+   ======================================== */
+
+.promo-kind-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-4);
+}
+
+.promo-kind-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-5) var(--spacing-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.promo-kind-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+}
+
+.promo-kind-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-11);
+  height: var(--spacing-11);
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+}
+
+.promo-kind-card--blue .promo-kind-icon   { background: var(--portal-tint-blue);   color: var(--portal-hue-blue); }
+.promo-kind-card--gold .promo-kind-icon   { background: var(--portal-tint-gold);   color: var(--portal-hue-gold); }
+.promo-kind-card--green .promo-kind-icon  { background: var(--portal-tint-green);  color: var(--portal-hue-green); }
+.promo-kind-card--purple .promo-kind-icon { background: var(--portal-tint-purple); color: var(--portal-hue-purple); }
+
+.promo-kind-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.promo-kind-title {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.promo-kind-description {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-normal);
+}
+
+.promo-kind-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--spacing-7);
+  height: var(--spacing-7);
+  padding: 0 var(--spacing-2);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-50);
+  color: var(--color-primary);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.promo-kind-empty {
+  margin: 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-slate-text-muted);
+}
+
+.promo-resource-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.promo-resource-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.promo-resource-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  flex: 1;
+  min-width: 0;
+  padding: var(--spacing-3) var(--spacing-2);
+  margin: 0 calc(-1 * var(--spacing-2));
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  position: relative;
+  transition: background var(--duration-150) var(--ease-in-out);
+}
+
+.promo-resource-link:hover {
+  background: var(--color-off-white);
+}
+
+.promo-resource-link:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: -2px;
+}
+
+.promo-resource-link > svg {
+  position: absolute;
+  right: var(--spacing-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-slate-400);
+}
+
+.promo-resource-title {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  padding-right: var(--spacing-8);
+}
+
+.promo-resource-description {
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding-right: var(--spacing-8);
+}
+
+.promo-resource-admin {
+  display: flex;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+}
+
+/* ========================================
+   SHARED ICON BUTTON
+   ======================================== */
+
+.promo-icon-btn {
+  width: var(--spacing-8);
+  height: var(--spacing-8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-gray-600);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.promo-icon-btn:hover {
+  border-color: var(--color-primary-300);
+  color: var(--color-primary);
+}
+
+.promo-icon-btn:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+/* ========================================
+   EDITOR
+   ======================================== */
+
+.promo-editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-4);
+}
+
+/* ========================================
+   COMING SOON (launch gate)
+   ======================================== */
+
+.promo-coming {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-10) var(--spacing-8);
+  border-radius: var(--radius-2xl);
+  background: var(--gradient-navy-surface);
+  box-shadow: var(--shadow-navy-raised);
+  color: var(--color-white);
+}
+
+.promo-coming-watermark {
+  position: absolute;
+  right: calc(-1 * var(--spacing-10));
+  bottom: calc(-1 * var(--spacing-12));
+  color: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.promo-coming-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wider);
+  text-transform: uppercase;
+  color: var(--color-accent-light);
+}
+
+.promo-coming-title {
+  margin: 0;
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  /* base.css headings are navy; on the navy card that is invisible. */
+  color: var(--color-white);
+}
+
+.promo-coming-text {
+  margin: 0;
+  max-width: var(--narrow-max-width);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-md);
+  color: rgba(255, 255, 255, 0.85);
+  line-height: var(--line-height-relaxed);
+}
+
+.promo-coming-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+}
+
+.promo-coming-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.promo-coming-note {
+  margin: var(--spacing-2) 0 0;
+  font-family: var(--font-family-secondary);
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 900px) {
+  .promo-kind-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .promo-hero {
+    flex-direction: column;
+    padding: var(--spacing-6) var(--spacing-5);
+  }
+
+  .promo-coming {
+    padding: var(--spacing-6) var(--spacing-5);
+  }
+
+  .promo-editor-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-hero-cta:hover {
+    transform: none;
+  }
+}

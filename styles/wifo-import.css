@@ -746,6 +746,27 @@
   color: #ef4444;
 }
 
+.wifo-result-batchid {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: -1rem 0 1.5rem;
+}
+
+.wifo-result-batchid code {
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.8125rem;
+  color: #1e293b;
+  user-select: all;
+}
+
+.wifo-result-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
 /* ============================================
    Import Overlay - Elegant Loading Animation
    ============================================ */

@@ -12,6 +12,7 @@
 .app-header .header-left {
   display: flex;
   align-items: center;
+  gap: var(--spacing-2);
   justify-self: start;
   min-width: 0;
 }
