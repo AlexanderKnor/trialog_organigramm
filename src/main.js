@@ -46,6 +46,7 @@ import { FirebasePromotionRepository } from './features/promotion/data/repositor
 import { PromotionService } from './features/promotion/domain/services/PromotionService.js';
 import { PromotionScreen } from './features/promotion/presentation/screens/PromotionScreen.js';
 import { HomeScreen } from './features/home/presentation/screens/index.js';
+import { IntranetShell } from './shared/presentation/IntranetShell.js';
 import { APP_CONFIG } from './core/config/index.js';
 import { FIRESTORE_COLLECTIONS } from './core/config/firebase.config.js';
 import { Logger } from './core/utils/logger.js';
@@ -60,6 +61,7 @@ class Application {
   #learningLibraryService;
   #videoTopicService;
   #promotionService;
+  #shell;
   #currentScreen;
   #loginScreen;
   #currentTreeId;
@@ -69,6 +71,7 @@ class Application {
   constructor() {
     this.#isInitialized = false;
     this.#isAuthenticated = false;
+    this.#shell = null;
     this.#currentScreen = null;
     this.#loginScreen = null;
     this.#currentTreeId = null;
@@ -251,6 +254,9 @@ class Application {
 
     this.#isAuthenticated = true;
 
+    // Mount the persistent intranet shell; screens render into its content area
+    this.#ensureShell();
+
     // NOW navigate to main app (after linking is complete)
     if (!window.location.hash) {
       window.location.hash = '';
@@ -335,8 +341,30 @@ class Application {
       this.#currentScreen = null;
     }
 
+    // Tear down the shell so the next login rebuilds it for the new user/role
+    if (this.#shell) {
+      this.#shell.destroy();
+      this.#shell = null;
+    }
+
     // Show login screen
     this.#showLoginScreen();
+  }
+
+  /** Mount the intranet frame once per session; the router reuses it. */
+  #ensureShell() {
+    if (this.#shell) {
+      return;
+    }
+
+    const appContainer = document.querySelector('#app');
+    if (!appContainer) {
+      return;
+    }
+
+    appContainer.innerHTML = '';
+    this.#shell = new IntranetShell();
+    appContainer.appendChild(this.#shell.element);
   }
 
   #showLoginScreen() {
@@ -398,7 +426,6 @@ class Application {
   async #handleRoute() {
     const hash = window.location.hash.slice(1);
     const parts = hash.split('/');
-    const appContainer = document.querySelector('#app');
 
     // SECURITY GUARD: Verify user still exists before showing ANY screen
     const isUserValid = await authService.verifyCurrentUser();
@@ -406,6 +433,11 @@ class Application {
       Logger.error('🔒 SECURITY: User verification failed - redirecting to login');
       this.#hideTransitionOverlay();
       return; // Auth state change will trigger login screen
+    }
+
+    // Routing only runs inside the mounted intranet shell
+    if (!this.#shell) {
+      return;
     }
 
     // Show loading overlay instantly
@@ -419,6 +451,9 @@ class Application {
       this.#currentScreen.unmount();
       this.#currentScreen = null;
     }
+
+    // Update the shell frame (nav highlight, page head, flush mode)
+    this.#shell.setPage(this.#pageMetaFor(parts));
 
     // Mount new screen (data loading happens here)
     if (parts[0] === 'revenue' && parts[1] && parts[2]) {
@@ -446,6 +481,78 @@ class Application {
 
     // Remove loading overlay with smooth fade
     this.#hideTransitionOverlay();
+  }
+
+  /**
+   * Frame configuration per route. Legacy full-screen views (org, revenue,
+   * catalog, profile) run flush and bring their own page chrome; the portal
+   * content views get the intranet page head.
+   */
+  #pageMetaFor(parts) {
+    switch (parts[0]) {
+      case 'revenue':
+        return { active: 'org', flush: true };
+      case 'catalog':
+        return { active: 'catalog', flush: true };
+      case 'profile':
+        return { active: 'profile', flush: true };
+      case 'org':
+        return { active: 'org', flush: true };
+      case 'knowledge':
+        return {
+          active: 'knowledge',
+          title: 'Trialog Wiki',
+          subtitle: 'Leitfäden, Vorlagen, Prozesse und FAQs',
+        };
+      case 'videos':
+        return {
+          active: 'videos',
+          title: 'Akademie',
+          subtitle: 'Onboarding, Vertriebswissen und Produktschulungen als Videos',
+        };
+      case 'promotion':
+        return {
+          active: 'promotion',
+          title: 'Promotion',
+          subtitle: 'Marketing-Materialien, Kampagnen und Vorlagen',
+        };
+      default:
+        return {
+          active: 'home',
+          eyebrow: 'Willkommen zurück',
+          title: `${this.#greeting()}, ${this.#greetingName()}`,
+          subtitle: 'Ihr zentraler Zugang zu Wissen, Lernen und Vertrieb.',
+        };
+    }
+  }
+
+  #greeting() {
+    const hour = new Date().getHours();
+
+    if (hour < 11) return 'Guten Morgen';
+    if (hour < 18) return 'Guten Tag';
+    return 'Guten Abend';
+  }
+
+  /** "alexander-knor" as a greeting reads like a login, not a welcome. */
+  #greetingName() {
+    const user = authService.getCurrentUser();
+
+    if (user?.displayName) {
+      return user.displayName;
+    }
+
+    const localPart = (user?.email || '').split('@')[0];
+
+    if (!localPart) {
+      return 'im Portal';
+    }
+
+    return localPart
+      .split(/[._-]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
 
   #showTransitionOverlay() {
@@ -482,7 +589,7 @@ class Application {
     }
 
     this.#currentScreen = new HomeScreen(
-      '#app',
+      this.#shell.contentElement,
       this.#hierarchyService,
       this.#revenueService,
     );
@@ -498,7 +605,7 @@ class Application {
     }
 
     this.#currentScreen = new KnowledgeBaseScreen(
-      '#app',
+      this.#shell.contentElement,
       this.#articleService,
       this.#articleTopicService
     );
@@ -514,7 +621,7 @@ class Application {
     }
 
     this.#currentScreen = new LearningLibraryScreen(
-      '#app',
+      this.#shell.contentElement,
       this.#learningLibraryService,
       this.#videoTopicService
     );
@@ -529,7 +636,10 @@ class Application {
       return;
     }
 
-    this.#currentScreen = new PromotionScreen('#app', this.#promotionService);
+    this.#currentScreen = new PromotionScreen(
+      this.#shell.contentElement,
+      this.#promotionService
+    );
     await this.#currentScreen.mount();
   }
 
@@ -541,7 +651,12 @@ class Application {
       return;
     }
 
-    this.#currentScreen = new HierarchyScreen('#app', this.#hierarchyService, this.#revenueService, this.#profileService);
+    this.#currentScreen = new HierarchyScreen(
+      this.#shell.contentElement,
+      this.#hierarchyService,
+      this.#revenueService,
+      this.#profileService
+    );
     await this.#currentScreen.mount();
   }
 
@@ -564,7 +679,7 @@ class Application {
     }
 
     this.#currentScreen = new RevenueScreen(
-      '#app',
+      this.#shell.contentElement,
       this.#revenueService,
       this.#hierarchyService,
       employeeId,
@@ -582,7 +697,10 @@ class Application {
       return;
     }
 
-    this.#currentScreen = new CatalogManagementScreen('#app', this.#catalogService);
+    this.#currentScreen = new CatalogManagementScreen(
+      this.#shell.contentElement,
+      this.#catalogService
+    );
     await this.#currentScreen.mount();
   }
 
@@ -595,7 +713,11 @@ class Application {
     }
 
     const currentUser = authService.getCurrentUser();
-    this.#currentScreen = new ProfileScreen('#app', this.#profileService, currentUser.uid);
+    this.#currentScreen = new ProfileScreen(
+      this.#shell.contentElement,
+      this.#profileService,
+      currentUser.uid
+    );
     await this.#currentScreen.mount();
   }
 

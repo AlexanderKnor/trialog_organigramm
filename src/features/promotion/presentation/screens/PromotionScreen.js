@@ -11,7 +11,6 @@
 import { createElement, clearElement } from '../../../../core/utils/index.js';
 import { authService } from '../../../../core/auth/index.js';
 import { Logger } from '../../../../core/utils/logger.js';
-import { PortalShell } from '../../../../shared/presentation/PortalShell.js';
 import { Button } from '../../../hierarchy-tracking/presentation/components/atoms/Button.js';
 import { Icon } from '../../../hierarchy-tracking/presentation/components/atoms/Icon.js';
 import { getAllResourceKinds } from '../../domain/value-objects/ResourceKind.js';
@@ -38,7 +37,6 @@ const formatDate = (iso) =>
 export class PromotionScreen {
   #container;
   #promotionService;
-  #shell = null;
   #campaignHost;
   #resourceHost;
   #board = { active: [], upcoming: [], ended: [], today: '' };
@@ -56,15 +54,7 @@ export class PromotionScreen {
     clearElement(this.#container);
 
     if (UNDER_CONSTRUCTION) {
-      this.#shell = new PortalShell({
-        active: 'promotion',
-        title: 'Promotion & Marketing',
-        subtitle: 'Aktuelle Kampagnen und Sales-Materialien',
-        backBar: { title: 'Promotion' },
-      });
-
-      this.#shell.contentElement.appendChild(this.#createComingSoon());
-      this.#container.appendChild(this.#shell.element);
+      this.#container.appendChild(this.#createComingSoon());
       return;
     }
 
@@ -134,16 +124,12 @@ export class PromotionScreen {
     this.#renderCampaigns();
     this.#renderResources();
 
-    this.#shell = new PortalShell({
-      active: 'promotion',
-      title: 'Promotion & Marketing',
-      subtitle: 'Aktuelle Kampagnen und Sales-Materialien',
-      backBar: { title: 'Promotion' },
-    });
-
-    this.#shell.contentElement.append(this.#campaignHost, this.#resourceHost);
-
-    return this.#shell.element;
+    // The persistent IntranetShell owns the frame and page head; the screen
+    // only renders its content column.
+    return createElement('div', { className: 'promo-screen' }, [
+      this.#campaignHost,
+      this.#resourceHost,
+    ]);
   }
 
   // ========================================
@@ -556,7 +542,6 @@ export class PromotionScreen {
   }
 
   unmount() {
-    this.#shell?.destroy();
-    this.#shell = null;
+    clearElement(this.#container);
   }
 }

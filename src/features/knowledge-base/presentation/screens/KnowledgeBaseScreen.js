@@ -1,18 +1,17 @@
 /**
  * Screen: KnowledgeBaseScreen
- * The knowledge area of the portal: the editorial article library, full width.
+ * The knowledge area of the intranet: the editorial article library, rendered
+ * inside the persistent IntranetShell (which owns the frame and page head).
  */
 
 import { clearElement } from '../../../../core/utils/index.js';
 import { Logger } from '../../../../core/utils/logger.js';
-import { PortalShell } from '../../../../shared/presentation/PortalShell.js';
 import { ArticleLibraryPanel } from '../components/organisms/ArticleLibraryPanel.js';
 
 export class KnowledgeBaseScreen {
   #container;
   #articleService;
   #topicService;
-  #shell = null;
   #articlePanel = null;
 
   constructor(container, articleService, topicService) {
@@ -36,20 +35,11 @@ export class KnowledgeBaseScreen {
       Logger.error('Failed to initialize article library:', error);
     }
 
-    this.#shell = new PortalShell({
-      active: 'knowledge',
-      title: 'Wissensdatenbank',
-      subtitle: 'Leitfäden, Vorlagen, Prozesse und FAQs',
-      backBar: { title: 'Wissensdatenbank' },
-    });
-
-    this.#shell.contentElement.appendChild(this.#articlePanel.element);
-    this.#container.appendChild(this.#shell.element);
+    this.#container.appendChild(this.#articlePanel.element);
   }
 
   unmount() {
     this.#articlePanel?.destroy();
-    this.#shell?.destroy();
-    this.#shell = null;
+    clearElement(this.#container);
   }
 }

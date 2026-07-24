@@ -10,7 +10,6 @@
 import { createElement, clearElement } from '../../../../core/utils/index.js';
 import { authService } from '../../../../core/auth/index.js';
 import { Logger } from '../../../../core/utils/logger.js';
-import { PortalShell } from '../../../../shared/presentation/PortalShell.js';
 import { Button } from '../../../hierarchy-tracking/presentation/components/atoms/Button.js';
 import { Icon } from '../../../hierarchy-tracking/presentation/components/atoms/Icon.js';
 import { KnowledgeSearchField } from '../../../knowledge-board/presentation/components/molecules/KnowledgeSearchField.js';
@@ -32,7 +31,6 @@ export class LearningLibraryScreen {
   #container;
   #libraryService;
   #topicService;
-  #shell = null;
   #gridHost;
   #chipHost;
   #videos = [];
@@ -94,16 +92,13 @@ export class LearningLibraryScreen {
     this.#renderChips();
     this.#renderGrid();
 
-    this.#shell = new PortalShell({
-      active: 'videos',
-      title: 'Lern-Videothek',
-      subtitle: 'Schulungsvideos und Produktwissen',
-      backBar: { title: 'Lern-Videothek' },
-    });
-
-    this.#shell.contentElement.append(this.#createToolbar(), this.#chipHost, this.#gridHost);
-
-    return this.#shell.element;
+    // The persistent IntranetShell owns the frame and page head; the screen
+    // only renders its content column.
+    return createElement('div', { className: 'vlib-screen' }, [
+      this.#createToolbar(),
+      this.#chipHost,
+      this.#gridHost,
+    ]);
   }
 
   #createToolbar() {
@@ -377,7 +372,6 @@ export class LearningLibraryScreen {
     this.#player.close();
     this.#topicManager?.close();
     this.#topicManager = null;
-    this.#shell?.destroy();
-    this.#shell = null;
+    clearElement(this.#container);
   }
 }
