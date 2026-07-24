@@ -1,0 +1,621 @@
+/**
+ * Intranet Shell - Trialog Intranet Design
+ * Ported from the approved intranet.html design prototype (repo root).
+ * All classes and custom properties carry the `in-` prefix so the shell can
+ * coexist with the legacy screen stylesheets (.sidebar, .nav-item, .card and
+ * friends are already taken by layout.css / components.css).
+ * The shell is mounted once by src/main.js; screens render into .in-page.
+ */
+
+:root {
+  --in-navy-900: #0d1a38;
+  --in-navy-800: #132548;
+  --in-navy-700: #1b3160;
+  --in-navy-600: #26417d;
+  --in-navy-500: #33559b;
+  --in-blue-500: #3b6fd4;
+  --in-blue-400: #5b8ae6;
+  --in-blue-100: #e7effb;
+  --in-blue-50: #f2f7fd;
+  --in-gold: #c9a24b;
+  --in-gold-soft: #f3ead4;
+  --in-green: #2f9e6b;
+  --in-green-soft: #e4f5ec;
+  --in-red: #d1495b;
+  --in-amber: #e0a43b;
+  --in-amber-soft: #fcf1dc;
+  --in-purple: #7a5cc9;
+  --in-purple-soft: #efeafb;
+  --in-teal: #0e9488;
+  --in-teal-soft: #dcf3f0;
+  --in-ink-900: #141b2b;
+  --in-ink-700: #3a4459;
+  --in-ink-500: #697389;
+  --in-ink-400: #8b93a5;
+  --in-line: #e5e9f0;
+  --in-line-soft: #eef1f6;
+  --in-bg: #f4f6fb;
+  --in-card: #ffffff;
+  --in-radius: 16px;
+  --in-radius-sm: 11px;
+  --in-shadow-sm: 0 1px 2px rgba(19, 37, 72, 0.06), 0 1px 3px rgba(19, 37, 72, 0.05);
+  --in-shadow-md: 0 6px 20px rgba(19, 37, 72, 0.09);
+  --in-shadow-lg: 0 18px 46px rgba(19, 37, 72, 0.16);
+  --in-sidebar-w: 264px;
+  --in-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --in-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
+    "Times New Roman", serif;
+}
+
+/* ========================================
+   APP FRAME
+   ======================================== */
+
+.in-app {
+  display: flex;
+  min-height: 100vh;
+  background: var(--in-bg);
+  font-family: var(--in-font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--in-ink-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Element resets stay scoped to the shell's own components - a bare
+   `.in-app button` would outrank the legacy screens' .btn classes. */
+.in-nav-item,
+.in-qa,
+.in-side-user {
+  color: inherit;
+  text-decoration: none;
+}
+
+.in-hamburger,
+.in-side-user {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+
+.in-nav-item:focus-visible,
+.in-qa:focus-visible,
+.in-hamburger:focus-visible {
+  outline: 2.5px solid var(--in-blue-500);
+  outline-offset: 2px;
+  border-radius: 9px;
+}
+
+.in-nav-item:focus-visible,
+.in-side-user:focus-visible {
+  outline-color: #9fc0ff;
+  outline-offset: -2px;
+}
+
+.in-scroll::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.in-scroll::-webkit-scrollbar-thumb {
+  background: #cdd5e2;
+  border-radius: 20px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.in-scroll::-webkit-scrollbar-thumb:hover {
+  background: #b6c0d2;
+  background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .in-app *,
+  .in-sidebar,
+  .in-overlay {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ========================================
+   SIDEBAR
+   ======================================== */
+
+.in-sidebar {
+  width: var(--in-sidebar-w);
+  background: linear-gradient(180deg, var(--in-navy-800), var(--in-navy-900));
+  color: #dfe6f2;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  inset: 0 auto 0 0;
+  height: 100vh;
+  z-index: 60;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.in-brand {
+  padding: 26px 24px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.in-brand .in-brand-mark {
+  font-family: var(--in-serif);
+  font-size: 26px;
+  letter-spacing: 2px;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.in-brand .in-brand-sub {
+  font-size: 10.5px;
+  letter-spacing: 2.5px;
+  color: #8fa3c8;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.in-nav {
+  padding: 16px 14px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.in-nav-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #7488ad;
+  padding: 14px 12px 8px;
+  font-weight: 600;
+}
+
+.in-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  color: #c2cde2;
+  font-weight: 500;
+  font-size: 14.5px;
+  position: relative;
+  transition: background 0.22s ease, color 0.22s ease, transform 0.22s ease;
+  margin-bottom: 2px;
+  cursor: pointer;
+}
+
+.in-nav-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  opacity: 0.9;
+  transition: transform 0.22s ease, opacity 0.22s ease;
+}
+
+.in-nav-item:hover {
+  background: rgba(255, 255, 255, 0.11);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+.in-nav-item:hover svg {
+  opacity: 1;
+  transform: scale(1.06);
+}
+
+.in-nav-item.active {
+  background: rgba(91, 138, 230, 0.2);
+  color: #fff;
+}
+
+.in-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 22px;
+  border-radius: 0 4px 4px 0;
+  background: var(--in-blue-400);
+}
+
+.in-side-foot {
+  padding: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.in-side-user {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  transition: 0.16s;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.in-side-user:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.in-side-user .in-user-name {
+  font-size: 13.5px;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.in-side-user .in-user-role {
+  font-size: 11.5px;
+  color: #8fa3c8;
+}
+
+/* Initials avatar - the prototype's photo avatar is replaced app-wide. */
+.in-av {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--in-blue-500), var(--in-navy-600));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+/* ========================================
+   MAIN COLUMN & TOPBAR
+   ======================================== */
+
+.in-main {
+  flex: 1;
+  margin-left: var(--in-sidebar-w);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.in-topbar {
+  height: 70px;
+  background: #fff;
+  border-bottom: 1px solid var(--in-line);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 30px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.in-hamburger {
+  display: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  align-items: center;
+  justify-content: center;
+  color: var(--in-navy-800);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.in-hamburger:hover {
+  background: var(--in-line-soft);
+}
+
+.in-search {
+  position: relative;
+  flex: 1;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--in-bg);
+  border: 1px solid var(--in-line);
+  border-radius: 12px;
+  padding: 0 14px;
+  height: 42px;
+  transition: 0.16s;
+}
+
+.in-search:focus-within {
+  border-color: var(--in-blue-400);
+  box-shadow: 0 0 0 3px var(--in-blue-100);
+}
+
+.in-search input {
+  border: none;
+  background: none;
+  outline: none;
+  flex: 1;
+  color: var(--in-ink-900);
+  font-family: inherit;
+  font-size: 14.5px;
+}
+
+.in-search input:disabled {
+  cursor: default;
+}
+
+.in-search svg {
+  width: 18px;
+  height: 18px;
+  color: var(--in-ink-400);
+  flex-shrink: 0;
+}
+
+.in-top-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ========================================
+   CONTENT AREA
+   ======================================== */
+
+.in-content {
+  padding: 30px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Full-bleed mode for legacy full-screen views (org chart, revenue, catalog,
+   profile) that bring their own headers and page chrome. */
+.in-content.in-content--flush {
+  padding: 0;
+  max-width: none;
+  margin: 0;
+}
+
+.in-page {
+  animation: inFade 0.35s ease;
+  flex: 1;
+  min-width: 0;
+}
+
+@keyframes inFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.in-page-head {
+  margin-bottom: 24px;
+}
+
+.in-page-head h1 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--in-ink-900);
+}
+
+.in-page-head p {
+  color: var(--in-ink-500);
+  margin-top: 4px;
+  font-size: 14.5px;
+}
+
+.in-eyebrow {
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--in-blue-500);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* ========================================
+   CARDS & DASHBOARD BUILDING BLOCKS
+   ======================================== */
+
+.in-card {
+  background: var(--in-card);
+  border: 1px solid var(--in-line);
+  border-radius: var(--in-radius);
+  box-shadow: var(--in-shadow-sm);
+}
+
+.in-card-pad {
+  padding: 22px;
+}
+
+.in-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--in-line-soft);
+}
+
+.in-card-head h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--in-ink-900);
+}
+
+.in-sec {
+  margin-bottom: 22px;
+}
+
+.in-sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.in-sec-head h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--in-ink-900);
+}
+
+.in-sec-head .in-sec-hint {
+  font-size: 13px;
+  color: var(--in-ink-500);
+}
+
+/* Quick-access cards (dashboard) */
+.in-qa-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.in-qa {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--in-line);
+  border-radius: var(--in-radius-sm);
+  background: #fff;
+  text-align: left;
+  transition: 0.16s;
+  cursor: pointer;
+}
+
+.in-qa:hover {
+  border-color: var(--in-blue-400);
+  box-shadow: var(--in-shadow-md);
+  transform: translateY(-2px);
+}
+
+.in-qa .in-qa-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.in-qa .in-qa-ic svg {
+  width: 20px;
+  height: 20px;
+}
+
+.in-qa .in-qa-t {
+  font-weight: 650;
+  font-size: 14px;
+  color: var(--in-ink-900);
+}
+
+.in-qa .in-qa-d {
+  font-size: 12.5px;
+  color: var(--in-ink-500);
+}
+
+.in-qa-ic.tone-blue {
+  background: var(--in-blue-100);
+  color: var(--in-blue-500);
+}
+
+.in-qa-ic.tone-gold {
+  background: var(--in-gold-soft);
+  color: var(--in-gold);
+}
+
+.in-qa-ic.tone-green {
+  background: var(--in-green-soft);
+  color: var(--in-green);
+}
+
+.in-qa-ic.tone-purple {
+  background: var(--in-purple-soft);
+  color: var(--in-purple);
+}
+
+.in-qa-ic.tone-teal {
+  background: var(--in-teal-soft);
+  color: var(--in-teal);
+}
+
+/* ========================================
+   MOBILE
+   ======================================== */
+
+.in-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 26, 56, 0.4);
+  z-index: 55;
+  opacity: 0;
+  visibility: hidden;
+  transition: 0.2s;
+}
+
+.in-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 1080px) {
+  .in-qa-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .in-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .in-sidebar.open {
+    transform: none;
+  }
+
+  .in-main {
+    margin-left: 0;
+  }
+
+  .in-hamburger {
+    display: flex;
+  }
+
+  .in-content {
+    padding: 20px;
+  }
+
+  .in-content.in-content--flush {
+    padding: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .in-qa-grid {
+    grid-template-columns: 1fr;
+  }
+}
